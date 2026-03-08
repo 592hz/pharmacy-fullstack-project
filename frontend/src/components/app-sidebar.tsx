@@ -15,21 +15,24 @@ import {
 } from "@/components/ui/sidebar"
 import { GalleryVerticalEndIcon, AudioLinesIcon, TerminalIcon, TerminalSquareIcon, BotIcon, BookOpenIcon, Settings2Icon, FrameIcon, PieChartIcon, MapIcon } from "lucide-react"
 
-// This is sample data.
+//du lieu mau
+
 const data = {
   user: {
-    name: "shadcn",
-    email: "m@example.com",
-    avatar: "/avatars/shadcn.jpg",
+    name: "Ngoc thai",
+    email: "ngocthai@example.com",
+    avatar: "/avata.jpg",
   },
+
+  //thông tin team + logo website
   teams: [
     {
-      name: "Acme Inc",
+      name: "Ngocmy",
       logo: (
         <GalleryVerticalEndIcon
         />
       ),
-      plan: "Enterprise",
+      plan: "Nhà thuốc",
     },
     {
       name: "Acme Corp.",
@@ -50,7 +53,7 @@ const data = {
   ],
   navMain: [
     {
-      title: "Playground",
+      title: "Khai báo",
       url: "#",
       icon: (
         <TerminalSquareIcon
@@ -59,21 +62,41 @@ const data = {
       isActive: true,
       items: [
         {
-          title: "History",
+          title: "Danh mục nhà cung cấp",
           url: "#",
         },
         {
-          title: "Starred",
+          title: "Danh mục khách hàng",
           url: "#",
         },
         {
-          title: "Settings",
+          title: "Danh mục sản phẩm",
+          url: "#",
+        },
+        {
+          title: "Danh mục nhóm sản phẩm",
+          url: "#",
+        },
+        {
+          title: "Danh mục nhóm thu chi",
+          url: "#",
+        },
+        {
+          title: "Danh mục đơn thuốc",
+          url: "#",
+        },
+        {
+          title: "Danh mục đơn vị tính",
+          url: "#",
+        },
+        {
+          title: "Danh mục hình thức thanh toán",
           url: "#",
         },
       ],
     },
     {
-      title: "Models",
+      title: "Tạo phiếu",
       url: "#",
       icon: (
         <BotIcon
@@ -81,95 +104,86 @@ const data = {
       ),
       items: [
         {
-          title: "Genesis",
+          title: "Danh sách phiếu nhập",
           url: "#",
         },
         {
-          title: "Explorer",
+          title: "Danh sách phiếu xuất",
           url: "#",
         },
         {
-          title: "Quantum",
+          title: "Khách trả lại",
           url: "#",
         },
+        {
+          title: "Kiểm kê tồn kho",
+          url: "#",
+        },
+        {
+          title: "Quản lý thu chi",
+          url: "#"
+        }
       ],
     },
     {
-      title: "Documentation",
+      title: "Nhập hàng",
       url: "#",
-      icon: (
-        <BookOpenIcon
-        />
-      ),
-      items: [
-        {
-          title: "Introduction",
-          url: "#",
-        },
-        {
-          title: "Get Started",
-          url: "#",
-        },
-        {
-          title: "Tutorials",
-          url: "#",
-        },
-        {
-          title: "Changelog",
-          url: "#",
-        },
-      ],
     },
     {
-      title: "Settings",
+      title: "Bán hàng",
       url: "#",
-      icon: (
-        <Settings2Icon
-        />
-      ),
-      items: [
-        {
-          title: "General",
-          url: "#",
-        },
-        {
-          title: "Team",
-          url: "#",
-        },
-        {
-          title: "Billing",
-          url: "#",
-        },
-        {
-          title: "Limits",
-          url: "#",
-        },
-      ],
     },
+    // {
+    //   title: "Báo cáo",
+    //   url: "#",
+    //   icon: (
+    //     <BotIcon
+    //     />
+    //   ),
+    //   items: [
+    //     {
+    //       title: "Báo cáo tồn kho",
+    //       url: "#",
+    //     },
+    //     {
+    //       title: "Báo cáo doanh thu",
+    //       url: "#",
+    //     },
+    //     {
+    //       title: "Báo cáo lãi lỗ",
+    //       url: "#",
+    //     },
+    //     {
+    //       title: "Báo cáo tồn kho",
+    //       url: "#",
+    //     },
+    //     {
+    //       title: "Báo cáo cận date - sắp hết ",
+    //       url: "#"
+    //     }
+    //   ],
+    // },
   ],
   projects: [
     {
-      name: "Design Engineering",
+      name: "Báo cáo doanh thu",
       url: "#",
       icon: (
-        <FrameIcon
-        />
+        <FrameIcon />
       ),
     },
     {
-      name: "Sales & Marketing",
+      name: "Báo cáo tồn kho",
       url: "#",
       icon: (
-        <PieChartIcon
-        />
+        <PieChartIcon />
       ),
     },
     {
-      name: "Travel",
+      name: "Báo cáo kinh doanh",
       url: "#",
       icon: (
-        <MapIcon
-        />
+        <MapIcon />
       ),
     },
   ],

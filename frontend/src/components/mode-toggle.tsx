@@ -14,7 +14,7 @@ export function ModeToggle() {
         >
             <Sun className="h-[1.2rem] w-[1.2rem] transition-all dark:hidden" />
             <Moon className="hidden h-[1.2rem] w-[1.2rem] transition-all dark:block" />
-            <span className="sr-only">Toggle theme</span>
+            <span className="sr-only">Đổi giao diện</span>
         </Button>
     )
 }

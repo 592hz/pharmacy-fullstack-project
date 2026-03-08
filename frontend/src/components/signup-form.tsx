@@ -62,20 +62,20 @@ export function SignupForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader className="text-center">
-          <CardTitle className="text-xl">Create your account</CardTitle>
+          <CardTitle className="text-xl">Đăng ký</CardTitle>
           <CardDescription>
-            Enter your email below to create your account
+            Đăng ký với tài khoản Apple hoặc Google của bạn
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)}>
             <FieldGroup>
               <Field>
-                <FieldLabel htmlFor="name">Full Name</FieldLabel>
+                <FieldLabel htmlFor="name">Họ và tên</FieldLabel>
                 <Input
                   id="name"
                   type="text"
-                  placeholder="John Doe"
+                  placeholder="Nguyễn Văn A"
                   error={!!errors.name}
                   errorMessage={errors.name?.message as React.ReactNode}
                   {...register("name")}
@@ -86,7 +86,7 @@ export function SignupForm({
                 <Input
                   id="email"
                   type="email"
-                  placeholder="m@example.com"
+                  placeholder="nguyenvana@example.com"
                   error={!!errors.email}
                   errorMessage={errors.email?.message as React.ReactNode}
                   {...register("email")}
@@ -95,7 +95,7 @@ export function SignupForm({
               <Field>
                 <Field className="grid grid-cols-2 gap-4">
                   <Field>
-                    <FieldLabel htmlFor="password">Password</FieldLabel>
+                    <FieldLabel htmlFor="password">Mật khẩu</FieldLabel>
                     <Input
                       id="password"
                       type="password"
@@ -106,7 +106,7 @@ export function SignupForm({
                   </Field>
                   <Field>
                     <FieldLabel htmlFor="confirm-password">
-                      Confirm Password
+                      Xác nhận mật khẩu
                     </FieldLabel>
                     <Input
                       id="confirm-password"
@@ -118,13 +118,13 @@ export function SignupForm({
                   </Field>
                 </Field>
                 <FieldDescription>
-                  Must be at least 8 characters long.
+                  Mật khẩu phải có ít nhất 8 ký tự
                 </FieldDescription>
               </Field>
               <Field>
-                <Button type="submit">Create Account</Button>
+                <Button type="submit" className="bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:text-white dark:hover:bg-blue-700">Đăng ký</Button>
                 <FieldDescription className="text-center">
-                  Already have an account? <a href="/login">Sign in</a>
+                  Bạn đã có tài khoản? <a href="/login">Đăng nhập</a>
                 </FieldDescription>
               </Field>
             </FieldGroup>
@@ -132,8 +132,8 @@ export function SignupForm({
         </CardContent>
       </Card>
       <FieldDescription className="px-6 text-center">
-        By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
-        and <a href="#">Privacy Policy</a>.
+        Bằng cách tiếp tục, bạn đồng ý với <a href="#">Điều khoản dịch vụ</a>{" "}
+        và <a href="#">Chính sách bảo mật</a> của chúng tôi.
       </FieldDescription>
     </div>
   )

@@ -21,7 +21,7 @@ import * as z from "zod"
 import { toast } from "sonner"
 
 const loginSchema = z.object({
-  email: z.string().email({ message: "Vui lòng nhập địa chỉ email hợp lệ" }),
+  name: z.string().min(6, { message: "Tên tài khoản phải có ít nhất 6 ký tự" }),
   password: z.string().min(6, { message: "Mật khẩu phải có ít nhất 6 ký tự" })
 })
 
@@ -38,7 +38,7 @@ export function LoginForm({
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      email: "",
+      name: "",
       password: "",
     },
   })
@@ -55,9 +55,9 @@ export function LoginForm({
     <div className={cn("flex flex-col gap-6", className)} {...props}>
       <Card>
         <CardHeader className="text-center">
-          <CardTitle className="text-xl">Welcome back</CardTitle>
+          <CardTitle className="text-xl">Chào mừng trở lại</CardTitle>
           <CardDescription>
-            Login with your Apple or Google account
+            Đăng nhập với tài khoản Apple hoặc Google của bạn
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -71,7 +71,7 @@ export function LoginForm({
                       fill="currentColor"
                     />
                   </svg>
-                  Login with Apple
+                  Đăng nhập với Apple
                 </Button>
                 <Button variant="outline" type="button">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -80,31 +80,32 @@ export function LoginForm({
                       fill="currentColor"
                     />
                   </svg>
-                  Login with Google
+                  Đăng nhâp vơi tài khoảng google
+
                 </Button>
               </Field>
               <FieldSeparator className="*:data-[slot=field-separator-content]:bg-card">
-                Or continue with
+                Hoặc tiếp tục với
               </FieldSeparator>
               <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
+                <FieldLabel htmlFor="name">Tên tài khoản</FieldLabel>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="m@example.com"
-                  error={!!errors.email}
-                  errorMessage={errors.email?.message as React.ReactNode}
-                  {...register("email")}
+                  id="name"
+                  type="text"
+                  placeholder="Nguyễn Văn A"
+                  error={!!errors.name}
+                  errorMessage={errors.name?.message as React.ReactNode}
+                  {...register("name")}
                 />
               </Field>
               <Field>
                 <div className="flex items-center">
-                  <FieldLabel htmlFor="password">Password</FieldLabel>
+                  <FieldLabel htmlFor="password">Mật khẩu</FieldLabel>
                   <a
                     href="#"
                     className="ml-auto text-sm underline-offset-4 hover:underline"
                   >
-                    Forgot your password?
+                    Quên mật khẩu?
                   </a>
                 </div>
                 <Input
@@ -116,9 +117,9 @@ export function LoginForm({
                 />
               </Field>
               <Field>
-                <Button type="submit">Login</Button>
+                <Button type="submit" className="bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:text-white dark:hover:bg-blue-700">Đăng nhập</Button>
                 <FieldDescription className="text-center">
-                  Don&apos;t have an account? <a href="/signup">Sign up</a>
+                  Bạn chưa có tài khoản? <a href="/signup">Đăng ký</a>
                 </FieldDescription>
               </Field>
             </FieldGroup>
@@ -126,8 +127,8 @@ export function LoginForm({
         </CardContent>
       </Card>
       <FieldDescription className="px-6 text-center">
-        By clicking continue, you agree to our <a href="#">Terms of Service</a>{" "}
-        and <a href="#">Privacy Policy</a>.
+        Bằng cách tiếp tục, bạn đồng ý với <a href="#">Điều khoản dịch vụ</a>{" "}
+        và <a href="#">Chính sách bảo mật</a> của chúng tôi.
       </FieldDescription>
     </div>
   )
