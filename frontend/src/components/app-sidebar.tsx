@@ -29,8 +29,7 @@ const data = {
     {
       name: "Ngocmy",
       logo: (
-        <GalleryVerticalEndIcon
-        />
+        <img src="/ngoc_my_logo.png" alt="Ngọc Mỹ Logo" className="w-full h-full object-cover rounded-md" />
       ),
       plan: "Nhà thuốc",
     },
@@ -63,7 +62,7 @@ const data = {
       items: [
         {
           title: "Danh mục nhà cung cấp",
-          url: "#",
+          url: "/suppliers",
         },
         {
           title: "Danh mục khách hàng",
