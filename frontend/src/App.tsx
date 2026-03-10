@@ -4,8 +4,11 @@ import DashboardLayout from "@/layouts/DashboardLayout"
 import AuthLayout from "@/layouts/AuthLayout"
 import DashboardPage from "@/pages/DashboardPage"
 import SuppliersPage from "@/pages/SuppliersPage"
+import CustomersPage from "@/pages/CustomersPage"
+import IncomeExpenseCategoriesPage from "@/pages/IncomeExpenseCategoriesPage"
 import LoginPage from "@/pages/LoginPage"
 import SignupPage from "@/pages/SignupPage"
+import UnitsPage from "@/pages/UnitsPage"
 
 export function App() {
   return (
@@ -16,6 +19,9 @@ export function App() {
           <Route path="/" element={<DashboardLayout />}>
             <Route index element={<DashboardPage />} />
             <Route path="suppliers" element={<SuppliersPage />} />
+            <Route path="customers" element={<CustomersPage />} />
+            <Route path="income-expense-categories" element={<IncomeExpenseCategoriesPage />} />
+            <Route path="units" element={<UnitsPage />} />
           </Route>
 
           <Route element={<AuthLayout />}>
