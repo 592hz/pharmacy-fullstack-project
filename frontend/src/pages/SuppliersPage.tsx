@@ -151,7 +151,7 @@ export default function SuppliersPage() {
                                 placeholder="Tìm kiếm"
                                 className="w-full sm:max-w-md rounded-l-md border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50"
                             />
-                            <button className="flex items-center justify-center bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-r-md font-medium transition-colors text-sm">
+                            <button className="flex items-center justify-center bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-6 py-2 rounded-r-md font-medium transition-colors text-sm">
                                 Tìm kiếm
                             </button>
                         </div>
@@ -159,20 +159,20 @@ export default function SuppliersPage() {
                         <div className="flex flex-wrap gap-2">
                             <button
                                 onClick={() => setIsAddModalOpen(true)}
-                                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md font-medium transition-colors text-sm"
+                                className="flex items-center gap-2 bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-4 py-2 rounded-md font-medium transition-colors text-sm"
                             >
                                 <Plus size={16} /> Thêm mới
                             </button>
-                            <button className="flex items-center justify-center bg-green-600 hover:bg-green-700 text-white w-10 h-10 rounded-md transition-colors" title="Export">
+                            <button className="flex items-center justify-center bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white w-10 h-10 rounded-md transition-colors" title="Export">
                                 <Download size={18} />
                             </button>
-                            <button className="flex items-center justify-center bg-green-600 hover:bg-green-700 text-white w-10 h-10 rounded-md transition-colors" title="Import">
+                            <button className="flex items-center justify-center bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white w-10 h-10 rounded-md transition-colors" title="Import">
                                 <Upload size={18} />
                             </button>
-                            <button className="flex items-center justify-center bg-green-600 hover:bg-green-700 text-white w-10 h-10 rounded-md transition-colors" title="Columns">
+                            <button className="flex items-center justify-center bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white w-10 h-10 rounded-md transition-colors" title="Columns">
                                 <SlidersHorizontal size={18} />
                             </button>
-                            <button className="flex items-center justify-center bg-green-600 hover:bg-green-700 text-white w-10 h-10 rounded-md transition-colors" title="Print/Export file">
+                            <button className="flex items-center justify-center bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white w-10 h-10 rounded-md transition-colors" title="Print/Export file">
                                 <FileText size={18} />
                             </button>
                         </div>
@@ -215,7 +215,7 @@ export default function SuppliersPage() {
                                                     setEditingSupplier(supplier)
                                                     setIsAddModalOpen(true)
                                                 }}
-                                                className="bg-green-600 hover:bg-green-700 text-white px-2 py-1.5 rounded text-[11px] font-semibold"
+                                                className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-2 py-1.5 rounded text-[11px] font-semibold"
                                             >
                                                 Sửa
                                             </button>

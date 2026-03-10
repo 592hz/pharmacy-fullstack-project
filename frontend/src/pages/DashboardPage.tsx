@@ -1,6 +1,7 @@
 import { useState } from "react"
-import { DollarSign, Calendar, TrendingUp, Activity, ShoppingCart, Flag } from "lucide-react"
+import { DollarSign, Calendar, TrendingUp, Activity, ShoppingCart, Flag, ArrowUpRight, ArrowDownRight } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts"
+import { mockCategories } from "@/lib/mock-data"
 
 const mockDataDay = [
     { name: '08:00', DoanhThu: 1200000, LoiNhuan: 300000 },
@@ -31,6 +32,7 @@ const mockDataYear = [
     { name: 'Tháng 6', DoanhThu: 590000000, LoiNhuan: 170000000 },
 ]
 
+
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value)
 }
@@ -54,6 +56,17 @@ export default function DashboardPage() {
 
     const totalYear = mockDataYear.reduce((sum, item) => sum + item.DoanhThu, 0)
     const totalProfitYear = mockDataYear.reduce((sum, item) => sum + item.LoiNhuan, 0)
+
+    //tổng thu chi tháng này
+    const currentTotalIncome = mockCategories.filter(c => c.type === "Thu").reduce((sum, item) => sum + (item.amount || 0), 0)
+    const currentTotalExpense = mockCategories.filter(c => c.type === "Chi").reduce((sum, item) => sum + (item.amount || 0), 0)
+
+    //tổng thu chi tháng trước
+    const previousTotalIncome = 150000000
+    const previousTotalExpense = 25000000
+
+    const incomeGrowth = previousTotalIncome ? ((currentTotalIncome - previousTotalIncome) / previousTotalIncome) * 100 : 0
+    const expenseGrowth = previousTotalExpense ? ((currentTotalExpense - previousTotalExpense) / previousTotalExpense) * 100 : 0
 
     const stats = [
         {
@@ -219,7 +232,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Các thông tin phụ */}
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
                 <div className="flex items-center space-x-4 rounded-xl border bg-white dark:bg-neutral-900 p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-500 dark:bg-blue-900/40">
                         <ShoppingCart size={22} />
@@ -242,6 +255,33 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
+                <div className="flex items-center space-x-4 rounded-xl border bg-white dark:bg-neutral-900 p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+                    <div className="flex min-w-[48px] h-12 w-12 items-center justify-center rounded-full bg-green-100 text-[#65a34e] dark:bg-green-900/40">
+                        <TrendingUp size={22} />
+                    </div>
+                    <div className="overflow-hidden">
+                        <p className="text-sm font-medium text-muted-foreground truncate">Tổng thu tháng</p>
+                        <p className="text-lg font-bold tracking-tight text-foreground truncate">{formatCurrency(currentTotalIncome)}</p>
+                        <div className={`flex items-center gap-1 text-[11px] font-medium ${incomeGrowth >= 0 ? "text-[#65a34e]" : "text-red-500"} truncate`}>
+                            {incomeGrowth >= 0 ? <ArrowUpRight size={12} /> : <ArrowDownRight size={12} />}
+                            {Math.abs(incomeGrowth).toFixed(1)}% so với tháng trước
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex items-center space-x-4 rounded-xl border bg-white dark:bg-neutral-900 p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+                    <div className="flex min-w-[48px] h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-500 dark:bg-red-900/40">
+                        <DollarSign size={22} />
+                    </div>
+                    <div className="overflow-hidden">
+                        <p className="text-sm font-medium text-muted-foreground truncate">Tổng chi tháng</p>
+                        <p className="text-lg font-bold tracking-tight text-foreground truncate">{formatCurrency(currentTotalExpense)}</p>
+                        <div className={`flex items-center gap-1 text-[11px] font-medium ${expenseGrowth <= 0 ? "text-[#65a34e]" : "text-red-500"} truncate`}>
+                            {expenseGrowth <= 0 ? <ArrowDownRight size={12} /> : <ArrowUpRight size={12} />}
+                            {Math.abs(expenseGrowth).toFixed(1)}% so với tháng trước
+                        </div>
+                    </div>
+                </div>
                 <div className="flex items-center space-x-4 rounded-xl border bg-white dark:bg-neutral-900 p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 text-orange-500 dark:bg-orange-900/40">
                         <Activity size={22} />
