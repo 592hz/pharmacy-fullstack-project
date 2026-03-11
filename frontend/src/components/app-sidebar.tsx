@@ -70,11 +70,11 @@ const data = {
         },
         {
           title: "Danh mục sản phẩm",
-          url: "#",
+          url: "/products",
         },
         {
           title: "Danh mục nhóm sản phẩm",
-          url: "#",
+          url: "/product-categories",
         },
         {
           title: "Danh mục nhóm thu chi",
@@ -90,7 +90,7 @@ const data = {
         },
         {
           title: "Danh mục hình thức thanh toán",
-          url: "#",
+          url: "/payment-methods",
         },
       ],
     },
