@@ -122,7 +122,7 @@ export function SignupForm({
                 </FieldDescription>
               </Field>
               <Field>
-                <Button type="submit" className="bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-600 dark:text-white dark:hover:bg-blue-700">Đăng ký</Button>
+                <Button type="submit" className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white  dark:bg-[#5c9a38]  dark:text-white dark:hover:bg-[#5c9a38]/90">Đăng ký</Button>
                 <FieldDescription className="text-center">
                   Bạn đã có tài khoản? <a href="/login">Đăng nhập</a>
                 </FieldDescription>
@@ -131,10 +131,10 @@ export function SignupForm({
           </form>
         </CardContent>
       </Card>
-      <FieldDescription className="px-6 text-center">
+      {/* <FieldDescription className="px-6 text-center">
         Bằng cách tiếp tục, bạn đồng ý với <a href="#">Điều khoản dịch vụ</a>{" "}
         và <a href="#">Chính sách bảo mật</a> của chúng tôi.
-      </FieldDescription>
+      </FieldDescription> */}
     </div>
   )
 }

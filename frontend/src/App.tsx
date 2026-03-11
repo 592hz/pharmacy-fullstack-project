@@ -9,6 +9,9 @@ import IncomeExpenseCategoriesPage from "@/pages/IncomeExpenseCategoriesPage"
 import LoginPage from "@/pages/LoginPage"
 import SignupPage from "@/pages/SignupPage"
 import UnitsPage from "@/pages/UnitsPage"
+import PaymentMethodsPage from "@/pages/PaymentMethodsPage"
+import ProductCategoriesPage from "@/pages/ProductCategoriesPage"
+import ProductsPage from "@/pages/ProductsPage"
 
 export function App() {
   return (
@@ -22,6 +25,9 @@ export function App() {
             <Route path="customers" element={<CustomersPage />} />
             <Route path="income-expense-categories" element={<IncomeExpenseCategoriesPage />} />
             <Route path="units" element={<UnitsPage />} />
+            <Route path="payment-methods" element={<PaymentMethodsPage />} />
+            <Route path="product-categories" element={<ProductCategoriesPage />} />
+            <Route path="products" element={<ProductsPage />} />
           </Route>
 
           <Route element={<AuthLayout />}>
