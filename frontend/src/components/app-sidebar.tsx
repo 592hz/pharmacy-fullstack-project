@@ -104,7 +104,7 @@ const data = {
       items: [
         {
           title: "Danh sách phiếu nhập",
-          url: "#",
+          url: "/purchase-orders",
         },
         {
           title: "Danh sách phiếu xuất",
