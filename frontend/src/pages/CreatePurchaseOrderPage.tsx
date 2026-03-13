@@ -3,7 +3,7 @@ import { z } from "zod"
 import { useNavigate } from "react-router-dom"
 import { Plus, Search, PlusCircle, Trash2, Save, X, Calendar, FileText, CreditCard } from "lucide-react"
 import { toast } from "sonner"
-import { mockProducts, type PurchaseOrderItem, addMockPurchaseOrder, type PurchaseOrder } from "@/lib/mock-data"
+import { mockProducts, type PurchaseOrderItem, addMockPurchaseOrder, type PurchaseOrder, mockSuppliersList } from "@/lib/mock-data"
 import { AddProductModal } from "@/components/add-product-modal"
 
 export default function CreatePurchaseOrderPage() {
@@ -255,15 +255,16 @@ export default function CreatePurchaseOrderPage() {
                     {/* Supplier Select */}
                     <div className="col-span-2 flex flex-col gap-1.5">
                         <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Nhà cung cấp *</label>
-                        <div className="flex gap-2">
-                            <input
-                                type="text"
-                                placeholder="Nhập tên nhà cung cấp..."
-                                value={supplierName}
-                                onChange={(e) => setSupplierName(e.target.value)}
-                                className="flex-1 bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
-                            />
-                        </div>
+                        <select
+                            value={supplierName}
+                            onChange={(e) => setSupplierName(e.target.value)}
+                            className="w-full bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
+                        >
+                            <option value="">Chọn nhà cung cấp...</option>
+                            {mockSuppliersList.map(s => (
+                                <option key={s.id} value={s.name}>{s.name}</option>
+                            ))}
+                        </select>
                     </div>
 
                     {/* Order Meta Info */}

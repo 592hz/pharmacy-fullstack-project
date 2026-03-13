@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { X } from "lucide-react"
 import { toast } from "sonner"
+import { mockProductCategories, mockSuppliersList } from "@/lib/mock-data"
 
 // dữ liệu được lấy từ database 
 export interface ProductUnit {
@@ -59,24 +60,6 @@ const initialFormData: ProductFormData = {
         }
     ]
 }
-
-// --- Mock Data for Dropdowns (to be replaced with API later) ---
-// 1. Nhóm sản phẩm
-const mockCategories = [
-    { id: "c1", name: "Dược phẩm" },
-    { id: "c2", name: "Thực phẩm chức năng" },
-    { id: "c3", name: "Thuốc dùng ngoài" },
-    { id: "c4", name: "Thuốc kê đơn" },
-    { id: "c5", name: "Thuốc không kê đơn" },
-]
-
-// 2. Nhà cung cấp
-const mockSuppliers = [
-    { id: "s1", name: "Công ty Cổ phần Dược phẩm Hà Tây" },
-    { id: "s2", name: "Công ty Cổ phần Traphaco" },
-    { id: "s3", name: "Liên doanh Stellapharm" },
-    { id: "s4", name: "Công ty Cổ phần Dược phẩm OPC" }
-]
 
 // 3. Đơn vị tính
 const mockUnits = [
@@ -290,7 +273,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                     onChange={(e) => handleInputChange('supplierId', e.target.value)}
                                 >
                                     <option value="">Chọn nhà cung cấp...</option>
-                                    {mockSuppliers.map(s => (
+                                    {mockSuppliersList.map(s => (
                                         <option key={s.id} value={s.id}>{s.name}</option>
                                     ))}
                                 </select>
@@ -306,7 +289,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                     onChange={(e) => handleInputChange('categoryId', e.target.value)}
                                 >
                                     <option value="">Chọn nhóm...</option>
-                                    {mockCategories.map(c => (
+                                    {mockProductCategories.map(c => (
                                         <option key={c.id} value={c.id}>{c.name}</option>
                                     ))}
                                 </select>

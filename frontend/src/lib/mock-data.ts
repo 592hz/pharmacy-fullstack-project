@@ -63,6 +63,21 @@ export const setMockCategories = (newCategories: Category[]) => {
     mockCategories = newCategories
 }
 
+export const mockProductCategories = [
+    { id: "c1", name: "Dược phẩm" },
+    { id: "c2", name: "Thực phẩm chức năng" },
+    { id: "c3", name: "Thuốc dùng ngoài" },
+    { id: "c4", name: "Thuốc kê đơn" },
+    { id: "c5", name: "Thuốc không kê đơn" },
+]
+
+export const mockSuppliersList = [
+    { id: "s1", name: "Công ty Cổ phần Dược phẩm Hà Tây" },
+    { id: "s2", name: "Công ty Cổ phần Traphaco" },
+    { id: "s3", name: "Liên doanh Stellapharm" },
+    { id: "s4", name: "Công ty Cổ phần Dược phẩm OPC" }
+]
+
 // ─── DANH MỤC SẢN PHẨM ──────────────────────────────────────────────────────
 export interface Product {
     id: string
