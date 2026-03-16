@@ -108,7 +108,7 @@ const data = {
         },
         {
           title: "Danh sách phiếu xuất",
-          url: "#",
+          url: "/export-manage",
         },
         {
           title: "Khách trả lại",

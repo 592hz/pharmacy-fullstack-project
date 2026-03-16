@@ -131,10 +131,6 @@ export function SignupForm({
           </form>
         </CardContent>
       </Card>
-      {/* <FieldDescription className="px-6 text-center">
-        Bằng cách tiếp tục, bạn đồng ý với <a href="#">Điều khoản dịch vụ</a>{" "}
-        và <a href="#">Chính sách bảo mật</a> của chúng tôi.
-      </FieldDescription> */}
     </div>
   )
 }

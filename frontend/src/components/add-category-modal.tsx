@@ -35,9 +35,11 @@ export default function AddCategoryModal({
         const type = formData.get("type") as string
         const amountString = formData.get("amount") as string
         const amount = amountString ? parseInt(amountString.replace(/,/g, ''), 10) : 0
+        const date = formData.get("date") as string
 
         if (!name) newErrors.name = "Vui lòng nhập tên nhóm"
         if (!amount || amount <= 0) newErrors.amount = "Vui lòng nhập số tiền hợp lệ"
+        if (!date) newErrors.date = "Vui lòng chọn ngày"
 
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors)
@@ -50,6 +52,7 @@ export default function AddCategoryModal({
             type: type as "Thu" | "Chi",
             amount: amount,
             notes: formData.get("notes") as string,
+            date: date,
         }
 
         if (initialData) {
@@ -124,6 +127,21 @@ export default function AddCategoryModal({
                                 </div>
                             </div>
 
+                            <div className="grid grid-cols-2 gap-5">
+                                <div className="space-y-1.5">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                                        Ngày <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                        type="date"
+                                        name="date"
+                                        defaultValue={initialData?.date || new Date().toISOString().split('T')[0]}
+                                        className={`w-full rounded-md border ${errors.date ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-neutral-700 focus:ring-[#65a34e]'} bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-1 dark:bg-neutral-950 dark:text-white transition-shadow`}
+                                    />
+                                    {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
+                                </div>
+                            </div>
+
                             <div className="space-y-1.5">
                                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                     Ghi chú
@@ -131,7 +149,7 @@ export default function AddCategoryModal({
                                 <textarea
                                     name="notes"
                                     defaultValue={initialData?.notes || ""}
-                                    rows={4}
+                                    rows={3}
                                     className="w-full rounded-md border border-gray-300 dark:border-neutral-700 bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-1 focus:ring-[#65a34e] dark:bg-neutral-950 dark:text-white transition-shadow resize-none"
                                     placeholder="Nhập ghi chú"
                                 />

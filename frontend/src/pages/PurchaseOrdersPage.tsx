@@ -27,6 +27,12 @@ export default function PurchaseOrdersPage() {
     const [orders, setOrders] = useState<PurchaseOrder[]>(mockPurchaseOrders)
 
     // ── Filter state ─────────────────────────────────────────────────────────
+    const [dateFilterType, setDateFilterType] = useState<"Ngày" | "Từ ngày" | "Tháng" | "Quý" | "Năm">("Năm")
+    const [filterDate, setFilterDate] = useState<string>(new Date().toISOString().split("T")[0])
+    const [filterStartDate, setFilterStartDate] = useState<string>("")
+    const [filterEndDate, setFilterEndDate] = useState<string>("")
+    const [filterMonth, setFilterMonth] = useState<string>(String(new Date().getMonth() + 1).padStart(2, "0"))
+    const [filterQuarter, setFilterQuarter] = useState<string>("1")
     const [filterYear, setFilterYear] = useState<string>("2026")
     const [filterKeyword, setFilterKeyword] = useState("")
     const [filterProduct, setFilterProduct] = useState("")
@@ -43,8 +49,27 @@ export default function PurchaseOrdersPage() {
     // ── Derived filtered + paginated data ────────────────────────────────────
     const filtered = useMemo(() => {
         return orders.filter((o) => {
-            const year = new Date(o.importDate).getFullYear().toString()
-            if (filterYear && year !== filterYear) return false
+            const orderDate = new Date(o.importDate)
+            const year = orderDate.getFullYear().toString()
+            const month = String(orderDate.getMonth() + 1).padStart(2, "0")
+            const date = orderDate.toISOString().split("T")[0]
+            const quarter = Math.floor(orderDate.getMonth() / 3) + 1
+
+            // Advanced Date Filtering
+            if (dateFilterType === "Năm") {
+                if (filterYear && year !== filterYear) return false
+            } else if (dateFilterType === "Tháng") {
+                if (filterYear && year !== filterYear) return false
+                if (filterMonth && month !== filterMonth) return false
+            } else if (dateFilterType === "Ngày") {
+                if (filterDate && date !== filterDate) return false
+            } else if (dateFilterType === "Từ ngày") {
+                if (filterStartDate && date < filterStartDate) return false
+                if (filterEndDate && date > filterEndDate) return false
+            } else if (dateFilterType === "Quý") {
+                if (filterYear && year !== filterYear) return false
+                if (filterQuarter && quarter.toString() !== filterQuarter) return false
+            }
 
             const kw = filterKeyword.toLowerCase()
             if (
@@ -57,7 +82,7 @@ export default function PurchaseOrdersPage() {
 
             return true
         })
-    }, [orders, filterYear, filterKeyword])
+    }, [orders, dateFilterType, filterYear, filterMonth, filterDate, filterStartDate, filterEndDate, filterQuarter, filterKeyword])
 
     // Totals for the summary row
     const totals = useMemo(
@@ -129,17 +154,100 @@ export default function PurchaseOrdersPage() {
                 <div className="flex">
                     {/* ── Left: Filter Panel ───────────────────────────────────── */}
                     <div className="w-44 shrink-0 border-r border-gray-200 dark:border-neutral-800 p-3 flex flex-col gap-2 bg-gray-50 dark:bg-neutral-900/50">
-                        {/* Năm */}
+                        {/* Date Filter Type Selection */}
                         <div>
-                            <label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Năm</label>
-                            <input
-                                type="text"
-                                value={filterYear}
-                                onChange={(e) => setFilterYear(e.target.value)}
-                                placeholder="Năm"
-                                className="w-full rounded border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50"
-                            />
+                            <select
+                                value={dateFilterType}
+                                onChange={(e) => setDateFilterType(e.target.value as any)}
+                                className="w-full rounded border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-green-500/50"
+                            >
+                                <option value="Ngày">Ngày</option>
+                                <option value="Từ ngày">Từ ngày</option>
+                                <option value="Tháng">Tháng</option>
+                                <option value="Quý">Quý</option>
+                                <option value="Năm">Năm</option>
+                            </select>
                         </div>
+
+                        {/* Dynamic Date Inputs based on Type */}
+                        <div className="flex flex-col gap-2">
+                            {dateFilterType === "Ngày" && (
+                                <input
+                                    type="date"
+                                    value={filterDate}
+                                    onChange={(e) => setFilterDate(e.target.value)}
+                                    className="w-full rounded border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-green-500/50"
+                                />
+                            )}
+                            {dateFilterType === "Từ ngày" && (
+                                <>
+                                    <input
+                                        type="date"
+                                        value={filterStartDate}
+                                        onChange={(e) => setFilterStartDate(e.target.value)}
+                                        className="w-full rounded border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-green-500/50"
+                                    />
+                                    <input
+                                        type="date"
+                                        value={filterEndDate}
+                                        onChange={(e) => setFilterEndDate(e.target.value)}
+                                        className="w-full rounded border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-green-500/50"
+                                    />
+                                </>
+                            )}
+                            {dateFilterType === "Tháng" && (
+                                <div className="flex gap-1">
+                                    <select
+                                        value={filterMonth}
+                                        onChange={(e) => setFilterMonth(e.target.value)}
+                                        className="flex-1 rounded border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-1 py-1 text-xs outline-none"
+                                    >
+                                        {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, "0")).map(m => (
+                                            <option key={m} value={m}>T.{m}</option>
+                                        ))}
+                                    </select>
+                                    <input
+                                        type="text"
+                                        value={filterYear}
+                                        onChange={(e) => setFilterYear(e.target.value)}
+                                        placeholder="Năm"
+                                        className="w-16 rounded border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-1 py-1 text-xs outline-none"
+                                    />
+                                </div>
+                            )}
+                            {dateFilterType === "Quý" && (
+                                <div className="flex gap-1">
+                                    <select
+                                        value={filterQuarter}
+                                        onChange={(e) => setFilterQuarter(e.target.value)}
+                                        className="flex-1 rounded border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-1 py-1 text-xs outline-none"
+                                    >
+                                        <option value="1">Quý 1</option>
+                                        <option value="2">Quý 2</option>
+                                        <option value="3">Quý 3</option>
+                                        <option value="4">Quý 4</option>
+                                    </select>
+                                    <input
+                                        type="text"
+                                        value={filterYear}
+                                        onChange={(e) => setFilterYear(e.target.value)}
+                                        placeholder="Năm"
+                                        className="w-16 rounded border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-1 py-1 text-xs outline-none"
+                                    />
+                                </div>
+                            )}
+                            {dateFilterType === "Năm" && (
+                                <input
+                                    type="text"
+                                    value={filterYear}
+                                    onChange={(e) => setFilterYear(e.target.value)}
+                                    placeholder="Năm"
+                                    className="w-full rounded border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-green-500/50"
+                                />
+                            )}
+                        </div>
+
+                        <div className="border-t border-gray-200 dark:border-neutral-800 my-1"></div>
 
                         {/* NCC / Số phiếu / Số hóa đơn */}
                         <div>
