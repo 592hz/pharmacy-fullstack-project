@@ -15,6 +15,8 @@ import ProductsPage from "@/pages/ProductsPage"
 import PurchaseOrdersPage from "@/pages/PurchaseOrdersPage"
 import PurchaseOrderDetailPage from "@/pages/PurchaseOrderDetailPage"
 import CreatePurchaseOrderPage from "@/pages/CreatePurchaseOrderPage"
+import ExportManagePage from "@/pages/ExportManagePage"
+import ExportOrderDetailPage from "@/pages/ExportOrderDetailPage"
 
 export function App() {
   return (
@@ -31,6 +33,8 @@ export function App() {
             <Route path="payment-methods" element={<PaymentMethodsPage />} />
             <Route path="product-categories" element={<ProductCategoriesPage />} />
             <Route path="products" element={<ProductsPage />} />
+            <Route path="export-manage" element={<ExportManagePage />} />
+            <Route path="export-manage/:id" element={<ExportOrderDetailPage />} />
             <Route path="purchase-orders" element={<PurchaseOrdersPage />} />
             <Route path="purchase-orders/create" element={<CreatePurchaseOrderPage />} />
             <Route path="purchase-orders/:id" element={<PurchaseOrderDetailPage />} />
