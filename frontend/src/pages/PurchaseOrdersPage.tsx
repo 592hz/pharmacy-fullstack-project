@@ -33,7 +33,7 @@ export default function PurchaseOrdersPage() {
     const [filterEndDate, setFilterEndDate] = useState<string>("")
     const [filterMonth, setFilterMonth] = useState<string>(String(new Date().getMonth() + 1).padStart(2, "0"))
     const [filterQuarter, setFilterQuarter] = useState<string>("1")
-    const [filterYear, setFilterYear] = useState<string>("2026")
+    const [filterYear, setFilterYear] = useState<string>(new Date().getFullYear().toString())
     const [filterKeyword, setFilterKeyword] = useState("")
     const [filterProduct, setFilterProduct] = useState("")
     const [filterType, setFilterType] = useState<"Phiếu nhập" | "Phiếu xuất" | "">("")
@@ -158,7 +158,7 @@ export default function PurchaseOrdersPage() {
                         <div>
                             <select
                                 value={dateFilterType}
-                                onChange={(e) => setDateFilterType(e.target.value as any)}
+                                onChange={(e) => setDateFilterType(e.target.value as "Ngày" | "Từ ngày" | "Tháng" | "Quý" | "Năm")}
                                 className="w-full rounded border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-green-500/50"
                             >
                                 <option value="Ngày">Ngày</option>

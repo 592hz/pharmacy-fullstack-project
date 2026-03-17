@@ -6,6 +6,18 @@ export interface Category {
     amount: number
     date: string // ISO date string (YYYY-MM-DD or YYYY-MM)
 }
+
+export interface Customer {
+    id: string
+    name: string
+    phone: string
+    dob: string
+    address: string
+    accumulatedPoints: string
+    remainingPoints: number
+    debt: number | string
+    hasApp: boolean
+}
 // tạo dữ liệu giả cho danh mục thu chi để test
 export let mockCategories: Category[] = [
     {
@@ -89,8 +101,92 @@ export let mockCategories: Category[] = [
         type: "Thu",
         amount: 1500000,
         date: "2025-03-05"
+    },
+    // records for 2026
+    {
+        id: "2026-1",
+        name: "Doanh thu bán lẻ",
+        notes: "Tổng kết tháng 1 / 2026",
+        type: "Thu",
+        amount: 55000000,
+        date: "2026-01-31"
+    },
+    {
+        id: "2026-2",
+        name: "Chi phí mặt bằng",
+        notes: "Mặt bằng tháng 1 / 2026",
+        type: "Chi",
+        amount: 14000000,
+        date: "2026-01-05"
+    },
+    {
+        id: "2026-3",
+        name: "Lương nhân viên",
+        notes: "Lương tháng 1 / 2026",
+        type: "Chi",
+        amount: 18000000,
+        date: "2026-01-25"
+    },
+    {
+        id: "2026-4",
+        name: "Doanh thu sỉ",
+        notes: "Tổng kết tháng 1 / 2026",
+        type: "Thu",
+        amount: 135000000,
+        date: "2026-01-31"
     }
 ]
+
+export let mockCustomers: Customer[] = [
+    {
+        id: "KH00001",
+        name: "Khách lẻ",
+        phone: "",
+        dob: "",
+        address: "",
+        accumulatedPoints: "0",
+        remainingPoints: 0,
+        debt: 0,
+        hasApp: false
+    },
+    {
+        id: "KH00004",
+        name: "Khách sỉ",
+        phone: "0901234567",
+        dob: "1990-05-15",
+        address: "Quận 1, TP.HCM",
+        accumulatedPoints: "1200",
+        remainingPoints: 1200,
+        debt: 0,
+        hasApp: true
+    },
+    {
+        id: "KH00003",
+        name: "Trần Văn A",
+        phone: "0912345678",
+        dob: "1985-10-20",
+        address: "Quận 3, TP.HCM",
+        accumulatedPoints: "500",
+        remainingPoints: 500,
+        debt: "1,500,000",
+        hasApp: true
+    },
+    {
+        id: "KH00002",
+        name: "Nguyễn Thị B",
+        phone: "0987654321",
+        dob: "1995-02-10",
+        address: "Quận Bình Thạnh, TP.HCM",
+        accumulatedPoints: "100",
+        remainingPoints: 100,
+        debt: 0,
+        hasApp: false
+    }
+]
+
+export const setMockCustomers = (customers: Customer[]) => {
+    mockCustomers = customers
+}
 
 // Simple helper to allow updating the reference globally
 export const setMockCategories = (newCategories: Category[]) => {
@@ -121,6 +217,10 @@ export interface Product {
     retailPrice: number
     wholesalePrice: number
     registrationNo?: string
+    isDQG?: boolean
+    manufacturer?: string
+    expiryDate?: string
+    isOnDQG?: boolean
 }
 
 export const mockProducts: Product[] = [
@@ -768,4 +868,37 @@ export const setMockPurchaseOrders = (orders: PurchaseOrder[]) => {
 
 export const addMockPurchaseOrder = (order: PurchaseOrder) => {
     mockPurchaseOrders = [order, ...mockPurchaseOrders]
+}
+
+export interface Note {
+    id: string
+    title: string
+    content: string
+    date: string
+    color?: string
+}
+
+export let mockNotes: Note[] = [
+    {
+        id: "1",
+        title: "Lưu ý nhập hàng",
+        content: "Kiểm tra kỹ hạn sử dụng đối với các dòng kháng sinh mới về.",
+        date: "2026-03-15T10:00:00",
+        color: "bg-blue-100"
+    },
+    {
+        id: "2",
+        title: "Nhắc nhở khách hàng",
+        content: "Anh Nam (KH001) dặn lấy thêm 2 hộp thực phẩm chức năng vào thứ 5.",
+        date: "2026-03-16T15:30:00",
+        color: "bg-yellow-100"
+    }
+]
+
+export const setMockNotes = (notes: Note[]) => {
+    mockNotes = notes
+}
+
+export const addMockNote = (note: Note) => {
+    mockNotes = [note, ...mockNotes]
 }

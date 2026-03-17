@@ -31,7 +31,7 @@ export default function ExportManagePage() {
     const [filterEndDate, setFilterEndDate] = useState<string>("")
     const [filterMonth, setFilterMonth] = useState<string>(String(new Date().getMonth() + 1).padStart(2, "0"))
     const [filterQuarter, setFilterQuarter] = useState<string>("1")
-    const [filterYear, setFilterYear] = useState<string>("2025")
+    const [filterYear, setFilterYear] = useState<string>(new Date().getFullYear().toString())
     const [filterKeyword, setFilterKeyword] = useState("")
     const [filterPrescription, setFilterPrescription] = useState(false)
 
@@ -267,9 +267,11 @@ export default function ExportManagePage() {
 
                     {/* ── Main Content Area ──────────────────────────────── */}
                     <div className="flex-1 flex flex-col min-w-0">
-                        {/* Action Bar */}
                         <div className="flex items-center gap-2 mb-4">
-                            <button className="bg-[#5c9a38] hover:bg-[#4d822f] text-white px-4 py-1.5 rounded flex items-center gap-2 text-sm font-bold shadow-sm">
+                            <button
+                                onClick={() => navigate("/export-manage/create")}
+                                className="bg-[#5c9a38] hover:bg-[#4d822f] text-white px-4 py-1.5 rounded flex items-center gap-2 text-sm font-bold shadow-sm transition-all active:scale-95"
+                            >
                                 <Plus size={16} /> Bán Hàng
                             </button>
                             <button className="p-2 border border-gray-300 dark:border-neutral-700 rounded hover:bg-gray-100 dark:hover:bg-neutral-800 bg-[#5c9a38] text-white">

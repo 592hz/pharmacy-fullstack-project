@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { X } from "lucide-react"
 import { toast } from "sonner"
+import { paymentMethodSchema } from "@/lib/schemas"
 
 interface AddPaymentMethodModalProps {
     isOpen: boolean
@@ -23,25 +24,26 @@ export default function AddPaymentMethodModal({ isOpen, onClose, onAdd, onEdit, 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         const formData = new FormData(e.currentTarget)
-        const name = formData.get('name') as string
-        const notes = formData.get('notes') as string
-        const isDefault = formData.get('isDefault') === 'on'
-
-        const newErrors: Record<string, string> = {}
-
-        if (!name?.trim()) newErrors.name = 'Vui lòng nhập tên phương thức thanh toán'
-
-        if (Object.keys(newErrors).length > 0) {
+        const rawData = Object.fromEntries(formData)
+        const result = paymentMethodSchema.safeParse({
+            ...rawData,
+            isDefault: formData.get('isDefault') === 'on'
+        })
+        
+        if (!result.success) {
+            const newErrors: Record<string, string> = {}
+            result.error.issues.forEach(issue => {
+                const path = issue.path[0] as string
+                newErrors[path] = issue.message
+            })
             setErrors(newErrors)
-            toast.error("Vui lòng kiểm tra lại các trường thông tin không hợp lệ")
+            toast.error("Vui lòng kiểm tra lại thông tin")
             return
         }
 
         const paymentMethodData = {
+            ...result.data,
             id: initialData?.id || `PM${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
-            name,
-            notes,
-            isDefault
         }
 
         if (initialData && onEdit) {

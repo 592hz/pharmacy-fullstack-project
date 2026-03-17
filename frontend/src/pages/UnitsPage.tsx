@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import AddUnitModal from "@/components/add-unit-modal"
+import { type Unit } from "@/lib/schemas"
 
 const initialUnits = [
     { id: "1", name: "Que" },
@@ -13,18 +14,18 @@ const initialUnits = [
 ]
 
 export default function UnitsPage() {
-    const [units, setUnits] = useState(initialUnits)
+    const [units, setUnits] = useState<Unit[]>(initialUnits)
     const [searchQuery, setSearchQuery] = useState("")
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-    const [editingUnit, setEditingUnit] = useState<any>(null)
-    const [unitToDelete, setUnitToDelete] = useState<any>(null)
+    const [editingUnit, setEditingUnit] = useState<Unit | null>(null)
+    const [unitToDelete, setUnitToDelete] = useState<Unit | null>(null)
 
-    const handleDeleteClick = (unit: any) => {
+    const handleDeleteClick = (unit: Unit) => {
         setUnitToDelete(unit)
     }
 
     const confirmDelete = () => {
-        setUnits(units.filter(u => u.id !== unitToDelete.id))
+        setUnits(units.filter(u => u.id !== unitToDelete?.id))
         toast.success("Đã xóa đơn vị tính thành công!")
         setUnitToDelete(null)
     }
@@ -33,13 +34,13 @@ export default function UnitsPage() {
         setUnitToDelete(null)
     }
 
-    const handleAddUnit = (newUnit: any) => {
+    const handleAddUnit = (newUnit: Unit) => {
         setUnits([newUnit, ...units])
         toast.success("Đã thêm đơn vị tính mới thành công!")
         setIsAddModalOpen(false)
     }
 
-    const handleEditUnit = (updatedUnit: any) => {
+    const handleEditUnit = (updatedUnit: Unit) => {
         setUnits(units.map(u => u.id === updatedUnit.id ? updatedUnit : u))
         toast.success("Cập nhật thông tin đơn vị tính thành công!")
         setIsAddModalOpen(false)
