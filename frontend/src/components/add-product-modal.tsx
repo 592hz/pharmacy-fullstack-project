@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { X } from "lucide-react"
 import { toast } from "sonner"
 import { mockProductCategories, mockSuppliersList } from "@/lib/mock-data"
+import { parseFloatSafe } from "@/lib/utils"
 
 // dữ liệu được lấy từ database 
 export interface ProductUnit {
@@ -87,10 +88,11 @@ const InputField = ({ label, required, value, onChange, placeholder = "", type =
             {label} {required && <span className="text-red-500">*</span>}
         </label>
         <input
-            type={type}
-            value={type === 'number' && value === 0 ? '' : value}
+            type={type === 'number' ? 'text' : type}
+            inputMode={type === 'number' ? 'decimal' : undefined}
+            value={type === 'number' && (value === 0 || value === '0') ? '' : value}
             disabled={disabled}
-            onChange={(e) => onChange(type === 'number' ? Number(e.target.value) : e.target.value)}
+            onChange={(e) => onChange(type === 'number' ? parseFloatSafe(e.target.value) : e.target.value)}
             placeholder={placeholder}
             className={`w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
         />
@@ -154,7 +156,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                         // handled separately below
                         // xử lý riêng bên dưới
                     }
-                    return { ...u, [field]: value }
+                    return { ...u, [field]: (field === 'importPrice' || field === 'retailPrice' || field === 'wholesalePrice' || field === 'conversionRate') ? parseFloatSafe(value) : value }
                 }
                 return u
             })
@@ -345,33 +347,37 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                                 </td>
                                                 <td className="px-4 py-2">
                                                     <input
-                                                        type="number"
+                                                        type="text"
+                                                        inputMode="decimal"
                                                         value={unit.conversionRate === 0 ? '' : unit.conversionRate}
-                                                        onChange={(e) => handleUnitChange(unit.id, 'conversionRate', Number(e.target.value))}
+                                                        onChange={(e) => handleUnitChange(unit.id, 'conversionRate', e.target.value)}
                                                         className="w-[80px] mx-auto text-center border border-transparent hover:border-gray-300 focus:border-blue-500 focus:bg-white bg-transparent rounded px-2 py-1 text-sm outline-none block"
                                                     />
                                                 </td>
                                                 <td className="px-4 py-2">
                                                     <input
-                                                        type="number"
+                                                        type="text"
+                                                        inputMode="decimal"
                                                         value={unit.importPrice === 0 ? '' : unit.importPrice}
-                                                        onChange={(e) => handleUnitChange(unit.id, 'importPrice', Number(e.target.value))}
+                                                        onChange={(e) => handleUnitChange(unit.id, 'importPrice', e.target.value)}
                                                         className="w-[120px] mx-auto text-center border border-transparent hover:border-gray-300 focus:border-blue-500 focus:bg-white bg-transparent rounded px-2 py-1 text-sm outline-none text-[#5c9a38] font-medium block"
                                                     />
                                                 </td>
                                                 <td className="px-4 py-2">
                                                     <input
-                                                        type="number"
+                                                        type="text"
+                                                        inputMode="decimal"
                                                         value={unit.retailPrice === 0 ? '' : unit.retailPrice}
-                                                        onChange={(e) => handleUnitChange(unit.id, 'retailPrice', Number(e.target.value))}
+                                                        onChange={(e) => handleUnitChange(unit.id, 'retailPrice', e.target.value)}
                                                         className="w-[120px] mx-auto text-center border border-transparent hover:border-gray-300 focus:border-blue-500 focus:bg-white bg-transparent rounded px-2 py-1 text-sm outline-none font-semibold block"
                                                     />
                                                 </td>
                                                 <td className="px-4 py-2">
                                                     <input
-                                                        type="number"
+                                                        type="text"
+                                                        inputMode="decimal"
                                                         value={unit.wholesalePrice === 0 ? '' : unit.wholesalePrice}
-                                                        onChange={(e) => handleUnitChange(unit.id, 'wholesalePrice', Number(e.target.value))}
+                                                        onChange={(e) => handleUnitChange(unit.id, 'wholesalePrice', e.target.value)}
                                                         className="w-[120px] mx-auto text-center border border-transparent hover:border-gray-300 focus:border-blue-500 focus:bg-white bg-transparent rounded px-2 py-1 text-sm outline-none font-semibold text-gray-600 block"
                                                     />
                                                 </td>

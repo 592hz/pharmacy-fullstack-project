@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Download, Upload, SlidersHorizontal, FileText, Plus } from "lucide-react"
 import { toast } from "sonner"
 import AddSupplierModal from "@/components/add-supplier-modal"
+import { type Supplier } from "@/lib/schemas"
 
 const initialSuppliers = [
     {
@@ -11,6 +12,8 @@ const initialSuppliers = [
         phone: "02873008840",
         debt: -30542,
         notes: "",
+        isNational: true,
+        isDefaultImport: false,
     },
     {
         id: "NCC00010",
@@ -19,6 +22,8 @@ const initialSuppliers = [
         phone: "0898850086",
         debt: 5,
         notes: "",
+        isNational: true,
+        isDefaultImport: false,
     },
     {
         id: "NCC00014",
@@ -27,6 +32,8 @@ const initialSuppliers = [
         phone: "0972288139",
         debt: 0,
         notes: "",
+        isNational: true,
+        isDefaultImport: false,
     },
     {
         id: "NCC00015",
@@ -35,6 +42,8 @@ const initialSuppliers = [
         phone: "",
         debt: -33114,
         notes: "",
+        isNational: true,
+        isDefaultImport: false,
     },
     {
         id: "NCC00004",
@@ -43,6 +52,8 @@ const initialSuppliers = [
         phone: "0903964865",
         debt: 0,
         notes: "",
+        isNational: true,
+        isDefaultImport: false,
     },
     {
         id: "NCC00008",
@@ -51,6 +62,8 @@ const initialSuppliers = [
         phone: "02873008840",
         debt: 0,
         notes: "",
+        isNational: true,
+        isDefaultImport: false,
     },
     {
         id: "NCC00013",
@@ -59,6 +72,8 @@ const initialSuppliers = [
         phone: "02746 550 7043",
         debt: 0,
         notes: "",
+        isNational: true,
+        isDefaultImport: false,
     },
     {
         id: "NCC00011",
@@ -67,6 +82,8 @@ const initialSuppliers = [
         phone: "",
         debt: -19,
         notes: "",
+        isNational: true,
+        isDefaultImport: false,
     },
     {
         id: "1C25TSH",
@@ -75,6 +92,8 @@ const initialSuppliers = [
         phone: "0855888893",
         debt: -249270,
         notes: "",
+        isNational: true,
+        isDefaultImport: false,
     },
     {
         id: "NCC00009",
@@ -83,6 +102,8 @@ const initialSuppliers = [
         phone: "",
         debt: 0,
         notes: "",
+        isNational: true,
+        isDefaultImport: false,
     },
     {
         id: "NCC00005",
@@ -91,17 +112,19 @@ const initialSuppliers = [
         phone: "0355885339",
         debt: 0,
         notes: "",
+        isNational: true,
+        isDefaultImport: false,
     },
 ]
 
 export default function SuppliersPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-    const [suppliers, setSuppliers] = useState(initialSuppliers)
-    const [editingSupplier, setEditingSupplier] = useState<any>(null)
-    const [supplierToDelete, setSupplierToDelete] = useState<any>(null)
+    const [suppliers, setSuppliers] = useState<Supplier[]>(initialSuppliers)
+    const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
+    const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null)
     const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
 
-    const handleDeleteClick = (supplier: any) => {
+    const handleDeleteClick = (supplier: Supplier) => {
         setSupplierToDelete(supplier)
         setDeleteConfirmCount(1)
     }
@@ -113,7 +136,7 @@ export default function SuppliersPage() {
         }
 
         if (deleteConfirmCount === 2) {
-            setSuppliers(suppliers.filter(s => s.id !== supplierToDelete.id))
+            setSuppliers(suppliers.filter(s => s.id !== supplierToDelete?.id))
             toast.success("Đã xóa nhà cung cấp thành công!")
             setSupplierToDelete(null)
             setDeleteConfirmCount(0)
@@ -125,12 +148,12 @@ export default function SuppliersPage() {
         setDeleteConfirmCount(0)
     }
 
-    const handleAddSupplier = (newSupplier: any) => {
+    const handleAddSupplier = (newSupplier: Supplier) => {
         setSuppliers([newSupplier, ...suppliers])
         toast.success("Đã thêm nhà cung cấp mới thành công!")
     }
 
-    const handleEditSupplier = (updatedSupplier: any) => {
+    const handleEditSupplier = (updatedSupplier: Supplier) => {
         setSuppliers(suppliers.map(s => s.id === updatedSupplier.id ? updatedSupplier : s))
         toast.success("Cập nhật thông tin nhà cung cấp thành công!")
     }

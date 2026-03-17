@@ -2,6 +2,8 @@ import { useState } from "react"
 import { Search, List, Download, RefreshCw } from "lucide-react"
 import { AddProductModal } from "@/components/add-product-modal"
 import { toast } from "sonner"
+import { type Product } from "@/lib/mock-data"
+import { type ProductFormData } from "@/components/add-product-modal"
 
 // Fake data matching the screenshot
 const initialProducts = [
@@ -190,13 +192,13 @@ const initialProducts = [
 ]
 
 export default function ProductsPage() {
-    const [products, setProducts] = useState(initialProducts)
+    const [products, setProducts] = useState<Product[]>(initialProducts)
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-    const [editingProduct, setEditingProduct] = useState<any>(null)
-    const [productToDelete, setProductToDelete] = useState<any>(null)
+    const [editingProduct, setEditingProduct] = useState<Product | null>(null)
+    const [productToDelete, setProductToDelete] = useState<Product | null>(null)
     const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
 
-    const handleDeleteClick = (product: any) => {
+    const handleDeleteClick = (product: Product) => {
         setProductToDelete(product)
         setDeleteConfirmCount(1)
     }
@@ -208,7 +210,7 @@ export default function ProductsPage() {
         }
 
         if (deleteConfirmCount === 2) {
-            setProducts(products.filter(p => p.id !== productToDelete.id))
+            setProducts(products.filter(p => p.id !== productToDelete?.id))
             toast.success("Đã xóa sản phẩm thành công!")
             setProductToDelete(null)
             setDeleteConfirmCount(0)
@@ -220,7 +222,7 @@ export default function ProductsPage() {
         setDeleteConfirmCount(0)
     }
 
-    const handleSaveProduct = (formData: any) => {
+    const handleSaveProduct = (formData: ProductFormData) => {
         if (editingProduct) {
             // Update existing product
             setProducts(products.map(p =>

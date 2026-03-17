@@ -5,6 +5,7 @@ import { Plus, Search, PlusCircle, Trash2, Save, X, Calendar, FileText, CreditCa
 import { toast } from "sonner"
 import { mockProducts, type PurchaseOrderItem, addMockPurchaseOrder, type PurchaseOrder, mockSuppliersList } from "@/lib/mock-data"
 import { AddProductModal } from "@/components/add-product-modal"
+import { parseFloatSafe } from "@/lib/utils"
 
 export default function CreatePurchaseOrderPage() {
     const navigate = useNavigate()
@@ -115,20 +116,17 @@ export default function CreatePurchaseOrderPage() {
 
             let finalValue = value
             if (['quantity', 'importPrice', 'discountPercent', 'vatPercent', 'retailPrice'].includes(field as string)) {
-                // Round only if it's a valid number and doesn't end with a decimal point (to allow typing)
-                const numValue = Number(value)
-                if (!isNaN(numValue) && value !== '' && !value.toString().endsWith('.')) {
-                    finalValue = roundTo3(numValue)
-                }
+                const numValue = parseFloatSafe(value)
+                finalValue = roundTo3(numValue)
             }
 
             const updatedItem = { ...item, [field]: finalValue }
 
             if (['quantity', 'importPrice', 'discountPercent', 'vatPercent'].includes(field as string)) {
-                const qty = Number(updatedItem.quantity) || 0
-                const price = Number(updatedItem.importPrice) || 0
-                const discPct = Number(updatedItem.discountPercent) || 0
-                const vatPct = Number(updatedItem.vatPercent) || 0
+                const qty = parseFloatSafe(updatedItem.quantity)
+                const price = parseFloatSafe(updatedItem.importPrice)
+                const discPct = parseFloatSafe(updatedItem.discountPercent)
+                const vatPct = parseFloatSafe(updatedItem.vatPercent)
 
                 updatedItem.totalAmount = roundTo3(qty * price)
                 updatedItem.discountAmount = roundTo3(updatedItem.totalAmount * discPct / 100)
@@ -460,7 +458,8 @@ export default function CreatePurchaseOrderPage() {
                                         </td>
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right">
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="decimal"
                                                 className="w-16 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none focus:ring-1 focus:ring-blue-500 font-bold"
                                                 value={item.quantity}
                                                 onChange={(e) => updateItemField(item.id, 'quantity', e.target.value)}
@@ -468,7 +467,8 @@ export default function CreatePurchaseOrderPage() {
                                         </td>
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right">
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="decimal"
                                                 className="w-24 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none focus:ring-1 focus:ring-blue-500 font-bold text-red-600 dark:text-red-400"
                                                 value={item.importPrice}
                                                 onChange={(e) => updateItemField(item.id, 'importPrice', e.target.value)}
@@ -476,7 +476,8 @@ export default function CreatePurchaseOrderPage() {
                                         </td>
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right">
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="decimal"
                                                 className="w-24 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none focus:ring-1 focus:ring-blue-500 font-bold"
                                                 value={item.retailPrice}
                                                 onChange={(e) => updateItemField(item.id, 'retailPrice', e.target.value)}
@@ -485,7 +486,8 @@ export default function CreatePurchaseOrderPage() {
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right font-medium">{vnd(item.totalAmount)}</td>
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right">
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="decimal"
                                                 className="w-12 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none"
                                                 value={item.discountPercent}
                                                 onChange={(e) => updateItemField(item.id, 'discountPercent', e.target.value)}
@@ -494,7 +496,8 @@ export default function CreatePurchaseOrderPage() {
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right text-gray-500">{vnd(item.discountAmount)}</td>
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right">
                                             <input
-                                                type="number"
+                                                type="text"
+                                                inputMode="decimal"
                                                 className="w-12 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none"
                                                 value={item.vatPercent}
                                                 onChange={(e) => updateItemField(item.id, 'vatPercent', e.target.value)}

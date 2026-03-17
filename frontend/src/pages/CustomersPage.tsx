@@ -1,50 +1,20 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Download, Upload, Plus, Bell } from "lucide-react"
 import { toast } from "sonner"
 import AddCustomerModal from "@/components/add-customer-modal"
+import { mockCustomers, setMockCustomers, type Customer } from "@/lib/mock-data"
 
-const initialCustomers = [
-    {
-        id: "KH00004",
-        name: "Khách sỉ",
-        phone: "",
-        dob: "",
-        address: "",
-        accumulatedPoints: "",
-        remainingPoints: 0,
-        debt: 0,
-        hasApp: true
-    },
-    {
-        id: "KH00003",
-        name: "Khách sỉ",
-        phone: "",
-        dob: "",
-        address: "",
-        accumulatedPoints: "",
-        remainingPoints: 0,
-        debt: "",
-        hasApp: true
-    },
-    {
-        id: "KH00002",
-        name: "Khách lẻ",
-        phone: "",
-        dob: "",
-        address: "",
-        accumulatedPoints: "",
-        remainingPoints: 0,
-        debt: 0,
-        hasApp: true
-    }
-]
 
 export default function CustomersPage() {
-    const [customers, setCustomers] = useState(initialCustomers)
+    const [customers, setCustomers] = useState<Customer[]>(mockCustomers)
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [editingCustomer, setEditingCustomer] = useState<any>(null)
     const [customerToDelete, setCustomerToDelete] = useState<any>(null)
     const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
+
+    useEffect(() => {
+        setMockCustomers(customers)
+    }, [customers])
 
     const handleDeleteClick = (customer: any) => {
         setCustomerToDelete(customer)

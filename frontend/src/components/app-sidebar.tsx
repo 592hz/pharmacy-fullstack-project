@@ -126,42 +126,20 @@ const data = {
     },
     {
       title: "Nhập hàng",
-      url: "#",
+      url: "/purchase-orders/create",
     },
     {
       title: "Bán hàng",
-      url: "#",
+      url: "/export-manage/create",
     },
-    // {
-    //   title: "Báo cáo",
-    //   url: "#",
-    //   icon: (
-    //     <BotIcon
-    //     />
-    //   ),
-    //   items: [
-    //     {
-    //       title: "Báo cáo tồn kho",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Báo cáo doanh thu",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Báo cáo lãi lỗ",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Báo cáo tồn kho",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Báo cáo cận date - sắp hết ",
-    //       url: "#"
-    //     }
-    //   ],
-    // },
+    {
+      title: "Ghi chú",
+      url: "/notes",
+      icon: (
+        <BotIcon
+        />
+      ),
+    },
   ],
   projects: [
     {

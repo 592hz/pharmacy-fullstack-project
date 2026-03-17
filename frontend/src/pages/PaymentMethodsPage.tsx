@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import AddPaymentMethodModal from "@/components/add-payment-method-modal"
+import { type PaymentMethod } from "@/lib/schemas"
 
 const initialPaymentMethods = [
     {
@@ -20,12 +21,12 @@ const initialPaymentMethods = [
 
 export default function PaymentMethodsPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-    const [paymentMethods, setPaymentMethods] = useState(initialPaymentMethods)
-    const [editingPaymentMethod, setEditingPaymentMethod] = useState<any>(null)
-    const [paymentMethodToDelete, setPaymentMethodToDelete] = useState<any>(null)
+    const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(initialPaymentMethods)
+    const [editingPaymentMethod, setEditingPaymentMethod] = useState<PaymentMethod | null>(null)
+    const [paymentMethodToDelete, setPaymentMethodToDelete] = useState<PaymentMethod | null>(null)
     const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
 
-    const handleDeleteClick = (paymentMethod: any) => {
+    const handleDeleteClick = (paymentMethod: PaymentMethod) => {
         setPaymentMethodToDelete(paymentMethod)
         setDeleteConfirmCount(1)
     }
@@ -37,7 +38,7 @@ export default function PaymentMethodsPage() {
         }
 
         if (deleteConfirmCount === 2) {
-            setPaymentMethods(paymentMethods.filter(s => s.id !== paymentMethodToDelete.id))
+            setPaymentMethods(paymentMethods.filter(s => s.id !== paymentMethodToDelete?.id))
             toast.success("Đã xóa phương thức thanh toán thành công!")
             setPaymentMethodToDelete(null)
             setDeleteConfirmCount(0)
@@ -49,12 +50,12 @@ export default function PaymentMethodsPage() {
         setDeleteConfirmCount(0)
     }
 
-    const handleAddPaymentMethod = (newPaymentMethod: any) => {
+    const handleAddPaymentMethod = (newPaymentMethod: PaymentMethod) => {
         setPaymentMethods([newPaymentMethod, ...paymentMethods])
         toast.success("Đã thêm phương thức thanh toán mới thành công!")
     }
 
-    const handleEditPaymentMethod = (updatedPaymentMethod: any) => {
+    const handleEditPaymentMethod = (updatedPaymentMethod: PaymentMethod) => {
         setPaymentMethods(paymentMethods.map(s => s.id === updatedPaymentMethod.id ? updatedPaymentMethod : s))
         toast.success("Cập nhật thông tin phương thức thanh toán thành công!")
     }

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { X } from "lucide-react"
 import { toast } from "sonner"
+import { customerSchema } from "@/lib/schemas"
 
 interface AddCustomerModalProps {
     isOpen: boolean
@@ -23,49 +24,41 @@ export default function AddCustomerModal({ isOpen, onClose, onAdd, onEdit, initi
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         const formData = new FormData(e.currentTarget)
-        const id = formData.get('id') as string
-        const name = formData.get('name') as string
-        const phone = formData.get('phone') as string
-        // const email = formData.get('email') as string
+        const id = initialData?.id || `KH${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`
+        const rawData = Object.fromEntries(formData)
+        
+        const result = customerSchema.safeParse({
+            ...rawData,
+            id,
+            debt: initialData?.debt || 0,
+            accumulatedPoints: initialData?.accumulatedPoints || 0,
+            remainingPoints: initialData?.remainingPoints || 0,
+            hasApp: initialData?.hasApp || false,
+        })
 
-        const newErrors: Record<string, string> = {}
-
-        if (!id?.trim()) newErrors.id = 'Vui lòng nhập mã khách hàng'
-        if (!name?.trim()) newErrors.name = 'Vui lòng nhập tên khách hàng'
-
-        // Simple 10-11 digit phone validation if provided
-        if (phone && !/^[0-9]{10,11}$/.test(phone)) {
-            newErrors.phone = 'Số điện thoại không hợp lệ (10-11 số)'
-        }
-
-        // Simple email validation if provided
-        // if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-        //     newErrors.email = 'Email không hợp lệ'
-        // }
-
-        if (Object.keys(newErrors).length > 0) {
+        if (!result.success) {
+            const newErrors: Record<string, string> = {}
+            result.error.issues.forEach(issue => {
+                const path = issue.path[0] as string
+                newErrors[path] = issue.message
+            })
             setErrors(newErrors)
-            toast.error("Vui lòng kiểm tra lại các trường thông tin không hợp lệ!")
+            toast.error("Vui lòng kiểm tra lại thông tin khách hàng!")
             return
         }
 
         const customerData = {
-            ...Object.fromEntries(formData),
-            debt: initialData?.debt || 0, // Keep debt if editing, or default to 0
-            accumulatedPoints: initialData?.accumulatedPoints || 0,
-            remainingPoints: initialData?.remainingPoints || 0,
-            hasApp: initialData?.hasApp || false,
-            // Checkboxes
-            pointsAccumulation: formData.get('pointsAccumulation') === 'on',
-            defaultSale: formData.get('defaultSale') === 'on',
-            khDQG: formData.get('khDQG') === 'on',
-            sendNotification: formData.get('sendNotification') === 'on',
+            ...result.data,
+            pointsAccumulation: true,
+            defaultSale: false,
+            khDQG: true,
+            sendNotification: false,
         }
 
         if (initialData && onEdit) {
             onEdit(customerData)
         } else if (onAdd) {
-            onAdd({ ...customerData, id: id || `KH${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}` })
+            onAdd(customerData)
         }
 
         setErrors({})
@@ -93,16 +86,8 @@ export default function AddCustomerModal({ isOpen, onClose, onAdd, onEdit, initi
                     {/* Modal Body */}
                     <div className="flex-1 p-6 overflow-y-auto space-y-6 pb-12">
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-y-6 gap-x-6">
-                            {/* Mã khách hàng */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
-                                    Mã khách hàng <span className="text-red-500">*</span>
-                                </label>
-                                <input name="id" defaultValue={initialData?.id || ''} type="text" placeholder="KH00009" className={`w-full rounded border ${errors.id ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'} px-3 py-1.5 text-sm focus:outline-none focus:ring-1 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white`} />
-                                {errors.id && <p className="text-[10px] text-red-500">{errors.id}</p>}
-                            </div>
                             {/* Tên khách hàng */}
-                            <div className="space-y-2">
+                            <div className="space-y-2 md:col-span-2">
                                 <label className="text-xs font-medium text-gray-700 dark:text-gray-300">
                                     Tên khách hàng <span className="text-red-500">*</span>
                                 </label>
@@ -141,47 +126,12 @@ export default function AddCustomerModal({ isOpen, onClose, onAdd, onEdit, initi
                                 <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Cân nặng</label>
                                 <input name="weight" defaultValue={initialData?.weight || ''} type="text" placeholder="Cân nặng" className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" />
                             </div>
-                            {/* Mức giảm giá (%) */}
+                            {/* Tuổi */}
                             <div className="space-y-2">
-                                <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Mức giảm giá (%)</label>
-                                <input name="discount" defaultValue={initialData?.discount || ''} type="text" placeholder="Mức giảm giá (%)" className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" />
-                            </div>
-                            {/* Tuổi, Năm/Tháng */}
-                            <div className="space-y-2 flex gap-4">
-                                <div className="flex-1">
-                                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300 block mb-2">Tuổi</label>
-                                    <input name="age" defaultValue={initialData?.age || ''} type="text" placeholder="Tuổi" className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" />
-                                </div>
-                                <div className="w-1/3">
-                                    <label className="text-xs font-medium text-gray-700 dark:text-gray-300 block mb-2">Năm/Tháng</label>
-                                    <select name="ageUnit" defaultValue={initialData?.ageUnit || 'Năm'} className="w-full rounded border border-gray-300 bg-white px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white">
-                                        <option value="Năm">Năm</option>
-                                        <option value="Tháng">Tháng</option>
-                                    </select>
-                                </div>
+                                <label className="text-xs font-medium text-gray-700 dark:text-gray-300 block mb-2">Tuổi</label>
+                                <input name="age" defaultValue={initialData?.age || ''} type="text" placeholder="Tuổi" className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" />
                             </div>
 
-                            {/* Mã số thuế */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Mã số thuế</label>
-                                <input name="taxCode" defaultValue={initialData?.taxCode || ''} type="text" placeholder="Mã số thuế" className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" />
-                            </div>
-                            {/* Tên đơn vị xuất HĐĐT */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Tên đơn vị xuất HĐĐT</label>
-                                <input name="invoiceUnitName" defaultValue={initialData?.invoiceUnitName || ''} type="text" placeholder="Tên đơn vị xuất HĐĐT" className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" />
-                            </div>
-                            {/* Mã ĐVNS */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Mã ĐVNS</label>
-                                <input name="unitCode" defaultValue={initialData?.unitCode || ''} type="text" placeholder="Mã ĐVNS" className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" />
-                            </div>
-                            {/* Email */}
-                            <div className="space-y-2">
-                                <label className="text-xs font-medium text-gray-700 dark:text-gray-300">Email</label>
-                                <input name="email" defaultValue={initialData?.email || ''} type="email" placeholder="Email" className={`w-full rounded border ${errors.email ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'} px-3 py-1.5 text-sm focus:outline-none focus:ring-1 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white`} />
-                                {errors.email && <p className="text-[10px] text-red-500">{errors.email}</p>}
-                            </div>
 
                             {/* Ghi chú */}
                             <div className="space-y-2 md:col-span-4">
@@ -189,25 +139,6 @@ export default function AddCustomerModal({ isOpen, onClose, onAdd, onEdit, initi
                                 <input name="notes" defaultValue={initialData?.notes || ''} type="text" placeholder="Ghi chú" className="w-full rounded border border-gray-300 px-3 py-1.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" />
                             </div>
 
-                            {/* Checkboxes */}
-                            <div className="flex items-center pt-2 gap-6 md:col-span-4">
-                                <label className="flex items-center gap-1.5 cursor-pointer">
-                                    <input name="pointsAccumulation" type="checkbox" defaultChecked={initialData?.pointsAccumulation !== false} className="w-3.5 h-3.5 text-blue-600 rounded-sm border-gray-300 focus:ring-blue-500" />
-                                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Tích điểm</span>
-                                </label>
-                                <label className="flex items-center gap-1.5 cursor-pointer">
-                                    <input name="defaultSale" type="checkbox" defaultChecked={!!initialData?.defaultSale} className="w-3.5 h-3.5 text-blue-600 rounded-sm border-gray-300 focus:ring-blue-500" />
-                                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Mặc định bán</span>
-                                </label>
-                                <label className="flex items-center gap-1.5 cursor-pointer opacity-50">
-                                    <input name="khDQG" type="checkbox" disabled defaultChecked={true} className="w-3.5 h-3.5 text-blue-600 rounded-sm border-gray-300 focus:ring-blue-500" />
-                                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">KH DQG</span>
-                                </label>
-                                <label className="flex items-center gap-1.5 cursor-pointer">
-                                    <input name="sendNotification" type="checkbox" defaultChecked={initialData?.sendNotification !== false} className="w-3.5 h-3.5 text-blue-600 rounded-sm border-gray-300 focus:ring-blue-500" />
-                                    <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Gửi thông báo khi bán hàng</span>
-                                </label>
-                            </div>
                         </div>
                     </div>
 

@@ -17,13 +17,10 @@ import {
 import { Input } from "@/components/ui/input"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import * as z from "zod"
+import { z } from "zod"
 import { toast } from "sonner"
+import { loginSchema } from "@/lib/schemas"
 
-const loginSchema = z.object({
-  name: z.string().min(6, { message: "Tên tài khoản phải có ít nhất 6 ký tự" }),
-  password: z.string().min(6, { message: "Mật khẩu phải có ít nhất 6 ký tự" })
-})
 
 type LoginFormValues = z.infer<typeof loginSchema>
 
@@ -38,7 +35,7 @@ export function LoginForm({
   } = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      name: "",
+      username: "",
       password: "",
     },
   })
@@ -88,14 +85,14 @@ export function LoginForm({
                 Hoặc tiếp tục với
               </FieldSeparator>
               <Field>
-                <FieldLabel htmlFor="name">Tên tài khoản</FieldLabel>
+                <FieldLabel htmlFor="username">Tên tài khoản</FieldLabel>
                 <Input
-                  id="name"
+                  id="username"
                   type="text"
                   placeholder="Nguyễn Văn A"
-                  error={!!errors.name}
-                  errorMessage={errors.name?.message as React.ReactNode}
-                  {...register("name")}
+                  error={!!errors.username}
+                  errorMessage={errors.username?.message as React.ReactNode}
+                  {...register("username")}
                 />
               </Field>
               <Field>

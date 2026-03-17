@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { X } from "lucide-react"
 import { toast } from "sonner"
+import { supplierSchema } from "@/lib/schemas"
 
 interface AddSupplierModalProps {
     isOpen: boolean
@@ -23,36 +24,26 @@ export default function AddSupplierModal({ isOpen, onClose, onAdd, onEdit, initi
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         const formData = new FormData(e.currentTarget)
-        const id = formData.get('id') as string
-        const name = formData.get('name') as string
-        const phone = formData.get('phone') as string
-        const email = formData.get('email') as string
-
-        const newErrors: Record<string, string> = {}
-
-        if (!id?.trim()) newErrors.id = 'Vui lòng nhập mã nhà cung cấp'
-        if (!name?.trim()) newErrors.name = 'Vui lòng nhập tên nhà cung cấp'
-
-        // Simple 10-11 digit phone validation if provided
-        if (phone && !/^[0-9]{10,11}$/.test(phone)) {
-            newErrors.phone = 'Số điện thoại không hợp lệ (10-11 số)'
-        }
-
-        // Simple email validation if provided
-        if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-            newErrors.email = 'Email không hợp lệ'
-        }
-
-        if (Object.keys(newErrors).length > 0) {
+        const rawData = Object.fromEntries(formData)
+        const result = supplierSchema.safeParse({
+            ...rawData,
+            isNational: formData.get('isNational') === 'on',
+            isDefaultImport: formData.get('isDefaultImport') === 'on',
+            debt: initialData?.debt || 0
+        })
+        
+        if (!result.success) {
+            const newErrors: Record<string, string> = {}
+            result.error.issues.forEach(issue => {
+                const path = issue.path[0] as string
+                newErrors[path] = issue.message
+            })
             setErrors(newErrors)
-            toast.error("Vui lòng kiểm tra lại các trường thông tin không hợp lệ")
+            toast.error("Vui lòng kiểm tra lại các trường thông tin")
             return
         }
 
-        const supplierData = {
-            ...Object.fromEntries(formData),
-            debt: initialData?.debt || 0 // Keep debt if editing, or default to 0
-        }
+        const supplierData = result.data
 
         if (initialData && onEdit) {
             onEdit(supplierData)
