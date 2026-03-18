@@ -26,12 +26,12 @@ export default function ExportManagePage() {
 
     // ── Filter state ─────────────────────────────────────────────────────────
     const [dateFilterType, setDateFilterType] = useState<"Ngày" | "Từ ngày" | "Tháng" | "Quý" | "Năm">("Năm")
-    const [filterDate, setFilterDate] = useState<string>(new Date().toISOString().split("T")[0])
+    const [filterDate, setFilterDate] = useState<string>(() => new Date().toISOString().split("T")[0])
     const [filterStartDate, setFilterStartDate] = useState<string>("")
     const [filterEndDate, setFilterEndDate] = useState<string>("")
-    const [filterMonth, setFilterMonth] = useState<string>(String(new Date().getMonth() + 1).padStart(2, "0"))
+    const [filterMonth, setFilterMonth] = useState<string>(() => String(new Date().getMonth() + 1).padStart(2, "0"))
     const [filterQuarter, setFilterQuarter] = useState<string>("1")
-    const [filterYear, setFilterYear] = useState<string>(new Date().getFullYear().toString())
+    const [filterYear, setFilterYear] = useState<string>(() => new Date().getFullYear().toString())
     const [filterKeyword, setFilterKeyword] = useState("")
     const [filterPrescription, setFilterPrescription] = useState(false)
 
@@ -145,7 +145,7 @@ export default function ExportManagePage() {
                             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">Lọc theo</label>
                             <select
                                 value={dateFilterType}
-                                onChange={(e) => setDateFilterType(e.target.value as any)}
+                                onChange={(e) => setDateFilterType(e.target.value as "Ngày" | "Từ ngày" | "Tháng" | "Quý" | "Năm")}
                                 className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1.5 text-sm outline-none font-semibold focus:ring-1 focus:ring-[#5c9a38] bg-transparent"
                             >
                                 <option value="Ngày">Ngày</option>

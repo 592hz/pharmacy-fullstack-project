@@ -1,9 +1,9 @@
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { AlertCircle, Search, PlusCircle, Trash2, Save, X, Printer } from "lucide-react"
 import { toast } from "sonner"
 import { mockExportSlips, mockProducts, type ExportSlipItem } from "@/lib/mock-data"
-import { AddProductModal } from "@/components/add-product-modal"
+import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
 
 export default function ExportOrderDetailPage() {
     const { id } = useParams<{ id: string }>()
@@ -17,11 +17,13 @@ export default function ExportOrderDetailPage() {
     const [showAddModal, setShowAddModal] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
 
-    useEffect(() => {
-        if (originalSlip) {
-            setItems(originalSlip.items || [])
-        }
-    }, [originalSlip])
+    // Reset items when order changes (e.g. navigation between orders)
+    const [prevId, setPrevId] = useState(id)
+    if (id !== prevId) {
+        setPrevId(id)
+        setItems(originalSlip?.items || [])
+        setIsEditing(false)
+    }
 
     // Search state
     const [searchQuery, setSearchQuery] = useState("")
@@ -36,14 +38,14 @@ export default function ExportOrderDetailPage() {
         ).slice(0, 10)
     }, [searchQuery])
 
-    const handleQuickAdd = (product: typeof mockProducts[0]) => {
+    const handleQuickAdd = useCallback((product: typeof mockProducts[0]) => {
         const qty = 1
         const retailPrice = product.retailPrice || 0
         const importPrice = product.importPrice || 0
         const total = qty * retailPrice
 
         const newItem: ExportSlipItem = {
-            id: `new-${Date.now()}`,
+            id: `new-${Date.now()}-${Math.random()}`,
             code: product.id,
             name: product.name,
             unit: product.unit,
@@ -62,17 +64,26 @@ export default function ExportOrderDetailPage() {
         setSearchQuery("")
         setShowResults(false)
         toast.success(`Đã thêm nhanh: ${product.name}`)
-    }
+    }, [])
 
-    const handleProductSaved = (formData: any) => {
+    const formattedExportDate = useMemo(() => {
+        if (!slip) return ""
+        try {
+            return new Date(slip.exportDate).toLocaleString("vi-VN").replace(/,/g, "")
+        } catch {
+            return ""
+        }
+    }, [slip])
+
+    const handleProductSaved = useCallback((formData: ProductFormData) => {
         const firstUnit = formData.units?.[0]
         const qty = 1
         const retailPrice = firstUnit?.retailPrice || 0
-        const importPrice = firstUnit?.importPrice || firstUnit?.purchasePrice || 0
+        const importPrice = firstUnit?.importPrice || 0
         const total = qty * retailPrice
 
         const newItem: ExportSlipItem = {
-            id: `new-${Date.now()}`,
+            id: `new-${Date.now()}-${Math.random()}`,
             code: formData.productCode || "",
             name: formData.productName,
             unit: firstUnit?.unitName || "",
@@ -88,7 +99,7 @@ export default function ExportOrderDetailPage() {
         }
         setItems(prev => [...prev, newItem])
         toast.success(`Đã thêm: ${newItem.name}`)
-    }
+    }, [])
 
     const handleCancelEdit = () => {
         setItems(originalSlip?.items || [])
@@ -111,7 +122,7 @@ export default function ExportOrderDetailPage() {
         toast.error("Đã xóa sản phẩm khỏi phiếu")
     }
 
-    const updateItemField = (id: string, field: keyof ExportSlipItem, value: any) => {
+    const updateItemField = useCallback((id: string, field: keyof ExportSlipItem, value: string | number | boolean) => {
         setItems(prev => prev.map(item => {
             if (item.id !== id) return item
 
@@ -129,7 +140,7 @@ export default function ExportOrderDetailPage() {
 
             return updatedItem
         }))
-    }
+    }, [])
 
     const handleSaveOrder = () => {
         setIsEditing(false)
@@ -189,7 +200,7 @@ export default function ExportOrderDetailPage() {
                                 <button
                                     onClick={handleToggleEdit}
                                     className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-4 py-1.5 rounded text-sm font-medium whitespace-nowrap w-[100px] text-center transition-colors flex items-center justify-center gap-1"
-                                >
+                                    >
                                     Sửa phiếu
                                 </button>
                             )}
@@ -251,7 +262,7 @@ export default function ExportOrderDetailPage() {
                         <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">Ngày xuất</label>
                         <input
                             type="text"
-                            value={new Date(slip.exportDate).toLocaleString("vi-VN").replace(/,/g, "")}
+                            value={formattedExportDate}
                             disabled
                             className="bg-gray-50 dark:bg-neutral-800/50 border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-500"
                         />
@@ -321,6 +332,7 @@ export default function ExportOrderDetailPage() {
             </div>
 
             <AddProductModal
+                key={showAddModal ? "open" : "closed"}
                 isOpen={showAddModal}
                 onClose={() => setShowAddModal(false)}
                 onSuccess={handleProductSaved}

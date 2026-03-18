@@ -1,9 +1,9 @@
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { Plus, AlertCircle, Search, PlusCircle, Trash2, Save, X } from "lucide-react"
 import { toast } from "sonner"
 import { mockPurchaseOrders, mockProducts, type PurchaseOrderItem } from "@/lib/mock-data"
-import { AddProductModal } from "@/components/add-product-modal"
+import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
 
 export default function PurchaseOrderDetailPage() {
     const { id } = useParams<{ id: string }>()
@@ -17,11 +17,13 @@ export default function PurchaseOrderDetailPage() {
     const [showAddModal, setShowAddModal] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
 
-    useEffect(() => {
-        if (originalOrder) {
-            setItems(originalOrder.items || [])
-        }
-    }, [originalOrder])
+    // Reset items when order changes (e.g. navigation between orders)
+    const [prevId, setPrevId] = useState(id)
+    if (id !== prevId) {
+        setPrevId(id)
+        setItems(originalOrder?.items || [])
+        setIsEditing(false)
+    }
 
     // Search state
     const [searchQuery, setSearchQuery] = useState("")
@@ -36,7 +38,7 @@ export default function PurchaseOrderDetailPage() {
         ).slice(0, 10)
     }, [searchQuery])
 
-    const handleQuickAdd = (product: typeof mockProducts[0]) => {
+    const handleQuickAdd = useCallback((product: typeof mockProducts[0]) => {
         const qty = 1
         const importPrice = product.importPrice || 0
         const total = qty * importPrice
@@ -44,7 +46,7 @@ export default function PurchaseOrderDetailPage() {
         const vatAmt = Math.round(total * vatPct / 100)
 
         const newItem: PurchaseOrderItem = {
-            id: `new-${Date.now()}`,
+            id: `new-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             code: product.id,
             name: product.name,
             unit: product.unit,
@@ -66,10 +68,10 @@ export default function PurchaseOrderDetailPage() {
         setSearchQuery("")
         setShowResults(false)
         toast.success(`Đã thêm nhanh: ${product.name}`)
-    }
+    }, [])
 
     // Handler when AddProductModal saves a new product → convert to PurchaseOrderItem
-    const handleProductSaved = (formData: any) => {
+    const handleProductSaved = useCallback((formData: ProductFormData) => {
         const firstUnit = formData.units?.[0]
         const qty = 1
         const importPrice = firstUnit?.importPrice || 0
@@ -80,7 +82,7 @@ export default function PurchaseOrderDetailPage() {
         const discountAmt = Math.round(total * discountPct / 100)
         const vatAmt = Math.round((total - discountAmt) * vatPct / 100)
         const newItem: PurchaseOrderItem = {
-            id: `new-${Date.now()}`,
+            id: `new-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             code: formData.productCode || "",
             name: formData.productName,
             unit: firstUnit?.unitName || "",
@@ -99,7 +101,7 @@ export default function PurchaseOrderDetailPage() {
         }
         setItems(prev => [...prev, newItem])
         toast.success(`Đã thêm: ${newItem.name}`)
-    }
+    }, [])
 
     const handleCancelEdit = () => {
         setItems(originalOrder?.items || [])
@@ -123,11 +125,11 @@ export default function PurchaseOrderDetailPage() {
         toast.error("Đã xóa sản phẩm khỏi phiếu")
     }
 
-    const updateItemField = (id: string, field: keyof PurchaseOrderItem, value: any) => {
+    const updateItemField = useCallback((id: string, field: keyof PurchaseOrderItem, value: string | number | boolean) => {
         setItems(prev => prev.map(item => {
             if (item.id !== id) return item
 
-            const updatedItem = { ...item, [field]: value }
+            const updatedItem = { ...item, [field]: value } as PurchaseOrderItem
 
             // Recalculate totals for this row
             if (['quantity', 'importPrice', 'discountPercent', 'vatPercent'].includes(field as string)) {
@@ -144,7 +146,7 @@ export default function PurchaseOrderDetailPage() {
 
             return updatedItem
         }))
-    }
+    }, [])
 
     const handleSaveOrder = () => {
         setIsEditing(false)
@@ -363,6 +365,7 @@ export default function PurchaseOrderDetailPage() {
 
             {/* ── ADD PRODUCT MODAL (reuses full AddProductModal) ── */}
             <AddProductModal
+                key={showAddModal ? "open" : "closed"}
                 isOpen={showAddModal}
                 onClose={() => setShowAddModal(false)}
                 onSuccess={handleProductSaved}

@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react"
+import { useState, useCallback } from "react"
 import { X } from "lucide-react"
 import { toast } from "sonner"
-import { mockProductCategories, mockSuppliersList } from "@/lib/mock-data"
+import { mockProductCategories, mockSuppliersList, type Product } from "@/lib/mock-data"
 import { parseFloatSafe } from "@/lib/utils"
 
 // dữ liệu được lấy từ database 
@@ -77,12 +77,22 @@ const mockUnits = [
 export interface AddProductModalProps {
     isOpen: boolean
     onClose: () => void
-    onSuccess: (data?: any) => void
-    initialData?: any // To support editing
+    onSuccess: (data: ProductFormData) => void
+    initialData?: Product | null // To support editing
+}
+
+interface InputFieldProps {
+    label: string
+    required?: boolean
+    value: string | number
+    onChange: (v: string | number) => void
+    placeholder?: string
+    type?: string
+    disabled?: boolean
 }
 
 // Helper component for standard input with label
-const InputField = ({ label, required, value, onChange, placeholder = "", type = "text", disabled = false }: any) => (
+const InputField = ({ label, required, value, onChange, placeholder = "", type = "text", disabled = false }: InputFieldProps) => (
     <div className="flex flex-col gap-1 w-full">
         <label className="text-xs font-semibold text-gray-700">
             {label} {required && <span className="text-red-500">*</span>}
@@ -100,48 +110,55 @@ const InputField = ({ label, required, value, onChange, placeholder = "", type =
 )
 
 export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: AddProductModalProps) {
-    const [formData, setFormData] = useState<ProductFormData>(initialFormData)
-
-    // Initialize form when modal opens
-    useEffect(() => {
-        if (isOpen) {
-            if (initialData) {
-                // Populate form with existing data (mapping simple row data to form structure)
-                setFormData({
-                    productName: initialData.name || "",
-                    supplierId: initialData.supplier || "",
-                    categoryId: initialData.category || "",
-                    vatPercent: initialData.vat || 0,
-                    productCode: initialData.id || "",
-                    discountPercent: initialData.discount || 0,
-                    units: [
-                        {
-                            id: "1",
-                            unitName: initialData.unit || "",
-                            conversionRate: 1,
-                            importPrice: initialData.importPrice || 0,
-                            retailPrice: initialData.retailPrice || 0,
-                            wholesalePrice: initialData.wholesalePrice || 0,
-                            isDefault: true
-                        }
-                    ]
-                })
-            } else {
-                // Reset form and generate random product code for a new product
-                setFormData(initialFormData)
-                if (!initialFormData.productCode) {
-                    const randomNum = Math.floor(100000 + Math.random() * 900000)
-                    setFormData(prev => ({ ...prev, productCode: `SP${randomNum}` }))
-                }
+    const [formData, setFormData] = useState<ProductFormData>(() => {
+        if (initialData) {
+            // Mapping from Product (mock-data.ts) to ProductFormData
+            return {
+                productName: initialData.name || "",
+                supplierId: initialData.manufacturer || "",
+                categoryId: "",
+                productCode: initialData.id || "",
+                vatPercent: 10, // Default for mock data
+                discountPercent: 0,
+                units: [{
+                    id: "1",
+                    unitName: initialData.unit || "Viên",
+                    isDefault: true,
+                    conversionRate: 1,
+                    importPrice: initialData.importPrice || 0,
+                    retailPrice: initialData.retailPrice || 0,
+                    wholesalePrice: initialData.wholesalePrice || initialData.retailPrice || 0,
+                }],
             }
         }
-    }, [isOpen, initialData])
+        
+        // New random ID for new products
+        // State initializers are allowed to be "impure" as they only run once on mount
+        const newId = "SP" + Math.floor(100000 + Math.random() * 900000).toString()
+        return {
+            productName: "",
+            supplierId: "",
+            categoryId: "",
+            productCode: newId,
+            vatPercent: 10,
+            discountPercent: 0,
+            units: [{
+                id: "1",
+                unitName: "Viên",
+                isDefault: true,
+                conversionRate: 1,
+                importPrice: 0,
+                retailPrice: 0,
+                wholesalePrice: 0,
+            }],
+        }
+    })
 
     // Helper to update basic string/number/boolean fields
     // Các hàm hỗ trợ sử lý dữ liệu
-    const handleInputChange = (field: keyof ProductFormData, value: string | number | boolean) => {
+    const handleInputChange = useCallback((field: keyof ProductFormData, value: string | number | boolean) => {
         setFormData(prev => ({ ...prev, [field]: value }))
-    }
+    }, [])
 
     // Helper for table unit changes
     // Các hàm hỗ trợ sử lý dữ liệu
@@ -264,7 +281,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                         {/* --- GRID FORM --- */}
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
                             {/* Row 1 */}
-                            <InputField label="Tên hàng hóa" required value={formData.productName} onChange={(v: string) => handleInputChange('productName', v)} />
+                            <InputField label="Tên hàng hóa" required value={formData.productName} onChange={(v) => handleInputChange('productName', v)} />
 
                             {/* Custom Searchable Select for Supplier */}
                             <div className="flex flex-col gap-1 w-full">
@@ -296,11 +313,11 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                     ))}
                                 </select>
                             </div>
-                            <InputField label="%VAT" type="number" value={formData.vatPercent} onChange={(v: number) => handleInputChange('vatPercent', v)} />
+                            <InputField label="%VAT" type="number" value={formData.vatPercent} onChange={(v) => handleInputChange('vatPercent', v)} />
 
                             {/* Row 3 */}
-                            <InputField label="Mã hàng hóa" disabled value={formData.productCode} onChange={(v: string) => handleInputChange('productCode', v)} placeholder="SP000294" />
-                            <InputField label="%CK" type="number" value={formData.discountPercent} onChange={(v: number) => handleInputChange('discountPercent', v)} />
+                            <InputField label="Mã hàng hóa" disabled value={formData.productCode} onChange={(v) => handleInputChange('productCode', v)} placeholder="SP000294" />
+                            <InputField label="%CK" type="number" value={formData.discountPercent} onChange={(v) => handleInputChange('discountPercent', v)} />
                         </div>
 
                         {/* --- UNIT ADD --- */}

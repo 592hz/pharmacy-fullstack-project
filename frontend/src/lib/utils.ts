@@ -5,7 +5,7 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
-export function parseFloatSafe(val: any): number {
+export function parseFloatSafe(val: string | number | boolean | null | undefined): number {
   if (typeof val === 'number') return val
   if (!val) return 0
   const sanitized = val.toString().replace(/\./g, "").replace(/,/g, ".")

@@ -1,23 +1,23 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { X } from "lucide-react"
 import { toast } from "sonner"
-import { supplierSchema } from "@/lib/schemas"
+import { supplierSchema, type Supplier } from "@/lib/schemas"
 
 interface AddSupplierModalProps {
     isOpen: boolean
     onClose: () => void
-    onAdd?: (supplier: any) => void
-    onEdit?: (supplier: any) => void
-    initialData?: any
+    onAdd?: (supplier: Supplier) => void
+    onEdit?: (supplier: Supplier) => void
+    initialData?: Supplier | null
 }
 
 export default function AddSupplierModal({ isOpen, onClose, onAdd, onEdit, initialData }: AddSupplierModalProps) {
     const [errors, setErrors] = useState<Record<string, string>>({})
 
-    // Clear errors when modal opens/closes or initialData changes
-    useEffect(() => {
-        if (isOpen) setErrors({})
-    }, [isOpen, initialData])
+    const handleClose = () => {
+        setErrors({})
+        onClose()
+    }
 
     if (!isOpen) return null
 
@@ -68,7 +68,7 @@ export default function AddSupplierModal({ isOpen, onClose, onAdd, onEdit, initi
                         </h3>
                         <button
                             type="button"
-                            onClick={onClose}
+                            onClick={handleClose}
                             className="ml-auto inline-flex items-center rounded-lg bg-transparent p-1.5 text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-neutral-800 dark:hover:text-white"
                         >
                             <X size={20} />

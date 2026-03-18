@@ -1,22 +1,23 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { X } from "lucide-react"
 import { toast } from "sonner"
+import { type Unit } from "@/lib/schemas"
 
 interface AddUnitModalProps {
     isOpen: boolean
     onClose: () => void
-    onAdd?: (unit: any) => void
-    onEdit?: (unit: any) => void
-    initialData?: any
+    onAdd?: (unit: Unit) => void
+    onEdit?: (unit: Unit) => void
+    initialData?: Unit | null
 }
 
 export default function AddUnitModal({ isOpen, onClose, onAdd, onEdit, initialData }: AddUnitModalProps) {
     const [errors, setErrors] = useState<Record<string, string>>({})
 
-    // Clear errors when modal opens/closes or initialData changes
-    useEffect(() => {
-        if (isOpen) setErrors({})
-    }, [isOpen, initialData])
+    const handleClose = () => {
+        setErrors({})
+        onClose()
+    }
 
     if (!isOpen) return null
 
@@ -36,7 +37,7 @@ export default function AddUnitModal({ isOpen, onClose, onAdd, onEdit, initialDa
         }
 
         const unitData = {
-            id: initialData?.id || Math.random().toString(36).substr(2, 9),
+            id: initialData?.id || `unit-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
             name: name.trim(),
         }
 
@@ -61,7 +62,7 @@ export default function AddUnitModal({ isOpen, onClose, onAdd, onEdit, initialDa
                         </h3>
                         <button
                             type="button"
-                            onClick={onClose}
+                            onClick={handleClose}
                             className="ml-auto inline-flex items-center rounded-lg bg-transparent p-1.5 text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-neutral-800 dark:hover:text-white"
                         >
                             <X size={20} />
@@ -92,7 +93,7 @@ export default function AddUnitModal({ isOpen, onClose, onAdd, onEdit, initialDa
                         </button>
                         <button
                             type="button"
-                            onClick={onClose}
+                            onClick={handleClose}
                             className="flex items-center justify-center gap-1.5 rounded bg-gray-200 px-6 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300 dark:bg-neutral-800 dark:text-gray-300 dark:hover:bg-neutral-700"
                         >
                             Thoát

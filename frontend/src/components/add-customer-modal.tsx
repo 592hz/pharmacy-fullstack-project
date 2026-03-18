@@ -1,30 +1,33 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { X } from "lucide-react"
 import { toast } from "sonner"
 import { customerSchema } from "@/lib/schemas"
+import { type Customer } from "@/lib/mock-data"
 
 interface AddCustomerModalProps {
     isOpen: boolean
     onClose: () => void
-    onAdd?: (customer: any) => void
-    onEdit?: (customer: any) => void
-    initialData?: any
+    onAdd?: (customer: Customer) => void
+    onEdit?: (customer: Customer) => void
+    initialData?: Customer | null
 }
 
 export default function AddCustomerModal({ isOpen, onClose, onAdd, onEdit, initialData }: AddCustomerModalProps) {
     const [errors, setErrors] = useState<Record<string, string>>({})
 
-    // Clear errors when modal opens/closes or initialData changes
-    useEffect(() => {
-        if (isOpen) setErrors({})
-    }, [isOpen, initialData])
+    const handleClose = () => {
+        setErrors({})
+        onClose()
+    }
 
     if (!isOpen) return null
 
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         const formData = new FormData(e.currentTarget)
-        const id = initialData?.id || `KH${Math.floor(Math.random() * 100000).toString().padStart(5, '0')}`
+        const timestamp = Date.now().toString().slice(-6)
+        const randomStr = Math.random().toString(36).substr(2, 4).toUpperCase()
+        const id = initialData?.id || `KH${timestamp}${randomStr}`
         const rawData = Object.fromEntries(formData)
         
         const result = customerSchema.safeParse({
@@ -47,12 +50,16 @@ export default function AddCustomerModal({ isOpen, onClose, onAdd, onEdit, initi
             return
         }
 
-        const customerData = {
+        const customerData: Customer = {
             ...result.data,
-            pointsAccumulation: true,
-            defaultSale: false,
-            khDQG: true,
-            sendNotification: false,
+            id: id,
+            phone: result.data.phone || "",
+            dob: result.data.dob || "",
+            address: result.data.address || "",
+            debt: result.data.debt || 0,
+            accumulatedPoints: result.data.accumulatedPoints || 0,
+            remainingPoints: result.data.remainingPoints || 0,
+            hasApp: result.data.hasApp || false,
         }
 
         if (initialData && onEdit) {
@@ -76,7 +83,7 @@ export default function AddCustomerModal({ isOpen, onClose, onAdd, onEdit, initi
                         </h3>
                         <button
                             type="button"
-                            onClick={onClose}
+                            onClick={handleClose}
                             className="ml-auto inline-flex items-center rounded-lg bg-transparent p-1.5 text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-neutral-800 dark:hover:text-white"
                         >
                             <X size={20} />
@@ -149,7 +156,7 @@ export default function AddCustomerModal({ isOpen, onClose, onAdd, onEdit, initi
                         </button>
                         <button
                             type="button"
-                            onClick={onClose}
+                            onClick={handleClose}
                             className="flex items-center justify-center gap-1.5 bg-transparent px-4 py-1.5 text-xs font-medium text-[#c42031] hover:text-[#9c1826]"
                         >
                             <X size={14} className="text-[#3b5998]" /> Thoát

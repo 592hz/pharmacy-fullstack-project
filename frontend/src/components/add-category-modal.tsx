@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { X } from "lucide-react"
+import { type Category } from "@/lib/mock-data"
 
 interface AddCategoryModalProps {
     isOpen: boolean
     onClose: () => void
-    onAdd: (category: any) => void
-    onEdit: (category: any) => void
-    initialData?: any
+    onAdd: (category: Category) => void
+    onEdit: (category: Category) => void
+    initialData?: Category | null
 }
 
 export default function AddCategoryModal({
@@ -18,11 +19,10 @@ export default function AddCategoryModal({
 }: AddCategoryModalProps) {
     const [errors, setErrors] = useState<Record<string, string>>({})
 
-    useEffect(() => {
-        if (!isOpen) {
-            setErrors({})
-        }
-    }, [isOpen])
+    const handleClose = () => {
+        setErrors({})
+        onClose()
+    }
 
     if (!isOpen) return null
 
@@ -46,8 +46,8 @@ export default function AddCategoryModal({
             return
         }
 
-        const categoryData = {
-            id: initialData?.id || Math.random().toString(36).substr(2, 9),
+        const categoryData: Category = {
+            id: initialData?.id || `cat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
             name: name,
             type: type as "Thu" | "Chi",
             amount: amount,
@@ -71,7 +71,7 @@ export default function AddCategoryModal({
                         {initialData ? "Sửa nhóm thu chi" : "Thêm mới nhóm thu chi"}
                     </h3>
                     <button
-                        onClick={onClose}
+                        onClick={handleClose}
                         className="rounded-full p-1.5 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-neutral-800 dark:hover:text-gray-300 transition-colors"
                         type="button"
                     >

@@ -8,20 +8,21 @@ import { mockCustomers, setMockCustomers, type Customer } from "@/lib/mock-data"
 export default function CustomersPage() {
     const [customers, setCustomers] = useState<Customer[]>(mockCustomers)
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-    const [editingCustomer, setEditingCustomer] = useState<any>(null)
-    const [customerToDelete, setCustomerToDelete] = useState<any>(null)
+    const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
+    const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null)
     const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
 
     useEffect(() => {
         setMockCustomers(customers)
     }, [customers])
 
-    const handleDeleteClick = (customer: any) => {
+    const handleDeleteClick = (customer: Customer) => {
         setCustomerToDelete(customer)
         setDeleteConfirmCount(1)
     }
 
     const confirmDelete = () => {
+        if (!customerToDelete) return
         if (deleteConfirmCount === 1) {
             setDeleteConfirmCount(2)
             return
@@ -40,13 +41,13 @@ export default function CustomersPage() {
         setDeleteConfirmCount(0)
     }
 
-    const handleAddCustomer = (newCustomer: any) => {
+    const handleAddCustomer = (newCustomer: Customer) => {
         setCustomers([newCustomer, ...customers])
         toast.success("Đã thêm khách hàng mới thành công!")
         setIsAddModalOpen(false)
     }
 
-    const handleEditCustomer = (updatedCustomer: any) => {
+    const handleEditCustomer = (updatedCustomer: Customer) => {
         setCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c))
         toast.success("Cập nhật thông tin khách hàng thành công!")
         setIsAddModalOpen(false)
@@ -141,8 +142,8 @@ export default function CustomersPage() {
                                             <th className="w-8 px-2 py-2 border-r border-gray-300 dark:border-neutral-700 text-center">
                                                 <input type="checkbox" className="rounded-sm border-gray-400" />
                                             </th>
-                                            <th className="w-28 px-2 py-2 border-r border-gray-300 dark:border-neutral-700">Mã khách hàng</th>
-                                            <th className="w-40 px-2 py-2 border-r border-gray-300 dark:border-neutral-700">Tên khách hàng</th>
+                                            <th className="w-32 px-2 py-2 border-r border-gray-300 dark:border-neutral-700">Mã khách hàng</th>
+                                            <th className="w-56 px-2 py-2 border-r border-gray-300 dark:border-neutral-700">Tên khách hàng</th>
                                             <th className="w-28 px-2 py-2 border-r border-gray-300 dark:border-neutral-700">SĐT</th>
                                             <th className="w-24 px-2 py-2 border-r border-gray-300 dark:border-neutral-700">Ngày sinh</th>
                                             <th className="px-2 py-2 border-r border-gray-300 dark:border-neutral-700">Địa chỉ</th>
@@ -159,8 +160,8 @@ export default function CustomersPage() {
                                                 <td className="px-2 py-2 border-r border-gray-300 dark:border-neutral-700 text-center">
                                                     <input type="checkbox" className="rounded-sm border-gray-400" />
                                                 </td>
-                                                <td className="px-2 py-2 border-r border-gray-300 dark:border-neutral-700 font-medium">{customer.id}</td>
-                                                <td className="px-2 py-2 border-r border-gray-300 dark:border-neutral-700 font-medium">{customer.name}</td>
+                                                <td className="px-2 py-2 border-r border-gray-300 dark:border-neutral-700 font-medium truncate" title={customer.id}>{customer.id}</td>
+                                                <td className="px-2 py-2 border-r border-gray-300 dark:border-neutral-700 font-medium truncate" title={customer.name}>{customer.name}</td>
                                                 <td className="px-2 py-2 border-r border-gray-300 dark:border-neutral-700">{customer.phone}</td>
                                                 <td className="px-2 py-2 border-r border-gray-300 dark:border-neutral-700">{customer.dob}</td>
                                                 <td className="px-2 py-2 border-r border-gray-300 dark:border-neutral-700">{customer.address}</td>

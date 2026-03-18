@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { DollarSign, Calendar, TrendingUp, Activity, ShoppingCart, Flag, ArrowUpRight, ArrowDownRight } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts"
 import { mockCategories } from "@/lib/mock-data"
@@ -39,6 +39,9 @@ const formatCurrency = (value: number) => {
 
 export default function DashboardPage() {
     const [timeRange, setTimeRange] = useState<"day" | "month" | "year">("month")
+
+    const currentMonthNum = useMemo(() => new Date().getMonth() + 1, [])
+    const currentYearNum = useMemo(() => new Date().getFullYear(), [])
 
     const getChartData = () => {
         switch (timeRange) {
@@ -86,28 +89,28 @@ export default function DashboardPage() {
         {
             title: "Doanh thu tháng",
             value: formatCurrency(totalMonth),
-            sub: `Tháng ${new Date().getMonth() + 1}`,
+            sub: `Tháng ${currentMonthNum}`,
             icon: Calendar,
             color: "text-orange-500 bg-orange-100 dark:bg-orange-900/40",
         },
         {
             title: "Lợi nhuận tháng",
             value: formatCurrency(totalProfitMonth),
-            sub: `Tháng ${new Date().getMonth() + 1}`,
+            sub: `Tháng ${currentMonthNum}`,
             icon: TrendingUp,
             color: "text-green-500 bg-green-100 dark:bg-green-900/40",
         },
         {
             title: "Doanh thu năm",
             value: formatCurrency(totalYear),
-            sub: `Năm ${new Date().getFullYear()}`,
+            sub: `Năm ${currentYearNum}`,
             icon: DollarSign,
             color: "text-cyan-500 bg-cyan-100 dark:bg-cyan-900/40",
         },
         {
             title: "Lợi nhuận năm",
             value: formatCurrency(totalProfitYear),
-            sub: `Năm ${new Date().getFullYear()}`,
+            sub: `Năm ${currentYearNum}`,
             icon: TrendingUp,
             color: "text-green-500 bg-green-100 dark:bg-green-900/40",
         },
@@ -166,7 +169,7 @@ export default function DashboardPage() {
                                 : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                                 }`}
                         >
-                            Tháng {new Date().getMonth() + 1}
+                            Tháng {currentMonthNum}
                         </button>
                         <button
                             onClick={() => setTimeRange("year")}
@@ -175,7 +178,7 @@ export default function DashboardPage() {
                                 : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
                                 }`}
                         >
-                            Năm {new Date().getFullYear()}
+                            Năm {currentYearNum}
                         </button>
                     </div>
                 </div>
@@ -205,7 +208,7 @@ export default function DashboardPage() {
                             <RechartsTooltip
                                 cursor={{ fill: 'transparent' }}
                                 contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                formatter={(value: any, name: any) => [formatCurrency(Number(value) || 0), name]}
+                                formatter={(value: string | number | readonly (string | number)[] | undefined, name: string | number | undefined) => [formatCurrency(Number(Array.isArray(value) ? value[0] : value) || 0), name?.toString() || ""]}
                                 labelStyle={{ fontWeight: 'bold', color: '#111827', marginBottom: '8px' }}
                             />
                             <Legend

@@ -13,7 +13,11 @@ export interface Customer {
     phone: string
     dob: string
     address: string
-    accumulatedPoints: string
+    gender?: "Nam" | "Nữ" | "Khác"
+    weight?: string
+    age?: string
+    notes?: string
+    accumulatedPoints: number | string
     remainingPoints: number
     debt: number | string
     hasApp: boolean
@@ -193,7 +197,13 @@ export const setMockCategories = (newCategories: Category[]) => {
     mockCategories = newCategories
 }
 
-export const mockProductCategories = [
+export interface ProductCategory {
+    id: string
+    name: string
+    notes?: string
+}
+
+export const mockProductCategories: ProductCategory[] = [
     { id: "c1", name: "Dược phẩm" },
     { id: "c2", name: "Thực phẩm chức năng" },
     { id: "c3", name: "Thuốc dùng ngoài" },
