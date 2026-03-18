@@ -265,6 +265,7 @@ export default function ProductsPage() {
     return (
         <div className="flex flex-1 flex-col md:flex-row gap-4 p-4 md:p-6 border border-gray-200 dark:border-neutral-800 rounded-lg bg-gray-100 dark:bg-neutral-950 min-h-screen">
             <AddProductModal
+                key={isAddModalOpen ? `open-${editingProduct?.id || 'new'}` : 'closed'}
                 isOpen={isAddModalOpen || !!editingProduct}
                 onClose={() => {
                     setIsAddModalOpen(false)

@@ -1,23 +1,23 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { X } from "lucide-react"
 import { toast } from "sonner"
-import { paymentMethodSchema } from "@/lib/schemas"
+import { paymentMethodSchema, type PaymentMethod } from "@/lib/schemas"
 
 interface AddPaymentMethodModalProps {
     isOpen: boolean
     onClose: () => void
-    onAdd?: (paymentMethod: any) => void
-    onEdit?: (paymentMethod: any) => void
-    initialData?: any
+    onAdd?: (paymentMethod: PaymentMethod) => void
+    onEdit?: (paymentMethod: PaymentMethod) => void
+    initialData?: PaymentMethod | null
 }
 
 export default function AddPaymentMethodModal({ isOpen, onClose, onAdd, onEdit, initialData }: AddPaymentMethodModalProps) {
     const [errors, setErrors] = useState<Record<string, string>>({})
 
-    // Clear errors when modal opens/closes or initialData changes
-    useEffect(() => {
-        if (isOpen) setErrors({})
-    }, [isOpen, initialData])
+    const handleClose = () => {
+        setErrors({})
+        onClose()
+    }
 
     if (!isOpen) return null
 
@@ -41,9 +41,9 @@ export default function AddPaymentMethodModal({ isOpen, onClose, onAdd, onEdit, 
             return
         }
 
-        const paymentMethodData = {
+        const paymentMethodData: PaymentMethod = {
             ...result.data,
-            id: initialData?.id || `PM${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`,
+            id: initialData?.id || `PM-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
         }
 
         if (initialData && onEdit) {
@@ -67,7 +67,7 @@ export default function AddPaymentMethodModal({ isOpen, onClose, onAdd, onEdit, 
                         </h3>
                         <button
                             type="button"
-                            onClick={onClose}
+                            onClick={handleClose}
                             className="ml-auto inline-flex items-center rounded-lg bg-transparent p-1.5 text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-neutral-800 dark:hover:text-white"
                         >
                             <X size={20} />
@@ -106,7 +106,7 @@ export default function AddPaymentMethodModal({ isOpen, onClose, onAdd, onEdit, 
                     <div className="flex items-center justify-end space-x-3 border-t border-gray-200 p-4 dark:border-neutral-800">
                         <button
                             type="button"
-                            onClick={onClose}
+                            onClick={handleClose}
                             className="flex items-center justify-center gap-2 rounded-md bg-white px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50 dark:bg-neutral-800 dark:text-gray-300 dark:border-neutral-700 dark:hover:bg-neutral-700"
                         >
                             <X size={16} /> Thoát

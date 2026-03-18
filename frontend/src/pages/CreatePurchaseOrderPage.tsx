@@ -4,8 +4,9 @@ import { useNavigate } from "react-router-dom"
 import { Plus, Search, PlusCircle, Trash2, Save, X, Calendar, FileText, CreditCard } from "lucide-react"
 import { toast } from "sonner"
 import { mockProducts, type PurchaseOrderItem, addMockPurchaseOrder, type PurchaseOrder, mockSuppliersList } from "@/lib/mock-data"
-import { AddProductModal } from "@/components/add-product-modal"
+import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
 import { parseFloatSafe } from "@/lib/utils"
+import { useCallback } from "react"
 
 export default function CreatePurchaseOrderPage() {
     const navigate = useNavigate()
@@ -17,8 +18,8 @@ export default function CreatePurchaseOrderPage() {
     const [items, setItems] = useState<PurchaseOrderItem[]>([])
 
     // Metadata (some auto-generated/fixed)
-    const [orderId] = useState(`PN${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`)
-    const [importDate] = useState(new Date().toISOString())
+    const [orderId] = useState(() => `PN${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`)
+    const [importDate] = useState(() => new Date().toISOString())
     const createdBy = "Quản trị viên"
     const [paymentMethod, setPaymentMethod] = useState("Chuyển khoản")
 
@@ -37,7 +38,7 @@ export default function CreatePurchaseOrderPage() {
         ).slice(0, 10)
     }, [searchQuery])
 
-    const handleQuickAdd = (product: typeof mockProducts[0]) => {
+    const handleQuickAdd = useCallback((product: typeof mockProducts[0]) => {
         const qty = 1
         const importPrice = product.importPrice || 0
         const total = qty * importPrice
@@ -45,7 +46,7 @@ export default function CreatePurchaseOrderPage() {
         const vatAmt = Math.round(total * vatPct / 100)
 
         const newItem: PurchaseOrderItem = {
-            id: `new-${Date.now()}`,
+            id: `new-${Date.now()}-${Math.random()}`,
             code: product.id,
             name: product.name,
             unit: product.unit,
@@ -67,9 +68,9 @@ export default function CreatePurchaseOrderPage() {
         setSearchQuery("")
         setShowResults(false)
         toast.success(`Đã thêm nhanh: ${product.name}`)
-    }
+    }, [])
 
-    const handleProductSaved = (formData: any) => {
+    const handleProductSaved = useCallback((formData: ProductFormData) => {
         const firstUnit = formData.units?.[0]
         const qty = 1
         const importPrice = firstUnit?.importPrice || 0
@@ -80,7 +81,7 @@ export default function CreatePurchaseOrderPage() {
         const discountAmt = Math.round(total * discountPct / 100)
         const vatAmt = Math.round((total - discountAmt) * vatPct / 100)
         const newItem: PurchaseOrderItem = {
-            id: `new-${Date.now()}`,
+            id: `new-${Date.now()}-${Math.random()}`,
             code: formData.productCode || "",
             name: formData.productName,
             unit: firstUnit?.unitName || "",
@@ -99,24 +100,24 @@ export default function CreatePurchaseOrderPage() {
         }
         setItems(prev => [...prev, newItem])
         toast.success(`Đã thêm: ${newItem.name}`)
-    }
+    }, [])
 
-    const removeItem = (id: string) => {
+    const removeItem = useCallback((id: string) => {
         setItems(prev => prev.filter(item => item.id !== id))
         toast.error("Đã xóa sản phẩm khỏi phiếu")
-    }
+    }, [])
 
     const roundTo3 = (num: number) => {
         return Math.round((num + Number.EPSILON) * 1000) / 1000
     }
 
-    const updateItemField = (id: string, field: keyof PurchaseOrderItem, value: any) => {
+    const updateItemField = useCallback((id: string, field: keyof PurchaseOrderItem, value: string | number | boolean) => {
         setItems(prev => prev.map(item => {
             if (item.id !== id) return item
 
             let finalValue = value
             if (['quantity', 'importPrice', 'discountPercent', 'vatPercent', 'retailPrice'].includes(field as string)) {
-                const numValue = parseFloatSafe(value)
+                const numValue = parseFloatSafe(value as string | number | boolean)
                 finalValue = roundTo3(numValue)
             }
 
@@ -136,9 +137,19 @@ export default function CreatePurchaseOrderPage() {
 
             return updatedItem
         }))
-    }
+    }, [])
 
-    const handleSaveOrder = () => {
+    const vnd = (val: number) => val.toLocaleString("vi-VN", {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 3
+    })
+
+    const totalAmount = roundTo3(items.reduce((sum, item) => sum + item.totalAmount, 0))
+    const totalDiscount = roundTo3(items.reduce((sum, item) => sum + item.discountAmount, 0))
+    const totalVat = roundTo3(items.reduce((sum, item) => sum + item.vatAmount, 0))
+    const amountToPay = roundTo3(totalAmount - totalDiscount + totalVat)
+
+    const handleSaveOrder = useCallback(() => {
         // Prepare data for validation
         const orderData = {
             supplierName,
@@ -212,17 +223,7 @@ export default function CreatePurchaseOrderPage() {
         addMockPurchaseOrder(newOrder)
         toast.success("Đã tạo phiếu nhập mới thành công")
         navigate("/purchase-orders")
-    }
-
-    const vnd = (val: number) => val.toLocaleString("vi-VN", {
-        minimumFractionDigits: 0,
-        maximumFractionDigits: 3
-    })
-
-    const totalAmount = roundTo3(items.reduce((sum, item) => sum + item.totalAmount, 0))
-    const totalDiscount = roundTo3(items.reduce((sum, item) => sum + item.discountAmount, 0))
-    const totalVat = roundTo3(items.reduce((sum, item) => sum + item.vatAmount, 0))
-    const amountToPay = roundTo3(totalAmount - totalDiscount + totalVat)
+    }, [amountToPay, createdBy, importDate, invoiceNumber, items, navigate, notes, orderId, paymentMethod, supplierName, totalAmount, totalDiscount, totalVat])
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-neutral-900 overflow-hidden">
@@ -391,6 +392,7 @@ export default function CreatePurchaseOrderPage() {
             </div>
 
             <AddProductModal
+                key={showAddModal ? "open" : "closed"}
                 isOpen={showAddModal}
                 onClose={() => setShowAddModal(false)}
                 onSuccess={handleProductSaved}

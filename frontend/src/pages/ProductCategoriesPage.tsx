@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import AddProductCategoryModal from "@/components/add-product-category-modal"
+import { type ProductCategory } from "@/lib/mock-data"
 
 const initialCategories = [
     {
@@ -33,12 +34,14 @@ const initialCategories = [
 
 export default function ProductCategoriesPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-    const [categories, setCategories] = useState(initialCategories.map((c, i) => ({ ...c, id: c.id || `NSP000${i + 1}` })))
-    const [editingCategory, setEditingCategory] = useState<any>(null)
-    const [categoryToDelete, setCategoryToDelete] = useState<any>(null)
+    const [categories, setCategories] = useState<ProductCategory[]>(() => 
+        initialCategories.map((c, i) => ({ ...c, id: c.id || `NSP000${i + 1}` }))
+    )
+    const [editingCategory, setEditingCategory] = useState<ProductCategory | null>(null)
+    const [categoryToDelete, setCategoryToDelete] = useState<ProductCategory | null>(null)
     const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
 
-    const handleDeleteClick = (category: any) => {
+    const handleDeleteClick = (category: ProductCategory) => {
         setCategoryToDelete(category)
         setDeleteConfirmCount(1)
     }
@@ -49,7 +52,7 @@ export default function ProductCategoriesPage() {
             return
         }
 
-        if (deleteConfirmCount === 2) {
+        if (deleteConfirmCount === 2 && categoryToDelete) {
             setCategories(categories.filter(s => s.id !== categoryToDelete.id))
             toast.success("Đã xóa nhóm sản phẩm thành công!")
             setCategoryToDelete(null)
@@ -62,12 +65,12 @@ export default function ProductCategoriesPage() {
         setDeleteConfirmCount(0)
     }
 
-    const handleAddCategory = (newCategory: any) => {
+    const handleAddCategory = (newCategory: ProductCategory) => {
         setCategories([newCategory, ...categories])
         toast.success("Đã thêm nhóm sản phẩm mới thành công!")
     }
 
-    const handleEditCategory = (updatedCategory: any) => {
+    const handleEditCategory = (updatedCategory: ProductCategory) => {
         setCategories(categories.map(s => s.id === updatedCategory.id ? updatedCategory : s))
         toast.success("Cập nhật thông tin nhóm sản phẩm thành công!")
     }

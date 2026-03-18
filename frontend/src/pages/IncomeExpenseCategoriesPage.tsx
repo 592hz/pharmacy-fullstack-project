@@ -14,8 +14,8 @@ export default function IncomeExpenseCategoriesPage() {
     
     // Modals
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-    const [editingCategory, setEditingCategory] = useState<any>(null)
-    const [categoryToDelete, setCategoryToDelete] = useState<any>(null)
+    const [editingCategory, setEditingCategory] = useState<Category | null>(null)
+    const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
     const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
 
     useEffect(() => {
@@ -56,12 +56,14 @@ export default function IncomeExpenseCategoriesPage() {
         }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     }, [categories, viewMode, selectedYear, selectedMonth])
 
-    const handleDeleteClick = (category: any) => {
+
+    const handleDeleteClick = (category: Category) => {
         setCategoryToDelete(category)
         setDeleteConfirmCount(1)
     }
 
     const confirmDelete = () => {
+        if (!categoryToDelete) return
         if (deleteConfirmCount === 1) {
             setDeleteConfirmCount(2)
             return
@@ -80,13 +82,13 @@ export default function IncomeExpenseCategoriesPage() {
         setDeleteConfirmCount(0)
     }
 
-    const handleAddCategory = (newCategory: any) => {
+    const handleAddCategory = (newCategory: Category) => {
         setCategories([newCategory, ...categories])
         toast.success("Đã thêm mới thành công!")
         setIsAddModalOpen(false)
     }
 
-    const handleEditCategory = (updatedCategory: any) => {
+    const handleEditCategory = (updatedCategory: Category) => {
         setCategories(categories.map(c => c.id === updatedCategory.id ? updatedCategory : c))
         toast.success("Cập nhật thành công!")
         setIsAddModalOpen(false)

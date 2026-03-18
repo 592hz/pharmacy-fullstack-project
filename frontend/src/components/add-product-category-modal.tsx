@@ -1,22 +1,23 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { X } from "lucide-react"
 import { toast } from "sonner"
+import { type ProductCategory } from "@/lib/mock-data"
 
 interface AddProductCategoryModalProps {
     isOpen: boolean
     onClose: () => void
-    onAdd?: (category: any) => void
-    onEdit?: (category: any) => void
-    initialData?: any
+    onAdd?: (category: ProductCategory) => void
+    onEdit?: (category: ProductCategory) => void
+    initialData?: ProductCategory | null
 }
 
 export default function AddProductCategoryModal({ isOpen, onClose, onAdd, onEdit, initialData }: AddProductCategoryModalProps) {
     const [errors, setErrors] = useState<Record<string, string>>({})
 
-    // Clear errors when modal opens/closes or initialData changes
-    useEffect(() => {
-        if (isOpen) setErrors({})
-    }, [isOpen, initialData])
+    const handleClose = () => {
+        setErrors({})
+        onClose()
+    }
 
     if (!isOpen) return null
 
@@ -37,17 +38,10 @@ export default function AddProductCategoryModal({ isOpen, onClose, onAdd, onEdit
             return
         }
 
-        const categoryData = {
-            id: id || '',
+        const categoryData: ProductCategory = {
+            id: initialData?.id || id || `PC-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
             name,
             notes,
-        }
-
-        // Generate ID if missing on creation
-        if (!categoryData.id && !initialData) {
-            categoryData.id = `NSP${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`
-        } else if (!categoryData.id && initialData) {
-            categoryData.id = initialData.id
         }
 
         if (initialData && onEdit) {
@@ -71,7 +65,7 @@ export default function AddProductCategoryModal({ isOpen, onClose, onAdd, onEdit
                         </h3>
                         <button
                             type="button"
-                            onClick={onClose}
+                            onClick={handleClose}
                             className="ml-auto inline-flex items-center rounded-lg bg-transparent p-1.5 text-sm text-gray-400 hover:bg-gray-200 hover:text-gray-900 dark:hover:bg-neutral-800 dark:hover:text-white"
                         >
                             <X size={20} />

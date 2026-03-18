@@ -1,0 +1,138 @@
+﻿
+> vite-app@0.0.1 lint
+> eslint .
+
+
+C:\Users\Ngoc Thai\pharmacy-fullstack-project\frontend\src\components\add-product-modal.tsx
+  121:13  error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\Ngoc Thai\pharmacy-fullstack-project\frontend\src\components\add-product-modal.tsx:121:13
+  119 |
+  120 |         if (initialData) {
+> 121 |             setFormData({
+      |             ^^^^^^^^^^^ Avoid calling setState() directly within an effect
+  122 |                 productName: initialData.name || "",
+  123 |                 supplierId: initialData.manufacturer || "",
+  124 |                 categoryId: "",  react-hooks/set-state-in-effect
+
+C:\Users\Ngoc Thai\pharmacy-fullstack-project\frontend\src\components\ui\sidebar.tsx
+  630:3  error  Fast refresh only works when a file only exports components. Use a new file to share constants or functions between components  react-refresh/only-export-components
+
+C:\Users\Ngoc Thai\pharmacy-fullstack-project\frontend\src\pages\CreateExportOrderPage.tsx
+   49:24  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\Ngoc Thai\pharmacy-fullstack-project\frontend\src\pages\CreateExportOrderPage.tsx:49:24
+  47 |
+  48 |         const newItem: ExportSlipItem = {
+> 49 |             id: `new-${Date.now()}-${Math.random()}`,
+     |                        ^^^^^^^^^^ Cannot call impure function
+  50 |             code: product.id,
+  51 |             name: product.name,
+  52 |             unit: product.unit,                                                                       react-hooks/purity
+   49:38  error  Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\Ngoc Thai\pharmacy-fullstack-project\frontend\src\pages\CreateExportOrderPage.tsx:49:38
+  47 |
+  48 |         const newItem: ExportSlipItem = {
+> 49 |             id: `new-${Date.now()}-${Math.random()}`,
+     |                                      ^^^^^^^^^^^^^ Cannot call impure function
+  50 |             code: product.id,
+  51 |             name: product.name,
+  52 |             unit: product.unit,                                                   react-hooks/purity
+   53:44  error  Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\Ngoc Thai\pharmacy-fullstack-project\frontend\src\pages\CreateExportOrderPage.tsx:53:44
+  51 |             name: product.name,
+  52 |             unit: product.unit,
+> 53 |             batchNumber: "L├ö" + Math.floor(Math.random() * 1000),
+     |                                            ^^^^^^^^^^^^^ Cannot call impure function
+  54 |             expiryDate: "31-12-2027",
+  55 |             quantity: qty,
+  56 |             retailPrice: retailPrice,  react-hooks/purity
+   70:43  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-explicit-any
+   96:44  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-explicit-any
+  108:78  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           @typescript-eslint/no-explicit-any
+
+C:\Users\Ngoc Thai\pharmacy-fullstack-project\frontend\src\pages\CreatePurchaseOrderPage.tsx
+   48:24  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\Ngoc Thai\pharmacy-fullstack-project\frontend\src\pages\CreatePurchaseOrderPage.tsx:48:24
+  46 |
+  47 |         const newItem: PurchaseOrderItem = {
+> 48 |             id: `new-${Date.now()}-${Math.random()}`,
+     |                        ^^^^^^^^^^ Cannot call impure function
+  49 |             code: product.id,
+  50 |             name: product.name,
+  51 |             unit: product.unit,                      react-hooks/purity
+   48:38  error  Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\Ngoc Thai\pharmacy-fullstack-project\frontend\src\pages\CreatePurchaseOrderPage.tsx:48:38
+  46 |
+  47 |         const newItem: PurchaseOrderItem = {
+> 48 |             id: `new-${Date.now()}-${Math.random()}`,
+     |                                      ^^^^^^^^^^^^^ Cannot call impure function
+  49 |             code: product.id,
+  50 |             name: product.name,
+  51 |             unit: product.unit,  react-hooks/purity
+   72:43  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+  113:81  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+
+C:\Users\Ngoc Thai\pharmacy-fullstack-project\frontend\src\pages\ExportOrderDetailPage.tsx
+  46:24  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\Ngoc Thai\pharmacy-fullstack-project\frontend\src\pages\ExportOrderDetailPage.tsx:46:24
+  44 |
+  45 |         const newItem: ExportSlipItem = {
+> 46 |             id: `new-${Date.now()}`,
+     |                        ^^^^^^^^^^ Cannot call impure function
+  47 |             code: product.id,
+  48 |             name: product.name,
+  49 |             unit: product.unit,  react-hooks/purity
+  76:43  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-explicit-any
+
+C:\Users\Ngoc Thai\pharmacy-fullstack-project\frontend\src\pages\PurchaseOrderDetailPage.tsx
+  47:24  error  Error: Cannot call impure function during render
+
+`Date.now` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\Ngoc Thai\pharmacy-fullstack-project\frontend\src\pages\PurchaseOrderDetailPage.tsx:47:24
+  45 |
+  46 |         const newItem: PurchaseOrderItem = {
+> 47 |             id: `new-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+     |                        ^^^^^^^^^^ Cannot call impure function
+  48 |             code: product.id,
+  49 |             name: product.name,
+  50 |             unit: product.unit,                      react-hooks/purity
+  47:38  error  Error: Cannot call impure function during render
+
+`Math.random` is an impure function. Calling an impure function can produce unstable results that update unpredictably when the component happens to re-render. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#components-and-hooks-must-be-idempotent).
+
+C:\Users\Ngoc Thai\pharmacy-fullstack-project\frontend\src\pages\PurchaseOrderDetailPage.tsx:47:38
+  45 |
+  46 |         const newItem: PurchaseOrderItem = {
+> 47 |             id: `new-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+     |                                      ^^^^^^^^^^^^^ Cannot call impure function
+  48 |             code: product.id,
+  49 |             name: product.name,
+  50 |             unit: product.unit,  react-hooks/purity
+
+Γ£û 16 problems (16 errors, 0 warnings)
+

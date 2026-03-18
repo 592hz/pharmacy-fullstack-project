@@ -2,9 +2,10 @@ import { useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { Search, PlusCircle, Trash2, Save, X, Calendar, User, CreditCard, TrendingUp, Plus } from "lucide-react"
 import { toast } from "sonner"
-import { mockProducts, mockCustomers, type ExportSlipItem, type ExportSlip, addMockExportSlip, setMockCustomers } from "@/lib/mock-data"
-import { AddProductModal } from "@/components/add-product-modal"
+import { mockProducts, mockCustomers, type ExportSlipItem, type ExportSlip, addMockExportSlip, setMockCustomers, type Customer } from "@/lib/mock-data"
+import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
 import AddCustomerModal from "@/components/add-customer-modal"
+import { useCallback } from "react"
 import { parseFloatSafe } from "@/lib/utils"
 
 export default function CreateExportOrderPage() {
@@ -19,8 +20,8 @@ export default function CreateExportOrderPage() {
     const [doctorName, setDoctorName] = useState("")
 
     // Metadata
-    const [orderId] = useState(`PX${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`)
-    const [exportDate] = useState(new Date().toISOString())
+    const [orderId] = useState(() => `PX${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`)
+    const [exportDate] = useState(() => new Date().toISOString())
     const createdBy = "Quản trị viên"
 
     const [showAddModal, setShowAddModal] = useState(false)
@@ -39,14 +40,14 @@ export default function CreateExportOrderPage() {
         ).slice(0, 10)
     }, [searchQuery])
 
-    const handleQuickAdd = (product: typeof mockProducts[0]) => {
+    const handleQuickAdd = useCallback((product: typeof mockProducts[0]) => {
         const qty = 1
         const retailPrice = product.retailPrice || 0
         const importPrice = product.importPrice || 0
         const total = qty * retailPrice
 
         const newItem: ExportSlipItem = {
-            id: `new-${Date.now()}`,
+            id: `new-${Date.now()}-${Math.random()}`,
             code: product.id,
             name: product.name,
             unit: product.unit,
@@ -65,9 +66,9 @@ export default function CreateExportOrderPage() {
         setSearchQuery("")
         setShowResults(false)
         toast.success(`Đã thêm nhanh: ${product.name}`)
-    }
+    }, [])
 
-    const handleProductSaved = (formData: any) => {
+    const handleProductSaved = useCallback((formData: ProductFormData) => {
         const firstUnit = formData.units?.[0]
         const qty = 1
         const retailPrice = firstUnit?.retailPrice || 0
@@ -75,7 +76,7 @@ export default function CreateExportOrderPage() {
         const total = qty * retailPrice
 
         const newItem: ExportSlipItem = {
-            id: `new-${Date.now()}`,
+            id: `new-${Date.now()}-${Math.random()}`,
             code: formData.productCode || "SP" + Math.floor(Math.random() * 100000),
             name: formData.productName,
             unit: firstUnit?.unitName || "Viên",
@@ -91,21 +92,21 @@ export default function CreateExportOrderPage() {
         }
         setItems(prev => [newItem, ...prev])
         toast.success(`Đã thêm: ${newItem.name}`)
-    }
+    }, [])
 
-    const handleCustomerAdded = (customer: any) => {
+    const handleCustomerAdded = useCallback((customer: Customer) => {
         const newCustomers = [customer, ...mockCustomers]
         setMockCustomers(newCustomers)
         setCustomerName(customer.name)
         toast.success(`Đã thêm và chọn khách hàng: ${customer.name}`)
-    }
+    }, [])
 
     const removeItem = (id: string) => {
         setItems(prev => prev.filter(item => item.id !== id))
         toast.error("Đã xóa sản phẩm khỏi phiếu")
     }
 
-    const updateItemField = (id: string, field: keyof ExportSlipItem, value: any) => {
+    const updateItemField = useCallback((id: string, field: keyof ExportSlipItem, value: string | number | boolean) => {
         setItems(prev => prev.map(item => {
             if (item.id !== id) return item
 
@@ -123,7 +124,7 @@ export default function CreateExportOrderPage() {
 
             return updatedItem
         }))
-    }
+    }, [])
 
     const handleSaveOrder = () => {
         if (!customerName) {
@@ -338,6 +339,7 @@ export default function CreateExportOrderPage() {
             </div>
 
             <AddProductModal
+                key={showAddModal ? "open" : "closed"}
                 isOpen={showAddModal}
                 onClose={() => setShowAddModal(false)}
                 onSuccess={handleProductSaved}

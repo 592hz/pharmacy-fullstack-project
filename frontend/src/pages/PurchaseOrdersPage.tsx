@@ -28,12 +28,12 @@ export default function PurchaseOrdersPage() {
 
     // ── Filter state ─────────────────────────────────────────────────────────
     const [dateFilterType, setDateFilterType] = useState<"Ngày" | "Từ ngày" | "Tháng" | "Quý" | "Năm">("Năm")
-    const [filterDate, setFilterDate] = useState<string>(new Date().toISOString().split("T")[0])
+    const [filterDate, setFilterDate] = useState<string>(() => new Date().toISOString().split("T")[0])
     const [filterStartDate, setFilterStartDate] = useState<string>("")
     const [filterEndDate, setFilterEndDate] = useState<string>("")
-    const [filterMonth, setFilterMonth] = useState<string>(String(new Date().getMonth() + 1).padStart(2, "0"))
+    const [filterMonth, setFilterMonth] = useState<string>(() => String(new Date().getMonth() + 1).padStart(2, "0"))
     const [filterQuarter, setFilterQuarter] = useState<string>("1")
-    const [filterYear, setFilterYear] = useState<string>(new Date().getFullYear().toString())
+    const [filterYear, setFilterYear] = useState<string>(() => new Date().getFullYear().toString())
     const [filterKeyword, setFilterKeyword] = useState("")
     const [filterProduct, setFilterProduct] = useState("")
     const [filterType, setFilterType] = useState<"Phiếu nhập" | "Phiếu xuất" | "">("")
@@ -279,7 +279,7 @@ export default function PurchaseOrdersPage() {
                             <label className="block text-[11px] font-semibold text-gray-500 dark:text-gray-400 mb-1 uppercase tracking-wide">Loại phiếu</label>
                             <select
                                 value={filterType}
-                                onChange={(e) => setFilterType(e.target.value as any)}
+                                onChange={(e) => setFilterType(e.target.value as "Phiếu nhập" | "Phiếu xuất" | "")}
                                 className="w-full rounded border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50"
                             >
                                 <option value="">Phiếu nhập</option>
