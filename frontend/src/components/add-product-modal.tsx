@@ -3,6 +3,7 @@ import { X } from "lucide-react"
 import { toast } from "sonner"
 import { mockProductCategories, mockSuppliersList, type Product } from "@/lib/mock-data"
 import { parseFloatSafe } from "@/lib/utils"
+import { NumericInput } from "@/components/ui/numeric-input"
 
 // dữ liệu được lấy từ database 
 export interface ProductUnit {
@@ -92,22 +93,33 @@ interface InputFieldProps {
 }
 
 // Helper component for standard input with label
-const InputField = ({ label, required, value, onChange, placeholder = "", type = "text", disabled = false }: InputFieldProps) => (
-    <div className="flex flex-col gap-1 w-full">
-        <label className="text-xs font-semibold text-gray-700">
-            {label} {required && <span className="text-red-500">*</span>}
-        </label>
-        <input
-            type={type === 'number' ? 'text' : type}
-            inputMode={type === 'number' ? 'decimal' : undefined}
-            value={type === 'number' && (value === 0 || value === '0') ? '' : value}
-            disabled={disabled}
-            onChange={(e) => onChange(type === 'number' ? parseFloatSafe(e.target.value) : e.target.value)}
-            placeholder={placeholder}
-            className={`w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
-        />
-    </div>
-)
+const InputField = ({ label, required, value, onChange, placeholder = "", type = "text", disabled = false }: InputFieldProps) => {
+    return (
+        <div className="flex flex-col gap-1 w-full">
+            <label className="text-xs font-semibold text-gray-700">
+                {label} {required && <span className="text-red-500">*</span>}
+            </label>
+            {type === 'number' ? (
+                <NumericInput
+                    value={Number(value)}
+                    onChange={(v) => onChange(v)}
+                    disabled={disabled}
+                    placeholder={placeholder}
+                    className={`w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
+                />
+            ) : (
+                <input
+                    type={type}
+                    value={value}
+                    disabled={disabled}
+                    onChange={(e) => onChange(e.target.value)}
+                    placeholder={placeholder}
+                    className={`w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
+                />
+            )}
+        </div>
+    )
+}
 
 export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: AddProductModalProps) {
     const [formData, setFormData] = useState<ProductFormData>(() => {
@@ -313,11 +325,25 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                     ))}
                                 </select>
                             </div>
-                            <InputField label="%VAT" type="number" value={formData.vatPercent} onChange={(v) => handleInputChange('vatPercent', v)} />
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-gray-500">%VAT</label>
+                                    <NumericInput 
+                                        value={formData.vatPercent} 
+                                        onChange={(v) => handleInputChange('vatPercent', v)} 
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-medium text-gray-500">%CK</label>
+                                    <NumericInput 
+                                        value={formData.discountPercent} 
+                                        onChange={(v) => handleInputChange('discountPercent', v)} 
+                                    />
+                                </div>
+                            </div>
 
                             {/* Row 3 */}
                             <InputField label="Mã hàng hóa" disabled value={formData.productCode} onChange={(v) => handleInputChange('productCode', v)} placeholder="SP000294" />
-                            <InputField label="%CK" type="number" value={formData.discountPercent} onChange={(v) => handleInputChange('discountPercent', v)} />
                         </div>
 
                         {/* --- UNIT ADD --- */}
@@ -363,38 +389,30 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                                     </datalist>
                                                 </td>
                                                 <td className="px-4 py-2">
-                                                    <input
-                                                        type="text"
-                                                        inputMode="decimal"
-                                                        value={unit.conversionRate === 0 ? '' : unit.conversionRate}
-                                                        onChange={(e) => handleUnitChange(unit.id, 'conversionRate', e.target.value)}
+                                                    <NumericInput
+                                                        value={unit.conversionRate}
+                                                        onChange={(v) => handleUnitChange(unit.id, 'conversionRate', v)}
                                                         className="w-[80px] mx-auto text-center border border-transparent hover:border-gray-300 focus:border-blue-500 focus:bg-white bg-transparent rounded px-2 py-1 text-sm outline-none block"
                                                     />
                                                 </td>
                                                 <td className="px-4 py-2">
-                                                    <input
-                                                        type="text"
-                                                        inputMode="decimal"
-                                                        value={unit.importPrice === 0 ? '' : unit.importPrice}
-                                                        onChange={(e) => handleUnitChange(unit.id, 'importPrice', e.target.value)}
+                                                    <NumericInput
+                                                        value={unit.importPrice}
+                                                        onChange={(v) => handleUnitChange(unit.id, 'importPrice', v)}
                                                         className="w-[120px] mx-auto text-center border border-transparent hover:border-gray-300 focus:border-blue-500 focus:bg-white bg-transparent rounded px-2 py-1 text-sm outline-none text-[#5c9a38] font-medium block"
                                                     />
                                                 </td>
                                                 <td className="px-4 py-2">
-                                                    <input
-                                                        type="text"
-                                                        inputMode="decimal"
-                                                        value={unit.retailPrice === 0 ? '' : unit.retailPrice}
-                                                        onChange={(e) => handleUnitChange(unit.id, 'retailPrice', e.target.value)}
+                                                    <NumericInput
+                                                        value={unit.retailPrice}
+                                                        onChange={(v) => handleUnitChange(unit.id, 'retailPrice', v)}
                                                         className="w-[120px] mx-auto text-center border border-transparent hover:border-gray-300 focus:border-blue-500 focus:bg-white bg-transparent rounded px-2 py-1 text-sm outline-none font-semibold block"
                                                     />
                                                 </td>
                                                 <td className="px-4 py-2">
-                                                    <input
-                                                        type="text"
-                                                        inputMode="decimal"
-                                                        value={unit.wholesalePrice === 0 ? '' : unit.wholesalePrice}
-                                                        onChange={(e) => handleUnitChange(unit.id, 'wholesalePrice', e.target.value)}
+                                                    <NumericInput
+                                                        value={unit.wholesalePrice}
+                                                        onChange={(v) => handleUnitChange(unit.id, 'wholesalePrice', v)}
                                                         className="w-[120px] mx-auto text-center border border-transparent hover:border-gray-300 focus:border-blue-500 focus:bg-white bg-transparent rounded px-2 py-1 text-sm outline-none font-semibold text-gray-600 block"
                                                     />
                                                 </td>

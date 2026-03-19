@@ -4,6 +4,8 @@ import { Plus, AlertCircle, Search, PlusCircle, Trash2, Save, X } from "lucide-r
 import { toast } from "sonner"
 import { mockPurchaseOrders, mockProducts, type PurchaseOrderItem } from "@/lib/mock-data"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
+import { parseFloatSafe } from "@/lib/utils"
+import { NumericInput } from "@/components/ui/numeric-input"
 
 export default function PurchaseOrderDetailPage() {
     const { id } = useParams<{ id: string }>()
@@ -133,10 +135,10 @@ export default function PurchaseOrderDetailPage() {
 
             // Recalculate totals for this row
             if (['quantity', 'importPrice', 'discountPercent', 'vatPercent'].includes(field as string)) {
-                const qty = Number(updatedItem.quantity) || 0
-                const price = Number(updatedItem.importPrice) || 0
-                const discPct = Number(updatedItem.discountPercent) || 0
-                const vatPct = Number(updatedItem.vatPercent) || 0
+                const qty = parseFloatSafe(updatedItem.quantity)
+                const price = parseFloatSafe(updatedItem.importPrice)
+                const discPct = parseFloatSafe(updatedItem.discountPercent)
+                const vatPct = parseFloatSafe(updatedItem.vatPercent)
 
                 updatedItem.totalAmount = qty * price
                 updatedItem.discountAmount = Math.round(updatedItem.totalAmount * discPct / 100)
@@ -434,53 +436,48 @@ export default function PurchaseOrderDetailPage() {
                                     </td>
                                     <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 text-right font-medium">
                                         {isEditing ? (
-                                            <input
-                                                type="number"
+                                            <NumericInput
                                                 className="w-16 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-1 rounded outline-none text-right"
-                                                value={item.quantity}
-                                                onChange={(e) => updateItemField(item.id, 'quantity', e.target.value)}
+                                                value={Number(item.quantity)}
+                                                onChange={(v) => updateItemField(item.id, 'quantity', v)}
                                             />
                                         ) : item.quantity}
                                     </td>
                                     <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 text-right font-medium">
                                         {isEditing ? (
-                                            <input
-                                                type="number"
+                                            <NumericInput
                                                 className="w-24 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-1 rounded outline-none text-right"
-                                                value={item.importPrice}
-                                                onChange={(e) => updateItemField(item.id, 'importPrice', e.target.value)}
+                                                value={Number(item.importPrice)}
+                                                onChange={(v) => updateItemField(item.id, 'importPrice', v)}
                                             />
                                         ) : vnd(item.importPrice)}
                                     </td>
                                     <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 text-right">
                                         {isEditing ? (
-                                            <input
-                                                type="number"
+                                            <NumericInput
                                                 className="w-24 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-1 rounded outline-none text-right"
-                                                value={item.retailPrice}
-                                                onChange={(e) => updateItemField(item.id, 'retailPrice', e.target.value)}
+                                                value={Number(item.retailPrice)}
+                                                onChange={(v) => updateItemField(item.id, 'retailPrice', v)}
                                             />
                                         ) : vnd(item.retailPrice)}
                                     </td>
                                     <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 text-right">{vnd(item.totalAmount)}</td>
                                     <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 text-right">
                                         {isEditing ? (
-                                            <input
-                                                type="number"
+                                            <NumericInput
                                                 className="w-12 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-1 rounded outline-none text-right"
-                                                value={item.discountPercent}
-                                                onChange={(e) => updateItemField(item.id, 'discountPercent', e.target.value)}
+                                                value={Number(item.discountPercent)}
+                                                onChange={(v) => updateItemField(item.id, 'discountPercent', v)}
                                             />
                                         ) : Number(item.discountPercent ?? 0).toFixed(2).replace('.', ',')}
                                     </td>
                                     <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 text-right">{item.discountAmount > 0 ? vnd(item.discountAmount) : 0}</td>
                                     <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 text-right">
                                         {isEditing ? (
-                                            <input
-                                                type="number"
+                                            <NumericInput
                                                 className="w-12 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-1 rounded outline-none text-right"
-                                                value={item.vatPercent}
-                                                onChange={(e) => updateItemField(item.id, 'vatPercent', e.target.value)}
+                                                value={Number(item.vatPercent)}
+                                                onChange={(v) => updateItemField(item.id, 'vatPercent', v)}
                                             />
                                         ) : Number(item.vatPercent ?? 0)}
                                     </td>

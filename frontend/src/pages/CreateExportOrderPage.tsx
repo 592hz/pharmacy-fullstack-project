@@ -1,12 +1,12 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { Search, PlusCircle, Trash2, Save, X, Calendar, User, CreditCard, TrendingUp, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { mockProducts, mockCustomers, type ExportSlipItem, type ExportSlip, addMockExportSlip, setMockCustomers, type Customer } from "@/lib/mock-data"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
 import AddCustomerModal from "@/components/add-customer-modal"
-import { useCallback } from "react"
 import { parseFloatSafe } from "@/lib/utils"
+import { NumericInput } from "@/components/ui/numeric-input"
 
 export default function CreateExportOrderPage() {
     const navigate = useNavigate()
@@ -407,24 +407,20 @@ export default function CreateExportOrderPage() {
                                                 />
                                             </td>
                                             <td className="px-3 py-4 border-r border-gray-100 dark:border-neutral-800">
-                                                <input
-                                                    type="text"
-                                                    inputMode="decimal"
+                                                <NumericInput
                                                     className="w-full bg-blue-50/50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-2 py-1.5 rounded text-right outline-none focus:ring-2 focus:ring-[#5c9a38]/20 focus:border-[#5c9a38] font-black text-blue-600 dark:text-blue-400 transition-all"
-                                                    value={item.quantity}
-                                                    onChange={(e) => updateItemField(item.id, 'quantity', e.target.value)}
+                                                    value={Number(item.quantity)}
+                                                    onChange={(v) => updateItemField(item.id, 'quantity', v)}
                                                 />
                                             </td>
                                             <td className="px-3 py-4 border-r border-gray-100 dark:border-neutral-800 text-right text-gray-400 font-medium italic bg-gray-50/30 dark:bg-neutral-800/20">
                                                 {vnd(item.importPrice)}
                                             </td>
                                             <td className="px-3 py-4 border-r border-gray-100 dark:border-neutral-800 bg-green-50/10 dark:bg-green-900/5">
-                                                <input
-                                                    type="text"
-                                                    inputMode="decimal"
+                                                <NumericInput
                                                     className="w-full bg-transparent border border-transparent hover:border-green-300 dark:hover:border-green-600/50 px-2 py-1.5 rounded text-right outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] font-black text-[#5c9a38] transition-all"
-                                                    value={item.retailPrice}
-                                                    onChange={(e) => updateItemField(item.id, 'retailPrice', e.target.value)}
+                                                    value={Number(item.retailPrice)}
+                                                    onChange={(v) => updateItemField(item.id, 'retailPrice', v)}
                                                 />
                                             </td>
                                             <td className="px-3 py-4 border-r border-gray-100 dark:border-neutral-800 text-right font-black text-gray-700 dark:text-gray-200">

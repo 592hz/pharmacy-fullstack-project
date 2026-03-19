@@ -4,6 +4,8 @@ import { AlertCircle, Search, PlusCircle, Trash2, Save, X, Printer } from "lucid
 import { toast } from "sonner"
 import { mockExportSlips, mockProducts, type ExportSlipItem } from "@/lib/mock-data"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
+import { parseFloatSafe } from "@/lib/utils"
+import { NumericInput } from "@/components/ui/numeric-input"
 
 export default function ExportOrderDetailPage() {
     const { id } = useParams<{ id: string }>()
@@ -129,9 +131,9 @@ export default function ExportOrderDetailPage() {
             const updatedItem = { ...item, [field]: value }
 
             if (['quantity', 'retailPrice', 'importPrice', 'discountPercent'].includes(field as string)) {
-                const qty = Number(updatedItem.quantity) || 0
-                const price = Number(updatedItem.retailPrice) || 0
-                const discPct = Number(updatedItem.discountPercent) || 0
+                const qty = parseFloatSafe(updatedItem.quantity)
+                const price = parseFloatSafe(updatedItem.retailPrice)
+                const discPct = parseFloatSafe(updatedItem.discountPercent)
 
                 updatedItem.totalAmount = qty * price
                 updatedItem.discountAmount = Math.round(updatedItem.totalAmount * discPct / 100)
@@ -379,17 +381,17 @@ export default function ExportOrderDetailPage() {
                                     </td>
                                     <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700 text-right font-medium">
                                         {isEditing ? (
-                                            <input type="number" className="w-16 border rounded px-1 text-right" value={item.quantity} onChange={(e) => updateItemField(item.id, 'quantity', e.target.value)} />
+                                            <NumericInput className="w-16 border rounded px-1 text-right" value={Number(item.quantity)} onChange={(v) => updateItemField(item.id, 'quantity', v)} />
                                         ) : item.quantity}
                                     </td>
                                     <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700 text-right text-gray-500">
                                         {isEditing ? (
-                                            <input type="number" className="w-24 border rounded px-1 text-right text-[11px]" value={item.importPrice} onChange={(e) => updateItemField(item.id, 'importPrice', e.target.value)} />
+                                            <NumericInput className="w-24 border rounded px-1 text-right text-[11px]" value={Number(item.importPrice)} onChange={(v) => updateItemField(item.id, 'importPrice', v)} />
                                         ) : vnd(item.importPrice)}
                                     </td>
                                     <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700 text-right font-medium">
                                         {isEditing ? (
-                                            <input type="number" className="w-24 border rounded px-1 text-right" value={item.retailPrice} onChange={(e) => updateItemField(item.id, 'retailPrice', e.target.value)} />
+                                            <NumericInput className="w-24 border rounded px-1 text-right" value={Number(item.retailPrice)} onChange={(v) => updateItemField(item.id, 'retailPrice', v)} />
                                         ) : vnd(item.retailPrice)}
                                     </td>
                                     <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700 text-right font-bold">{vnd(item.remainingAmount)}</td>
