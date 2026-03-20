@@ -577,44 +577,20 @@ export default function PurchaseOrderDetailPage() {
             </div>
 
             {/* ── FOOTER ACTIONS ── */}
-            <div className="flex-none p-3 border-t border-gray-200 dark:border-neutral-800 flex justify-between gap-4 bg-white dark:bg-neutral-900">
-                <div className="flex gap-2 items-center">
-                    <label className="flex items-center gap-2 cursor-pointer select-none mr-2">
-                        <input type="checkbox" className="rounded w-4 h-4 accent-green-600" />
-                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Giá đã có VAT</span>
-                    </label>
-                    <button className="bg-[#5c9a38] text-white px-6 py-2 rounded text-sm font-semibold hover:bg-[#5c9a38]/90">
-                        Tìm kiếm phiếu
-                    </button>
-                    <button className="bg-gray-300 text-gray-700 px-6 py-2 rounded text-sm font-semibold hover:bg-gray-400 dark:bg-neutral-700 dark:text-gray-300">
-                        Lấy phiếu dự trù
-                    </button>
-                    <button className="bg-gray-300 text-gray-700 px-6 py-2 rounded text-sm font-semibold hover:bg-gray-400 dark:bg-neutral-700 dark:text-gray-300">
-                        Thêm ĐVT
-                    </button>
-                </div>
-                <div className="flex gap-2">
-                    <button className="bg-[#5c9a38] text-white px-6 py-2 rounded text-sm font-semibold hover:bg-[#5c9a38]/90">
-                        In mã vạch
-                    </button>
-                    <button className="bg-[#5c9a38] text-white px-6 py-2 rounded text-sm font-semibold hover:bg-[#5c9a38]/90">
-                        In phiếu
-                    </button>
-                    <button
-                        onClick={handleSaveOrder}
-                        className={`${isEditing ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-200 text-gray-500'} text-white px-6 py-2 rounded text-sm font-semibold transition`}
-                        disabled={!isEditing}
-                    >
-                        LƯU - F6
-                    </button>
-                    <button
-                        onClick={handleSaveOrder}
-                        className={`${isEditing ? 'bg-[#5c9a38] hover:bg-[#5c9a38]/90' : 'bg-gray-200 text-gray-500'} text-white px-6 py-2 rounded text-sm font-semibold transition`}
-                        disabled={!isEditing}
-                    >
-                        LƯU & IN - F7
-                    </button>
-                </div>
+            <div className="flex-none p-3 border-t border-gray-200 dark:border-neutral-800 flex justify-between bg-white dark:bg-neutral-900">
+                <button 
+                    onClick={() => navigate("/purchase-orders")} 
+                    className="flex items-center gap-2 border border-gray-300 dark:border-neutral-700 px-4 py-2 rounded text-sm hover:bg-gray-100 dark:hover:bg-neutral-800 transition text-gray-700 dark:text-gray-300"
+                >
+                    <AlertCircle size={16} /> Quay lại danh sách
+                </button>
+                <button
+                    onClick={handleSaveOrder}
+                    className={`${isEditing ? 'bg-[#5c9a38] hover:bg-[#5c9a38]/90' : 'bg-gray-200 text-gray-500'} text-white px-10 py-2 rounded text-sm font-bold transition shadow-sm`}
+                    disabled={!isEditing}
+                >
+                    LƯU THAY ĐỔI
+                </button>
             </div>
         </div>
     )

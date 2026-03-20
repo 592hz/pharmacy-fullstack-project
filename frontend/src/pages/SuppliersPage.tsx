@@ -120,9 +120,22 @@ const initialSuppliers = [
 export default function SuppliersPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [suppliers, setSuppliers] = useState<Supplier[]>(initialSuppliers)
+    const [searchTerm, setSearchTerm] = useState('')
+    const [currentPage, setCurrentPage] = useState(1)
+    const [itemsPerPage, setItemsPerPage] = useState(10)
     const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
     const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null)
     const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
+
+    const filteredSuppliers = suppliers.filter(s =>
+        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        s.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (s.phone && s.phone.includes(searchTerm))
+    )
+
+    const totalPages = Math.max(1, Math.ceil(filteredSuppliers.length / itemsPerPage))
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const displayedSuppliers = filteredSuppliers.slice(startIndex, startIndex + itemsPerPage)
 
     const handleDeleteClick = (supplier: Supplier) => {
         setSupplierToDelete(supplier)
@@ -172,6 +185,8 @@ export default function SuppliersPage() {
                             <input
                                 type="text"
                                 placeholder="Tìm kiếm"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full sm:max-w-md rounded-l-md border border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 px-4 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500/50"
                             />
                             <button className="flex items-center justify-center bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-6 py-2 rounded-r-md font-medium transition-colors text-sm">
@@ -222,7 +237,7 @@ export default function SuppliersPage() {
                                             Không có dữ liệu
                                         </td>
                                     </tr>
-                                ) : suppliers.map((supplier) => (
+                                ) : displayedSuppliers.map((supplier) => (
                                     <tr key={supplier.id} className="hover:bg-gray-50 dark:hover:bg-neutral-800/50 text-gray-700 dark:text-gray-300">
                                         <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 font-medium">{supplier.id}</td>
                                         <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 max-w-[250px] text-xs leading-relaxed whitespace-normal break-words">{supplier.name}</td>
@@ -258,26 +273,84 @@ export default function SuppliersPage() {
                     {/* Pagination */}
                     <div className="flex items-center justify-between mt-6 text-sm text-gray-500 dark:text-gray-400">
                         <div>
-                            Tổng số bản ghi: {suppliers.length} - Tổng số trang: 1
+                            Tổng số bản ghi: {filteredSuppliers.length} - Trang {currentPage}/{totalPages}
                         </div>
                         <div className="flex items-center space-x-1">
-                            <button className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 disabled:opacity-50" disabled>
+                            <button
+                                onClick={() => setCurrentPage(1)}
+                                disabled={currentPage === 1}
+                                className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 disabled:opacity-50"
+                                title="Trang đầu"
+                            >
                                 &laquo;
                             </button>
-                            <button className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 disabled:opacity-50" disabled>
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                disabled={currentPage === 1}
+                                className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 disabled:opacity-50"
+                                title="Trang trước"
+                            >
                                 &lsaquo;
                             </button>
-                            <button className="w-8 h-8 flex items-center justify-center rounded-md bg-blue-100 text-blue-600 font-medium">
-                                1
-                            </button>
-                            <button className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 disabled:opacity-50" disabled>
+                            <div className="flex items-center gap-1">
+                                {[...Array(totalPages)].map((_, i) => {
+                                    const pageNum = i + 1;
+                                    // Only show a few page numbers around the current page
+                                    if (
+                                        pageNum === 1 ||
+                                        pageNum === totalPages ||
+                                        (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                                    ) {
+                                        return (
+                                            <button
+                                                key={pageNum}
+                                                onClick={() => setCurrentPage(pageNum)}
+                                                className={`w-8 h-8 flex items-center justify-center rounded-md font-medium transition-colors ${currentPage === pageNum
+                                                    ? "bg-blue-100 text-blue-600"
+                                                    : "hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-600 dark:text-gray-400"
+                                                    }`}
+                                            >
+                                                {pageNum}
+                                            </button>
+                                        );
+                                    } else if (
+                                        (pageNum === 2 && currentPage > 3) ||
+                                        (pageNum === totalPages - 1 && currentPage < totalPages - 2)
+                                    ) {
+                                        return <span key={pageNum} className="px-1 text-gray-400">...</span>;
+                                    }
+                                    return null;
+                                })}
+                            </div>
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                                disabled={currentPage === totalPages}
+                                className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 disabled:opacity-50"
+                                title="Trang sau"
+                            >
                                 &rsaquo;
                             </button>
-                            <button className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 disabled:opacity-50" disabled>
+                            <button
+                                onClick={() => setCurrentPage(totalPages)}
+                                disabled={currentPage === totalPages}
+                                className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 disabled:opacity-50"
+                                title="Trang cuối"
+                            >
                                 &raquo;
                             </button>
-                            <select className="ml-4 border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 rounded-md text-sm px-2 py-1 h-8 focus:ring-green-500 focus:border-green-500 w-16 text-center appearance-none">
-                                <option>1</option>
+                            <select
+                                value={itemsPerPage}
+                                onChange={(e) => {
+                                    setItemsPerPage(Number(e.target.value));
+                                    setCurrentPage(1);
+                                }}
+                                className="ml-4 border-gray-300 dark:border-neutral-700 bg-white dark:bg-neutral-800 rounded-md text-sm px-2 py-1 h-8 focus:ring-green-500 focus:border-green-500 min-w-16 text-center appearance-none"
+                            >
+                                <option value={1}>1</option>
+                                <option value={5}>5</option>
+                                <option value={10}>10</option>
+                                <option value={20}>20</option>
+                                <option value={50}>50</option>
                             </select>
                         </div>
                     </div>

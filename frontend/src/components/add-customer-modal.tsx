@@ -29,14 +29,10 @@ export default function AddCustomerModal({ isOpen, onClose, onAdd, onEdit, initi
         const randomStr = Math.random().toString(36).substr(2, 4).toUpperCase()
         const id = initialData?.id || `KH${timestamp}${randomStr}`
         const rawData = Object.fromEntries(formData)
-        
+
         const result = customerSchema.safeParse({
             ...rawData,
             id,
-            debt: initialData?.debt || 0,
-            accumulatedPoints: initialData?.accumulatedPoints || 0,
-            remainingPoints: initialData?.remainingPoints || 0,
-            hasApp: initialData?.hasApp || false,
         })
 
         if (!result.success) {
@@ -56,10 +52,6 @@ export default function AddCustomerModal({ isOpen, onClose, onAdd, onEdit, initi
             phone: result.data.phone || "",
             dob: result.data.dob || "",
             address: result.data.address || "",
-            debt: result.data.debt || 0,
-            accumulatedPoints: result.data.accumulatedPoints || 0,
-            remainingPoints: result.data.remainingPoints || 0,
-            hasApp: result.data.hasApp || false,
         }
 
         if (initialData && onEdit) {
@@ -151,7 +143,7 @@ export default function AddCustomerModal({ isOpen, onClose, onAdd, onEdit, initi
 
                     {/* Modal Footer */}
                     <div className="flex items-center justify-end space-x-3 border-t border-gray-200 p-4 dark:border-neutral-800">
-                        <button type="submit" className="flex items-center justify-center gap-1.5 rounded bg-[#3b5998] px-6 py-1.5 text-xs font-medium text-white hover:bg-[#324b80] focus:ring-2 focus:ring-[#3b5998] focus:ring-offset-2">
+                        <button type="submit" className="flex items-center justify-center gap-1.5 rounded bg-[#5c9a38] px-6 py-1.5 text-xs font-medium text-white hover:bg-[#5c9a38]/90 focus:ring-2 focus:ring-[#3b5998] focus:ring-offset-2">
                             ✓ Lưu lại
                         </button>
                         <button

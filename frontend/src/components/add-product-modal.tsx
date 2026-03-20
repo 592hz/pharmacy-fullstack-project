@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import { mockProductCategories, mockSuppliersList, type Product } from "@/lib/mock-data"
 import { parseFloatSafe } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
+import { productSchema } from "@/lib/schemas"
 
 // dữ liệu được lấy từ database 
 export interface ProductUnit {
@@ -38,6 +39,12 @@ export interface ProductFormData {
     // 6. Sub-table
     // 1. Đơn vị tính   
     units: ProductUnit[]
+
+    // 7. Inventory
+    initialQuantity: number
+    baseUnitName: string
+    batchNumber: string
+    expiryDate: string
 }
 
 const initialFormData: ProductFormData = {
@@ -60,7 +67,11 @@ const initialFormData: ProductFormData = {
             wholesalePrice: 0,
             isDefault: true
         }
-    ]
+    ],
+    initialQuantity: 0,
+    baseUnitName: "Viên",
+    batchNumber: "",
+    expiryDate: "",
 }
 
 // 3. Đơn vị tính
@@ -124,26 +135,31 @@ const InputField = ({ label, required, value, onChange, placeholder = "", type =
 export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: AddProductModalProps) {
     const [formData, setFormData] = useState<ProductFormData>(() => {
         if (initialData) {
+            const firstBatch = initialData.batches?.[0]
             // Mapping from Product (mock-data.ts) to ProductFormData
             return {
                 productName: initialData.name || "",
-                supplierId: initialData.manufacturer || "",
-                categoryId: "",
+                supplierId: initialData.supplierId || initialData.manufacturer || "",
+                categoryId: initialData.categoryId || "",
                 productCode: initialData.id || "",
                 vatPercent: 10, // Default for mock data
                 discountPercent: 0,
                 units: [{
                     id: "1",
-                    unitName: initialData.unit || "Viên",
+                    unitName: initialData.unit || "",
                     isDefault: true,
-                    conversionRate: 1,
+                    conversionRate: initialData.conversionRate || 1,
                     importPrice: initialData.importPrice || 0,
                     retailPrice: initialData.retailPrice || 0,
-                    wholesalePrice: initialData.wholesalePrice || initialData.retailPrice || 0,
+                    wholesalePrice: initialData.wholesalePrice || 0,
                 }],
+                initialQuantity: firstBatch ? firstBatch.quantity / (initialData.conversionRate || 1) : initialData.baseQuantity / (initialData.conversionRate || 1),
+                baseUnitName: initialData.baseUnitName || "Viên",
+                batchNumber: firstBatch?.batchNumber || "",
+                expiryDate: firstBatch?.expiryDate || initialData.expiryDate || "",
             }
         }
-        
+
         // New random ID for new products
         // State initializers are allowed to be "impure" as they only run once on mount
         const newId = "SP" + Math.floor(100000 + Math.random() * 900000).toString()
@@ -163,6 +179,10 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                 retailPrice: 0,
                 wholesalePrice: 0,
             }],
+            initialQuantity: 0,
+            baseUnitName: "Viên",
+            batchNumber: "",
+            expiryDate: "",
         }
     })
 
@@ -185,7 +205,15 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                         // handled separately below
                         // xử lý riêng bên dưới
                     }
-                    return { ...u, [field]: (field === 'importPrice' || field === 'retailPrice' || field === 'wholesalePrice' || field === 'conversionRate') ? parseFloatSafe(value) : value }
+
+                    const updatedUnit = { ...u, [field]: (field === 'importPrice' || field === 'retailPrice' || field === 'wholesalePrice' || field === 'conversionRate') ? parseFloatSafe(value) : value }
+
+                    // If this is the default unit and its name is changing, sync with baseUnitName
+                    if (u.isDefault && field === 'unitName') {
+                        setFormData(prev => ({ ...prev, baseUnitName: value as string }))
+                    }
+
+                    return updatedUnit
                 }
                 return u
             })
@@ -228,38 +256,24 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
             units: prev.units.filter(u => u.id !== id)
         }))
     }
-    const handleSubmit = (action: 'save' | 'save_copy' | 'save_new') => {
-        // Basic Validation (Matching the red * from screenshot)
-        // Các hàm kiểm tra dữ liệu
-        if (!formData.productName.trim()) {
-            toast.error("Vui lòng nhập Tên hàng hóa")
-            return
-        }
-        if (!formData.categoryId) {
-            toast.error("Vui lòng chọn Nhóm hàng hóa")
-            return
-        }
-        // Ensure at least one unit has a name
-        // Đảm bảo ít nhất một đơn vị có tên
-        if (!formData.units[0].unitName) {
-            toast.error("Vui lòng nhập Tên đơn vị tính")
+    const handleSubmit = (action: 'save' | 'save_new') => {
+        const validation = productSchema.safeParse(formData)
+
+        if (!validation.success) {
+            const firstError = validation.error.issues[0]
+            toast.error(firstError.message)
             return
         }
 
         console.log("Saving exactly matching Database Schema:", formData)
-
-        toast.success("Thêm mới sản phẩm thành công!")
+        toast.success(initialData ? "Cập nhật sản phẩm thành công!" : "Thêm mới sản phẩm thành công!")
 
         if (action === 'save') {
             onSuccess(formData)
             onClose()
         } else if (action === 'save_new') {
             onSuccess(formData)
-            setFormData(initialFormData) // Reset for new
-        } else if (action === 'save_copy') {
-            // Keep current data but generate new code
-            setFormData(prev => ({ ...prev, productCode: "" }))
-            toast.info("Đã sao chép dữ liệu, nhập thông tin mới")
+            setFormData(initialFormData) 
         }
     }
 
@@ -279,7 +293,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                     </div>
                     <div className="flex px-4 gap-1">
                         <button
-                            className="px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors bg-[#0d6efd] text-white"
+                            className="px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors bg-[#5c9a38] text-white"
                         >
                             Thông tin sản phẩm
                         </button>
@@ -328,22 +342,67 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
                                     <label className="text-xs font-medium text-gray-500">%VAT</label>
-                                    <NumericInput 
-                                        value={formData.vatPercent} 
-                                        onChange={(v) => handleInputChange('vatPercent', v)} 
+                                    <NumericInput
+                                        value={formData.vatPercent}
+                                        onChange={(v) => handleInputChange('vatPercent', v)}
                                     />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-xs font-medium text-gray-500">%CK</label>
-                                    <NumericInput 
-                                        value={formData.discountPercent} 
-                                        onChange={(v) => handleInputChange('discountPercent', v)} 
+                                    <NumericInput
+                                        value={formData.discountPercent}
+                                        onChange={(v) => handleInputChange('discountPercent', v)}
                                     />
                                 </div>
                             </div>
 
                             {/* Row 3 */}
                             <InputField label="Mã hàng hóa" disabled value={formData.productCode} onChange={(v) => handleInputChange('productCode', v)} placeholder="SP000294" />
+
+                            {/* Inventory Section */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-semibold text-gray-700">Số lượng tồn kho</label>
+                                    <NumericInput
+                                        value={formData.initialQuantity}
+                                        onChange={(v) => handleInputChange('initialQuantity', v)}
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-semibold text-gray-700">Đơn vị cơ bản (nhỏ nhất)</label>
+                                    <input
+                                        type="text"
+                                        value={formData.baseUnitName}
+                                        onChange={(e) => handleInputChange('baseUnitName', e.target.value)}
+                                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white"
+                                        placeholder="Ví dụ: Viên, Chai..."
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Batch & Expiry Section */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <label className="text-xs font-semibold text-gray-700">Số lô</label>
+                                    <input
+                                        type="text"
+                                        value={formData.batchNumber}
+                                        onChange={(e) => handleInputChange('batchNumber', e.target.value)}
+                                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white"
+                                        placeholder="Nhập số lô..."
+                                    />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-xs font-semibold text-gray-700">Hạn dùng (DD-MM-YYYY)</label>
+                                    <input
+                                        type="text"
+                                        value={formData.expiryDate}
+                                        onChange={(e) => handleInputChange('expiryDate', e.target.value)}
+                                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white"
+                                        placeholder="Ví dụ: 31-12-2025"
+                                    />
+                                </div>
+                            </div>
                         </div>
 
                         {/* --- UNIT ADD --- */}
@@ -449,28 +508,22 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                 {/* FOOTER ACTIONS */}
                 <div className="flex items-center justify-end px-4 py-3 border-t border-gray-200 bg-white gap-2">
                     <button
-                        onClick={() => handleSubmit('save_copy')}
-                        className="bg-[#3b5998] hover:bg-[#3b5998]/90 text-white px-4 py-2 rounded text-sm font-medium transition-colors"
-                    >
-                        ✓ Lưu & sao chép
-                    </button>
-                    <button
                         onClick={() => handleSubmit('save_new')}
-                        className="bg-[#3b5998] hover:bg-[#3b5998]/90 text-white px-4 py-2 rounded text-sm font-medium transition-colors border-l border-white/20"
+                        className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-4 py-2 rounded text-sm font-medium transition-colors border-l border-white/20"
                     >
                         ✓ Lưu và Thêm mới
                     </button>
                     <button
                         onClick={() => handleSubmit('save')}
-                        className="bg-[#3b5998] hover:bg-[#3b5998]/90 text-white px-4 py-2 rounded text-sm font-medium transition-colors border-l border-white/20"
+                        className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-4 py-2 rounded text-sm font-medium transition-colors border-l border-white/20"
                     >
                         ✓ Lưu và Đóng
                     </button>
                     <button
                         onClick={onClose}
-                        className="text-[#3b5998] hover:bg-gray-200 px-4 py-2 rounded text-sm font-bold ml-2 transition-colors flex items-center gap-1"
+                        className="text-[#000000] hover:bg-gray-200 px-4 py-2 rounded text-sm font-bold ml-2 transition-colors flex items-center gap-1"
                     >
-                        <X size={16} className="text-gray-400" /> Thoát
+                        <X size={16} className="text-[#000000]" /> Thoát
                     </button>
                 </div>
             </div>

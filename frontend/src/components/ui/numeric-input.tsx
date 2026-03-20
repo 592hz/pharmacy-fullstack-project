@@ -1,6 +1,6 @@
 import * as React from "react"
 import { useState } from "react"
-import { parseFloatSafe } from "@/lib/utils"
+import { parseFloatSafe, formatNumberVN } from "@/lib/utils"
 import { cn } from "@/lib/utils"
 
 export interface NumericInputProps extends Omit<React.ComponentProps<"input">, 'onChange' | 'value'> {
@@ -11,23 +11,27 @@ export interface NumericInputProps extends Omit<React.ComponentProps<"input">, '
 const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps>(
   ({ className, value, onChange, ...props }, ref) => {
     const [localValue, setLocalValue] = useState<string>(
-        value === 0 ? "" : value.toString()
+      value === 0 ? "" : value.toString()
     )
 
     // Use a secondary state to track the previous prop value for synchronization
     const [prevValue, setPrevValue] = useState(value)
 
     if (value !== prevValue) {
-        setPrevValue(value)
-        setLocalValue(value === 0 ? "" : value.toString())
+      setPrevValue(value)
+      setLocalValue(formatNumberVN(value))
     }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const val = e.target.value
+      const val = e.target.value
+      // Allow numbers, dots and commas
+      if (val === "" || /^[0-9.,]*$/.test(val)) {
         setLocalValue(val)
         if (onChange) {
-            onChange(parseFloatSafe(val))
+          // parseFloatSafe now handles dot as thousands and comma as decimal
+          onChange(parseFloatSafe(val))
         }
+      }
     }
 
     return (

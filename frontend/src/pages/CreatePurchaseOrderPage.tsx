@@ -1,13 +1,12 @@
-import { useState, useMemo } from "react"
-import { z } from "zod"
+import { useState, useMemo, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
-import { Plus, Search, PlusCircle, Trash2, Save, X, Calendar, FileText, CreditCard } from "lucide-react"
+import { Plus, Search, PlusCircle, Trash2, Save, X, Calendar, FileText, CreditCard, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { mockProducts, type PurchaseOrderItem, addMockPurchaseOrder, type PurchaseOrder, mockSuppliersList } from "@/lib/mock-data"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
 import { parseFloatSafe } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
-import { useCallback } from "react"
+import { purchaseOrderSchema } from "@/lib/schemas"
 
 export default function CreatePurchaseOrderPage() {
     const navigate = useNavigate()
@@ -153,46 +152,34 @@ export default function CreatePurchaseOrderPage() {
     const handleSaveOrder = useCallback(() => {
         // Prepare data for validation
         const orderData = {
+            id: orderId,
+            importDate,
+            supplierId: "NEW_ID", // Temporary 
             supplierName,
+            totalAmount,
+            discount: totalDiscount,
+            vat: totalVat,
+            grandTotal: amountToPay,
+            notes,
+            createdBy,
             invoiceNumber,
+            paymentMethod,
             items: items.map(item => ({
                 ...item,
                 quantity: Number(item.quantity),
-                importPrice: Number(item.importPrice)
+                importPrice: Number(item.importPrice),
+                retailPrice: Number(item.retailPrice),
+                totalAmount: Number(item.totalAmount),
+                discountPercent: Number(item.discountPercent),
+                discountAmount: Number(item.discountAmount),
+                vatPercent: Number(item.vatPercent),
+                vatAmount: Number(item.vatAmount),
+                remainingAmount: Number(item.remainingAmount)
             }))
         }
 
-        // Define Schema
-        const schema = z.object({
-            supplierName: z.string().min(1, "Vui lòng nhập tên nhà cung cấp"),
-            invoiceNumber: z.string().min(1, "Vui lòng nhập số hóa đơn"),
-            items: z.array(z.object({
-                name: z.string(),
-                quantity: z.number().gt(0, "Số lượng phải lớn hơn 0"),
-                importPrice: z.number().gte(0, "Giá nhập không được âm"),
-                expiryDate: z.string().refine((val) => {
-                    // Quick check for DD-MM-YYYY format
-                    const regex = /^(\d{2})-(\d{2})-(\d{4})$/
-                    if (!regex.test(val)) return false
-
-                    const [d, m, y] = val.split("-").map(Number)
-                    const date = new Date(y, m - 1, d)
-
-                    // Check if valid date (e.g. not 31-02-2024)
-                    if (date.getFullYear() !== y || date.getMonth() !== m - 1 || date.getDate() !== d) {
-                        return false
-                    }
-
-                    // Check if future date (allow today)
-                    const today = new Date()
-                    today.setHours(0, 0, 0, 0)
-                    return date >= today
-                }, "Hạn sử dụng không hợp lệ hoặc đã hết hạn (Sử dụng định dạng DD-MM-YYYY)")
-            })).min(1, "Vui lòng thêm ít nhất một sản phẩm vào phiếu")
-        })
-
-        // Validate
-        const validation = schema.safeParse(orderData)
+        // Validate using centralized schema
+        const validation = purchaseOrderSchema.safeParse(orderData)
 
         if (!validation.success) {
             const firstError = validation.error.issues[0]
@@ -571,7 +558,12 @@ export default function CreatePurchaseOrderPage() {
                     </div>
 
                     <div className="flex gap-3">
-
+                        <button 
+                            onClick={() => navigate("/purchase-orders")} 
+                            className="flex items-center gap-2 border border-gray-300 dark:border-neutral-700 px-4 py-2 rounded-xl text-sm hover:bg-gray-100 dark:hover:bg-neutral-800 transition text-gray-700 dark:text-gray-300 font-bold"
+                        >
+                            <AlertCircle size={16} /> Quay lại danh sách
+                        </button>
                         <button
                             onClick={handleSaveOrder}
                             className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-8 py-3 rounded-xl text-sm font-black shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center gap-2"

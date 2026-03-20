@@ -17,10 +17,6 @@ export interface Customer {
     weight?: string
     age?: string
     notes?: string
-    accumulatedPoints: number | string
-    remainingPoints: number
-    debt: number | string
-    hasApp: boolean
 }
 // tạo dữ liệu giả cho danh mục thu chi để test
 export let mockCategories: Category[] = [
@@ -148,10 +144,6 @@ export let mockCustomers: Customer[] = [
         phone: "",
         dob: "",
         address: "",
-        accumulatedPoints: "0",
-        remainingPoints: 0,
-        debt: 0,
-        hasApp: false
     },
     {
         id: "KH00004",
@@ -159,10 +151,6 @@ export let mockCustomers: Customer[] = [
         phone: "0901234567",
         dob: "1990-05-15",
         address: "Quận 1, TP.HCM",
-        accumulatedPoints: "1200",
-        remainingPoints: 1200,
-        debt: 0,
-        hasApp: true
     },
     {
         id: "KH00003",
@@ -170,10 +158,6 @@ export let mockCustomers: Customer[] = [
         phone: "0912345678",
         dob: "1985-10-20",
         address: "Quận 3, TP.HCM",
-        accumulatedPoints: "500",
-        remainingPoints: 500,
-        debt: "1,500,000",
-        hasApp: true
     },
     {
         id: "KH00002",
@@ -181,10 +165,6 @@ export let mockCustomers: Customer[] = [
         phone: "0987654321",
         dob: "1995-02-10",
         address: "Quận Bình Thạnh, TP.HCM",
-        accumulatedPoints: "100",
-        remainingPoints: 100,
-        debt: 0,
-        hasApp: false
     }
 ]
 
@@ -219,6 +199,12 @@ export const mockSuppliersList = [
 ]
 
 // ─── DANH MỤC SẢN PHẨM ──────────────────────────────────────────────────────
+export interface ProductBatch {
+    batchNumber: string
+    expiryDate: string
+    quantity: number
+}
+
 export interface Product {
     id: string
     name: string
@@ -229,29 +215,67 @@ export interface Product {
     registrationNo?: string
     isDQG?: boolean
     manufacturer?: string
+    categoryId?: string
+    supplierId?: string
+    baseQuantity: number
+    baseUnitName?: string
+    conversionRate?: number
     expiryDate?: string
-    isOnDQG?: boolean
+    batches?: ProductBatch[]
 }
 
 export const mockProducts: Product[] = [
-    { id: "SP000024", name: "Amariston 10mg", unit: "Hộp", importPrice: 3000, retailPrice: 7000, wholesalePrice: 7000, registrationNo: "." },
-    { id: "SP000161", name: "Amoxicillin 500 mekophar (h/100v)", unit: "Hộp", importPrice: 67428, retailPrice: 100000, wholesalePrice: 100000, registrationNo: "." },
-    { id: "SP000221", name: "AUGBACTAM 625 (HCN/1túi/2vỉ/5VNBP)", unit: "Viên", importPrice: 2524, retailPrice: 8000, wholesalePrice: 6000, registrationNo: "." },
-    { id: "SP000290", name: "Bromhexin 8mg Us pharma (C/200v)", unit: "Viên", importPrice: 73, retailPrice: 100, wholesalePrice: 100, registrationNo: "." },
-    { id: "SP000152", name: "Cao xoa bóp bạch hổ hoạt lạc bảo linh (lọ/20g)", unit: "Chai", importPrice: 20271, retailPrice: 25000, wholesalePrice: 25000, registrationNo: "." },
-    { id: "SP000287", name: "Celecoxib 200mg Khapharco (Chai/500 viên)", unit: "Viên", importPrice: 450, retailPrice: 500, wholesalePrice: 500, registrationNo: "." },
-    { id: "SP000181", name: "Dầu gội chống gàu selsun 1% rohto (c/100ml)", unit: "Hộp", importPrice: 68888, retailPrice: 75000, wholesalePrice: 75000, registrationNo: "." },
-    { id: "SP000191", name: "DHA 9000 IQ BRAIN (h/10vỉ*10viên)", unit: "Hộp", importPrice: 40740, retailPrice: 100000, wholesalePrice: 100000, registrationNo: "." },
-    { id: "SP000177", name: "Efferalgan 150 Bristol-Myers Squibb (h/10v)", unit: "Hộp", importPrice: 28619, retailPrice: 40000, wholesalePrice: 35000, registrationNo: "." },
-    { id: "SP000120", name: "GẠC Y TẾ 8 CON NAI 8CM X 9CM X 8 LỚP", unit: "Gói", importPrice: 5800, retailPrice: 10000, wholesalePrice: 8000, registrationNo: "." },
-    { id: "SP000186", name: "Gentrisone cream shinpoong (t/20g)", unit: "Hộp", importPrice: 20000, retailPrice: 25000, wholesalePrice: 25000, registrationNo: "." },
-    { id: "SP000150", name: "Ho astex siro opc (c/90ml)", unit: "Chai", importPrice: 37238, retailPrice: 40000, wholesalePrice: 40000, registrationNo: "." },
-    { id: "SP000146", name: "Khẩu trang y tế 4 lớp Khánh An trắng", unit: "Hộp", importPrice: 18500, retailPrice: 30000, wholesalePrice: 25000, registrationNo: "." },
-    { id: "SP000281", name: "Marvelon Organon (H/63v)", unit: "Hộp", importPrice: 206880, retailPrice: 225000, wholesalePrice: 225000, registrationNo: "." },
-    { id: "SP000310", name: "Paracetamol 500mg Mekophar (h/100v)", unit: "Viên", importPrice: 120, retailPrice: 200, wholesalePrice: 180, registrationNo: "." },
-    { id: "SP000315", name: "Vitamin C 500mg DHG (h/100v)", unit: "Viên", importPrice: 180, retailPrice: 300, wholesalePrice: 250, registrationNo: "." },
-    { id: "SP000322", name: "Oresol OPC bột pha uống (h/10gói)", unit: "Gói", importPrice: 3500, retailPrice: 5000, wholesalePrice: 4500, registrationNo: "." },
-    { id: "SP000330", name: "Ibuprofen 400mg Stella (h/100v)", unit: "Viên", importPrice: 250, retailPrice: 400, wholesalePrice: 350, registrationNo: "." },
+    {
+        id: "SP000024",
+        name: "Amariston 10mg",
+        unit: "Hộp",
+        importPrice: 3000,
+        retailPrice: 7000,
+        wholesalePrice: 7000,
+        registrationNo: ".",
+        baseQuantity: 10,
+        baseUnitName: "Hộp",
+        conversionRate: 1,
+        categoryId: "N01",
+        supplierId: "S01",
+        batches: [
+            { batchNumber: "LOT001", expiryDate: "20/05/2025", quantity: 6 },
+            { batchNumber: "LOT002", expiryDate: "15/10/2026", quantity: 4 }
+        ]
+    },
+    {
+        id: "SP000025",
+        name: "Hapacol 150mg",
+        unit: "Hộp",
+        importPrice: 45000,
+        retailPrice: 50000,
+        wholesalePrice: 48000,
+        registrationNo: "VD-12345-20",
+        baseQuantity: 24,
+        baseUnitName: "Hộp",
+        conversionRate: 1,
+        categoryId: "N01",
+        supplierId: "S02",
+        batches: [
+            { batchNumber: "HP2401", expiryDate: "01/01/2026", quantity: 24 }
+        ]
+    },
+    { id: "SP000221", name: "AUGBACTAM 625 (HCN/1túi/2vỉ/5VNBP)", unit: "Viên", importPrice: 2524, retailPrice: 8000, wholesalePrice: 6000, registrationNo: ".", baseQuantity: 85, baseUnitName: "Viên", conversionRate: 1, categoryId: "c1", supplierId: "s3" },
+    { id: "SP000290", name: "Bromhexin 8mg Us pharma (C/200v)", unit: "Viên", importPrice: 73, retailPrice: 100, wholesalePrice: 100, registrationNo: ".", baseQuantity: 450, baseUnitName: "Viên", conversionRate: 1, categoryId: "c3", supplierId: "s4" },
+    { id: "SP000152", name: "Cao xoa bóp bạch hổ hoạt lạc bảo linh (lọ/20g)", unit: "Chai", importPrice: 20271, retailPrice: 25000, wholesalePrice: 25000, registrationNo: ".", baseQuantity: 15, baseUnitName: "Chai", conversionRate: 1, categoryId: "c3", supplierId: "s1" },
+    { id: "SP000287", name: "Celecoxib 200mg Khapharco (Chai/500 viên)", unit: "Viên", importPrice: 450, retailPrice: 500, wholesalePrice: 500, registrationNo: ".", baseQuantity: 1500, baseUnitName: "Viên", conversionRate: 1, categoryId: "c4", supplierId: "s2" },
+    { id: "SP000181", name: "Dầu gội chống gàu selsun 1% rohto (c/100ml)", unit: "Hộp", importPrice: 68888, retailPrice: 75000, wholesalePrice: 75000, registrationNo: ".", baseQuantity: 12, baseUnitName: "Chai", conversionRate: 1, categoryId: "c2", supplierId: "s3" },
+    { id: "SP000191", name: "DHA 9000 IQ BRAIN (h/10vỉ*10viên)", unit: "Hộp", importPrice: 40740, retailPrice: 100000, wholesalePrice: 100000, registrationNo: ".", baseQuantity: 2500, baseUnitName: "Viên", conversionRate: 100, categoryId: "c2", supplierId: "s4" },
+    { id: "SP000177", name: "Efferalgan 150 Bristol-Myers Squibb (h/10v)", unit: "Hộp", importPrice: 28619, retailPrice: 40000, wholesalePrice: 35000, registrationNo: ".", baseQuantity: 300, baseUnitName: "Viên", conversionRate: 10, categoryId: "c5", supplierId: "s1" },
+    { id: "SP000120", name: "GẠC Y TẾ 8 CON NAI 8CM X 9CM X 8 LỚP", unit: "Gói", importPrice: 5800, retailPrice: 10000, wholesalePrice: 8000, registrationNo: ".", baseQuantity: 45, baseUnitName: "Gói", conversionRate: 1, categoryId: "c3", supplierId: "s2" },
+    { id: "SP000186", name: "Gentrisone cream shinpoong (t/20g)", unit: "Hộp", importPrice: 20000, retailPrice: 25000, wholesalePrice: 25000, registrationNo: ".", baseQuantity: 24, baseUnitName: "Tuýp", conversionRate: 1, categoryId: "c1", supplierId: "s3" },
+    { id: "SP000150", name: "Ho astex siro opc (c/90ml)", unit: "Chai", importPrice: 37238, retailPrice: 40000, wholesalePrice: 40000, registrationNo: ".", baseQuantity: 18, baseUnitName: "Chai", conversionRate: 1, categoryId: "c1", supplierId: "s4" },
+    { id: "SP000146", name: "Khẩu trang y tế 4 lớp Khánh An trắng", unit: "Hộp", importPrice: 18500, retailPrice: 30000, wholesalePrice: 25000, registrationNo: ".", baseQuantity: 55, baseUnitName: "Hộp", conversionRate: 1, categoryId: "c3", supplierId: "s1" },
+    { id: "SP000281", name: "Marvelon Organon (H/63v)", unit: "Hộp", importPrice: 206880, retailPrice: 225000, wholesalePrice: 225000, registrationNo: ".", baseQuantity: 630, baseUnitName: "Viên", conversionRate: 63, categoryId: "c4", supplierId: "s2" },
+    { id: "SP000310", name: "Paracetamol 500mg Mekophar (h/100v)", unit: "Viên", importPrice: 120, retailPrice: 200, wholesalePrice: 180, registrationNo: ".", baseQuantity: 5000, baseUnitName: "Viên", conversionRate: 1, categoryId: "c5", supplierId: "s3" },
+    { id: "SP000315", name: "Vitamin C 500mg DHG (h/100v)", unit: "Viên", importPrice: 180, retailPrice: 300, wholesalePrice: 250, registrationNo: ".", baseQuantity: 2500, baseUnitName: "Viên", conversionRate: 1, categoryId: "c5", supplierId: "s4" },
+    { id: "SP000322", name: "Oresol OPC bột pha uống (h/10gói)", unit: "Gói", importPrice: 3500, retailPrice: 5000, wholesalePrice: 4500, registrationNo: ".", baseQuantity: 120, baseUnitName: "Gói", conversionRate: 1, categoryId: "c1", supplierId: "s1" },
+    { id: "SP000330", name: "Ibuprofen 400mg Stella (h/100v)", unit: "Viên", importPrice: 250, retailPrice: 400, wholesalePrice: 350, registrationNo: ".", baseQuantity: 800, baseUnitName: "Viên", conversionRate: 1, categoryId: "c1", supplierId: "s2" },
 ]
 
 // ─── PHIẾU NHẬP ────────────────────────────────────────────────────────────
@@ -264,7 +288,7 @@ export interface PurchaseOrderItem {
     expiryDate: string    // Hạn dùng
     quantity: number      // Số lượng
     importPrice: number   // Giá nhập
-    retailPrice: number   // Giá bán lẻ
+    retailPrice: number   // Giá bán l
     totalAmount: number   // Tổng tiền = qty * importPrice
     discountPercent: number // %CK
     discountAmount: number  // Chiết khấu (tiền)

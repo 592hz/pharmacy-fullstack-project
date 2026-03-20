@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { AlertCircle, Search, PlusCircle, Trash2, Save, X, Printer } from "lucide-react"
 import { toast } from "sonner"
-import { mockExportSlips, mockProducts, type ExportSlipItem } from "@/lib/mock-data"
+import { mockExportSlips, mockProducts, type ExportSlipItem, type Product } from "@/lib/mock-data"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
 import { parseFloatSafe } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
@@ -40,19 +40,24 @@ export default function ExportOrderDetailPage() {
         ).slice(0, 10)
     }, [searchQuery])
 
-    const handleQuickAdd = useCallback((product: typeof mockProducts[0]) => {
+    const handleQuickAdd = useCallback((product: Product) => {
         const qty = 1
         const retailPrice = product.retailPrice || 0
         const importPrice = product.importPrice || 0
         const total = qty * retailPrice
+
+        // Pick the earliest expiring batch if available
+        const firstBatch = product.batches && product.batches.length > 0
+            ? [...product.batches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))[0]
+            : null
 
         const newItem: ExportSlipItem = {
             id: `new-${Date.now()}-${Math.random()}`,
             code: product.id,
             name: product.name,
             unit: product.unit,
-            batchNumber: "",
-            expiryDate: "",
+            batchNumber: firstBatch?.batchNumber || "",
+            expiryDate: firstBatch?.expiryDate || product.expiryDate || "",
             quantity: qty,
             retailPrice,
             importPrice,
@@ -89,8 +94,8 @@ export default function ExportOrderDetailPage() {
             code: formData.productCode || "",
             name: formData.productName,
             unit: firstUnit?.unitName || "",
-            batchNumber: "",
-            expiryDate: "",
+            batchNumber: formData.batchNumber || "",
+            expiryDate: formData.expiryDate || "",
             quantity: qty,
             retailPrice,
             importPrice,
