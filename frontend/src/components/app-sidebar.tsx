@@ -13,7 +13,7 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { GalleryVerticalEndIcon, AudioLinesIcon, TerminalIcon, TerminalSquareIcon, BotIcon, BookOpenIcon, Settings2Icon, FrameIcon, PieChartIcon, MapIcon } from "lucide-react"
+import { AudioLinesIcon, TerminalIcon, TerminalSquareIcon, BotIcon, FrameIcon, PieChartIcon, MapIcon } from "lucide-react"
 
 //du lieu mau
 
@@ -27,10 +27,9 @@ const data = {
   //thông tin team + logo website
   teams: [
     {
-      name: "Ngocmy",
+      name: "Mỹ Mỹ",
       logo: (
-        <GalleryVerticalEndIcon
-        />
+        <img src="/ngoc_my_logo.png" alt="Mỹ Mỹ Logo" className="w-full h-full object-cover rounded-md" />
       ),
       plan: "Nhà thuốc",
     },
@@ -63,23 +62,23 @@ const data = {
       items: [
         {
           title: "Danh mục nhà cung cấp",
-          url: "#",
+          url: "/suppliers",
         },
         {
           title: "Danh mục khách hàng",
-          url: "#",
+          url: "/customers",
         },
         {
           title: "Danh mục sản phẩm",
-          url: "#",
+          url: "/products",
         },
         {
           title: "Danh mục nhóm sản phẩm",
-          url: "#",
+          url: "/product-categories",
         },
         {
           title: "Danh mục nhóm thu chi",
-          url: "#",
+          url: "/income-expense-categories",
         },
         {
           title: "Danh mục đơn thuốc",
@@ -87,11 +86,11 @@ const data = {
         },
         {
           title: "Danh mục đơn vị tính",
-          url: "#",
+          url: "/units",
         },
         {
           title: "Danh mục hình thức thanh toán",
-          url: "#",
+          url: "/payment-methods",
         },
       ],
     },
@@ -105,11 +104,11 @@ const data = {
       items: [
         {
           title: "Danh sách phiếu nhập",
-          url: "#",
+          url: "/purchase-orders",
         },
         {
           title: "Danh sách phiếu xuất",
-          url: "#",
+          url: "/export-manage",
         },
         {
           title: "Khách trả lại",
@@ -127,42 +126,20 @@ const data = {
     },
     {
       title: "Nhập hàng",
-      url: "#",
+      url: "/purchase-orders/create",
     },
     {
       title: "Bán hàng",
-      url: "#",
+      url: "/export-manage/create",
     },
-    // {
-    //   title: "Báo cáo",
-    //   url: "#",
-    //   icon: (
-    //     <BotIcon
-    //     />
-    //   ),
-    //   items: [
-    //     {
-    //       title: "Báo cáo tồn kho",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Báo cáo doanh thu",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Báo cáo lãi lỗ",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Báo cáo tồn kho",
-    //       url: "#",
-    //     },
-    //     {
-    //       title: "Báo cáo cận date - sắp hết ",
-    //       url: "#"
-    //     }
-    //   ],
-    // },
+    {
+      title: "Ghi chú",
+      url: "/notes",
+      icon: (
+        <BotIcon
+        />
+      ),
+    },
   ],
   projects: [
     {
