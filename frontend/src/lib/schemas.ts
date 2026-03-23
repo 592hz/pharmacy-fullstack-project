@@ -2,6 +2,12 @@ import { z } from "zod"
 
 // ─── UTILS ───
 const phoneRegex = /^[0-9]{10,11}$/
+const dateRegex = /^(\d{2})[-/](\d{2})[-/](\d{4})$/
+
+const dateValidation = z.string().optional().refine((val) => {
+    if (!val || val === "." || val === "") return true
+    return dateRegex.test(val)
+}, "Hạn dùng không hợp lệ (Định dạng: DD-MM-YYYY hoặc DD/MM/YYYY)")
 
 // ─── AUTH ───
 export const loginSchema = z.object({
@@ -30,10 +36,6 @@ export const customerSchema = z.object({
     weight: z.string().optional(),
     age: z.string().optional(),
     notes: z.string().optional(),
-    debt: z.number().default(0),
-    accumulatedPoints: z.number().default(0),
-    remainingPoints: z.number().default(0),
-    hasApp: z.boolean().default(false),
 })
 
 // ─── SUPPLIER ───
@@ -57,21 +59,25 @@ export type Supplier = z.infer<typeof supplierSchema>
 // ─── PRODUCT ───
 export const productUnitSchema = z.object({
     id: z.string(),
-    unitName: z.string().min(1, "Tên đơn vị tính không được để trống"),
-    conversionRate: z.number().min(0),
-    importPrice: z.number().min(0),
-    retailPrice: z.number().min(0),
-    wholesalePrice: z.number().min(0),
+    unitName: z.string().min(1, "Vui lòng nhập Tên đơn vị tính"),
+    conversionRate: z.number().gt(0, "Tỉ lệ quy đổi phải lớn hơn 0"),
+    importPrice: z.number().gte(0, "Giá nhập không được âm"),
+    retailPrice: z.number().gte(0, "Giá bán lẻ không được âm"),
+    wholesalePrice: z.number().gte(0, "Giá bán buôn không được âm"),
     isDefault: z.boolean().default(false),
 })
 
 export const productSchema = z.object({
     productCode: z.string().min(1, "Mã hàng hóa không được để trống"),
-    productName: z.string().min(1, "Tên hàng hóa không được để trống"),
-    categoryId: z.string().min(1, "Vui lòng chọn nhóm hàng hóa"),
-    supplierId: z.string().optional(),
+    productName: z.string().min(1, "Vui lòng nhập Tên hàng hóa"),
+    categoryId: z.string().min(1, "Vui lòng chọn Nhóm hàng hóa"),
+    supplierId: z.string().optional().or(z.literal("")),
     vatPercent: z.number().min(0).max(100).default(0),
     discountPercent: z.number().min(0).max(100).default(0),
+    initialQuantity: z.number().gte(0, "Số lượng tồn kho không được âm"),
+    baseUnitName: z.string().min(1, "Vui lòng nhập Đơn vị cơ bản"),
+    batchNumber: z.string().optional().or(z.literal("")),
+    expiryDate: dateValidation,
     units: z.array(productUnitSchema).min(1, "Phải có ít nhất một đơn vị tính"),
 })
 
@@ -109,7 +115,7 @@ export const exportOrderItemSchema = z.object({
     name: z.string(),
     unit: z.string(),
     batchNumber: z.string().optional().or(z.literal("")),
-    expiryDate: z.string().optional().or(z.literal("")),
+    expiryDate: dateValidation,
     quantity: z.number().min(0.0001, "Số lượng phải lớn hơn 0"),
     retailPrice: z.number().min(0),
     importPrice: z.number().min(0),
@@ -143,7 +149,7 @@ export const purchaseOrderItemSchema = z.object({
     name: z.string(),
     unit: z.string(),
     batchNumber: z.string().optional().or(z.literal("")),
-    expiryDate: z.string().optional().or(z.literal("")),
+    expiryDate: dateValidation,
     quantity: z.number().min(0.0001, "Số lượng phải lớn hơn 0"),
     importPrice: z.number().min(0),
     retailPrice: z.number().min(0),

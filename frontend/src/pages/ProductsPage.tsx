@@ -2,194 +2,11 @@ import { useState } from "react"
 import { Search, List, Download, RefreshCw } from "lucide-react"
 import { AddProductModal } from "@/components/add-product-modal"
 import { toast } from "sonner"
-import { type Product } from "@/lib/mock-data"
+import { mockProducts, mockProductCategories, mockSuppliersList, type Product } from "@/lib/mock-data"
 import { type ProductFormData } from "@/components/add-product-modal"
 
-// Fake data matching the screenshot
-const initialProducts = [
-    {
-        id: "SP000024",
-        name: "Amariston 10mg",
-        isDQG: true,
-        unit: "Hộp",
-        manufacturer: ".",
-        importPrice: 3000,
-        retailPrice: 7000,
-        wholesalePrice: 7000,
-        expiryDate: "",
-        registrationNo: ".",
-        isOnDQG: false,
-    },
-    {
-        id: "SP000161",
-        name: "Amoxicillin 500 mekophar (h/100v)",
-        isDQG: true,
-        unit: "Hộp",
-        manufacturer: ".",
-        importPrice: 67428,
-        retailPrice: 100000,
-        wholesalePrice: 100000,
-        expiryDate: "",
-        registrationNo: ".",
-        isOnDQG: false,
-    },
-    {
-        id: "SP000221",
-        name: "AUGBACTAM 625 (HCN/1túi/2vỉ/5VNBP)",
-        isDQG: true,
-        unit: "Viên",
-        manufacturer: ".",
-        importPrice: 2524,
-        retailPrice: 8000,
-        wholesalePrice: 6000,
-        expiryDate: "",
-        registrationNo: ".",
-        isOnDQG: false,
-    },
-    {
-        id: "SP000290",
-        name: "Bromhexin us bromhexin 8mg Us pharma (C/200v)",
-        isDQG: true,
-        unit: "Viên",
-        manufacturer: ".",
-        importPrice: 73,
-        retailPrice: 100,
-        wholesalePrice: 100,
-        expiryDate: "",
-        registrationNo: ".",
-        isOnDQG: false,
-    },
-    {
-        id: "SP000152",
-        name: "Cao xoa bóp bạch hổ hoạt lạc bảo linh (lọ/20g)",
-        isDQG: true,
-        unit: "Chai",
-        manufacturer: ".",
-        importPrice: 20271,
-        retailPrice: 25000,
-        wholesalePrice: 25000,
-        expiryDate: "",
-        registrationNo: ".",
-        isOnDQG: false,
-    },
-    {
-        id: "SP000287",
-        name: "Celecoxib 200mg Khapharco (Chai/500 viên nang)",
-        isDQG: true,
-        unit: "Viên",
-        manufacturer: ".",
-        importPrice: 450,
-        retailPrice: 500,
-        wholesalePrice: 500,
-        expiryDate: "",
-        registrationNo: ".",
-        isOnDQG: false,
-    },
-    {
-        id: "SP000181",
-        name: "Dầu gội chống gàu selsun 1% rohto (c/100ml) (lớn)",
-        isDQG: true,
-        unit: "Hộp",
-        manufacturer: ".",
-        importPrice: 68888,
-        retailPrice: 75000,
-        wholesalePrice: 75000,
-        expiryDate: "",
-        registrationNo: ".",
-        isOnDQG: false,
-    },
-    {
-        id: "SP000191",
-        name: "DHA 9000 IQ BRAIN ( hộp 10 vỉ * 10 Viên) EU Group",
-        isDQG: true,
-        unit: "Hộp",
-        manufacturer: ".",
-        importPrice: 40740,
-        retailPrice: 100000,
-        wholesalePrice: 100000,
-        expiryDate: "",
-        registrationNo: ".",
-        isOnDQG: false,
-    },
-    {
-        id: "SP000177",
-        name: "Efferalgan 150 Bristol-Myers Squibb (h/10v)",
-        isDQG: true,
-        unit: "Hộp",
-        manufacturer: ".",
-        importPrice: 28619,
-        retailPrice: 40000,
-        wholesalePrice: 35000,
-        expiryDate: "",
-        registrationNo: ".",
-        isOnDQG: false,
-    },
-    {
-        id: "SP000120",
-        name: "GẠC Y TẾ 8 CON NAI 8CM X 9CM X 8 LỚP",
-        isDQG: true,
-        unit: "Gói",
-        manufacturer: ".",
-        importPrice: 5800,
-        retailPrice: 10000,
-        wholesalePrice: 8000,
-        expiryDate: "",
-        registrationNo: ".",
-        isOnDQG: false,
-    },
-    {
-        id: "SP000186",
-        name: "Gentrisone cream shinpoong (t/20g) (lớn)",
-        isDQG: true,
-        unit: "Hộp",
-        manufacturer: ".",
-        importPrice: 20000,
-        retailPrice: 25000,
-        wholesalePrice: 25000,
-        expiryDate: "",
-        registrationNo: ".",
-        isOnDQG: false,
-    },
-    {
-        id: "SP000150",
-        name: "Ho astex siro opc (c/90ml)",
-        isDQG: true,
-        unit: "Chai",
-        manufacturer: ".",
-        importPrice: 37238,
-        retailPrice: 40000,
-        wholesalePrice: 40000,
-        expiryDate: "",
-        registrationNo: ".",
-        isOnDQG: false,
-    },
-    {
-        id: "SP000146",
-        name: "Khẩu trang y tế 4 lớp Khánh An trắng",
-        isDQG: true,
-        unit: "Hộp",
-        manufacturer: ".",
-        importPrice: 18500,
-        retailPrice: 30000,
-        wholesalePrice: 25000,
-        expiryDate: "",
-        registrationNo: ".",
-        isOnDQG: false,
-    },
-    {
-        id: "SP000281",
-        name: "Marvelon Organon (H/63v)",
-        isDQG: true,
-        unit: "Hộp",
-        manufacturer: ".",
-        importPrice: 206880,
-        retailPrice: 225000,
-        wholesalePrice: 225000,
-        expiryDate: "",
-        registrationNo: ".",
-        isOnDQG: false,
-    },
-]
+// Use common mock data
+const initialProducts = mockProducts
 
 export default function ProductsPage() {
     const [products, setProducts] = useState<Product[]>(initialProducts)
@@ -197,6 +14,76 @@ export default function ProductsPage() {
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
     const [productToDelete, setProductToDelete] = useState<Product | null>(null)
     const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
+
+    // Search and Pagination State
+    const [searchQuery, setSearchQuery] = useState("")
+    const [stockFilter, setStockFilter] = useState("Tất cả")
+    const [categoryFilter, setCategoryFilter] = useState("Tất cả")
+    const [supplierFilter, setSupplierFilter] = useState("Tất cả")
+    const [currentPage, setCurrentPage] = useState(1)
+    const [itemsPerPage] = useState(15)
+
+    // Filter Logic
+    const filteredProducts = products.filter(product => {
+        // 1. Text Search
+        const query = searchQuery.toLowerCase().trim()
+
+        const category = mockProductCategories.find(c => c.id === product.categoryId)
+        const supplier = mockSuppliersList.find(s => s.id === product.supplierId)
+
+        const matchesQuery = !query ||
+            product.name.toLowerCase().includes(query) ||
+            product.id.toLowerCase().includes(query) ||
+            (product.registrationNo && product.registrationNo.toLowerCase().includes(query)) ||
+            (category && category.name.toLowerCase().includes(query)) ||
+            (supplier && supplier.name.toLowerCase().includes(query))
+
+        if (!matchesQuery) return false
+
+        // 2. Stock Filter
+        const totalBaseQuantity = product.batches && product.batches.length > 0
+            ? product.batches.reduce((sum, b) => sum + b.quantity, 0)
+            : product.baseQuantity
+        const stockCount = Math.floor(totalBaseQuantity / (product.conversionRate || 1))
+        
+        const lowStockThreshold = product.unit === "Viên" ? 25 : 1
+        if (stockFilter === "Còn hàng" && stockCount <= 0) return false
+        if (stockFilter === "Sắp hết hàng" && (stockCount <= 0 || stockCount > lowStockThreshold)) return false
+        if (stockFilter === "Hết hàng" && stockCount > 0) return false
+        // 3. Category Filter
+        if (categoryFilter !== "Tất cả" && product.categoryId !== categoryFilter) return false
+
+        // 4. Supplier Filter
+        if (supplierFilter !== "Tất cả" && product.supplierId !== supplierFilter) return false
+
+        return true
+    })
+
+    // Pagination Logic
+    const totalRecords = filteredProducts.length
+    const totalPages = Math.ceil(totalRecords / itemsPerPage)
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const paginatedProducts = filteredProducts.slice(startIndex, startIndex + itemsPerPage)
+
+    // Auto-adjust page if current page exceeds new totalPages after search
+    if (currentPage > totalPages && totalPages > 0) {
+        setCurrentPage(totalPages)
+    } else if (totalPages === 0 && currentPage !== 1) {
+        setCurrentPage(1)
+    }
+
+    const handleResetFilters = () => {
+        setSearchQuery("")
+        setStockFilter("Tất cả")
+        setCategoryFilter("Tất cả")
+        setSupplierFilter("Tất cả")
+        setCurrentPage(1)
+    }
+
+    const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setSearchQuery(e.target.value)
+        setCurrentPage(1) // Reset to first page on search
+    }
 
     const handleDeleteClick = (product: Product) => {
         setProductToDelete(product)
@@ -234,13 +121,21 @@ export default function ProductsPage() {
                         importPrice: formData.units[0]?.importPrice || p.importPrice,
                         retailPrice: formData.units[0]?.retailPrice || p.retailPrice,
                         wholesalePrice: formData.units[0]?.wholesalePrice || p.wholesalePrice,
+                        baseQuantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1),
+                        baseUnitName: formData.baseUnitName || p.baseUnitName,
+                        conversionRate: formData.units[0]?.conversionRate || 1,
+                        categoryId: formData.categoryId,
+                        supplierId: formData.supplierId,
+                        batches: p.batches && p.batches.length > 0 
+                            ? p.batches.map((b, i) => i === 0 ? { ...b, batchNumber: formData.batchNumber, expiryDate: formData.expiryDate, quantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1) } : b)
+                            : [{ batchNumber: formData.batchNumber, expiryDate: formData.expiryDate, quantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1) }]
                     }
                     : p
             ))
             setEditingProduct(null)
         } else {
             // Add new product
-            const newProduct = {
+            const newProduct: Product = {
                 id: formData.productCode,
                 name: formData.productName,
                 isDQG: false,
@@ -249,9 +144,20 @@ export default function ProductsPage() {
                 importPrice: formData.units[0]?.importPrice || 0,
                 retailPrice: formData.units[0]?.retailPrice || 0,
                 wholesalePrice: formData.units[0]?.wholesalePrice || 0,
-                expiryDate: "",
+                expiryDate: formData.expiryDate,
                 registrationNo: ".",
-                isOnDQG: false,
+                baseQuantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1),
+                baseUnitName: formData.baseUnitName || "",
+                conversionRate: formData.units[0]?.conversionRate || 1,
+                categoryId: formData.categoryId,
+                supplierId: formData.supplierId,
+                batches: [
+                    { 
+                        batchNumber: formData.batchNumber || "MỚI", 
+                        expiryDate: formData.expiryDate || ".", 
+                        quantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1) 
+                    }
+                ]
             }
             setProducts([newProduct, ...products])
         }
@@ -265,7 +171,7 @@ export default function ProductsPage() {
     return (
         <div className="flex flex-1 flex-col md:flex-row gap-4 p-4 md:p-6 border border-gray-200 dark:border-neutral-800 rounded-lg bg-gray-100 dark:bg-neutral-950 min-h-screen">
             <AddProductModal
-                key={isAddModalOpen ? `open-${editingProduct?.id || 'new'}` : 'closed'}
+                key={isAddModalOpen ? `new-product` : (editingProduct ? `edit-${editingProduct.id}` : 'closed')}
                 isOpen={isAddModalOpen || !!editingProduct}
                 onClose={() => {
                     setIsAddModalOpen(false)
@@ -295,55 +201,77 @@ export default function ProductsPage() {
                 <div className="bg-white dark:bg-neutral-900 rounded-b-lg shadow-sm border border-gray-200 dark:border-neutral-800 p-3 flex flex-col gap-3">
                     {/* Filter Inputs matching screenshot */}
                     <div className="border border-gray-300 dark:border-neutral-700 rounded overflow-hidden">
-                        <select className="w-full bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none appearance-none cursor-pointer">
+                        <select
+                            className="w-full bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none appearance-none cursor-pointer"
+                            onChange={(e) => {
+                                if (e.target.value === "Tất cả sản phẩm") {
+                                    handleResetFilters()
+                                }
+                            }}
+                        >
                             <option>Tất cả sản phẩm</option>
+                            <option>Dược phẩm</option>
+                            <option>Vật tư y tế</option>
                         </select>
                     </div>
 
                     <div className="border border-gray-300 dark:border-neutral-700 rounded overflow-hidden">
-                        <select className="w-full bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none appearance-none cursor-pointer text-gray-500">
-                            <option>Nhóm sản phẩm</option>
+                        <select
+                            className="w-full bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none appearance-none cursor-pointer text-gray-500"
+                            value={categoryFilter}
+                            onChange={(e) => {
+                                setCategoryFilter(e.target.value)
+                                setCurrentPage(1)
+                            }}
+                        >
+                            <option value="Tất cả">Nhóm sản phẩm</option>
+                            {mockProductCategories.map(cat => (
+                                <option key={cat.id} value={cat.id}>{cat.name}</option>
+                            ))}
                         </select>
                     </div>
 
                     <div className="border border-gray-300 dark:border-neutral-700 rounded overflow-hidden">
-                        <select className="w-full bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none appearance-none cursor-pointer text-gray-500">
-                            <option>Vị trí sản phẩm</option>
+                        <select
+                            className="w-full bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none appearance-none cursor-pointer text-gray-500"
+                            value={supplierFilter}
+                            onChange={(e) => {
+                                setSupplierFilter(e.target.value)
+                                setCurrentPage(1)
+                            }}
+                        >
+                            <option value="Tất cả">Nhà cung cấp</option>
+                            {mockSuppliersList.map(sup => (
+                                <option key={sup.id} value={sup.id}>{sup.name}</option>
+                            ))}
                         </select>
                     </div>
 
                     <div className="border border-gray-300 dark:border-neutral-700 rounded overflow-hidden">
-                        <select className="w-full bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none appearance-none cursor-pointer text-gray-500">
-                            <option>Nhà cung cấp</option>
-                        </select>
+                        <input
+                            type="text"
+                            placeholder="Tên sản phẩm, mã vạch (F3)"
+                            className="w-full bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none text-gray-700 dark:text-gray-300"
+                            value={searchQuery}
+                            onChange={handleSearchChange}
+                        />
                     </div>
 
                     <div className="border border-gray-300 dark:border-neutral-700 rounded overflow-hidden">
-                        <input type="text" placeholder="Tên sản phẩm, mã vạch (F3)" className="w-full bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none text-gray-700 dark:text-gray-300" />
-                    </div>
-
-                    <div className="border border-gray-300 dark:border-neutral-700 rounded overflow-hidden">
-                        <select className="w-full bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none appearance-none cursor-pointer text-gray-700">
+                        <select
+                            className="w-full bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none appearance-none cursor-pointer text-gray-700"
+                            value={stockFilter}
+                            onChange={(e) => {
+                                setStockFilter(e.target.value)
+                                setCurrentPage(1)
+                            }}
+                        >
                             <option>Tất cả</option>
                             <option>Còn hàng</option>
+                            <option>Sắp hết hàng</option>
                             <option>Hết hàng</option>
                         </select>
                     </div>
-                    {/* 
-                    <div className="border border-gray-300 dark:border-neutral-700 rounded overflow-hidden">
-                        <select className="w-full bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none appearance-none cursor-pointer text-gray-700">
-                            <option>APP Tích điểm</option>
-                        </select>
-                    </div> */}
-
-                    {/* <div className="border border-gray-300 dark:border-neutral-700 rounded overflow-hidden">
-                        <select className="w-full bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none appearance-none cursor-pointer text-gray-700">
-                            <option>Tất cả SP DQG</option>
-                            <option>SP đã liên thông</option>
-                            <option>SP chưa liên thông</option>
-                        </select>
-                    </div> */}
-
                     <div className="border border-gray-300 dark:border-neutral-700 rounded overflow-hidden">
                         <select className="w-full bg-white dark:bg-neutral-800 px-3 py-2 text-sm focus:outline-none appearance-none cursor-pointer text-gray-700">
                             <option>Tất cả dữ liệu quản trị / kế khái</option>
@@ -384,6 +312,8 @@ export default function ProductsPage() {
                                 type="text"
                                 placeholder="Tìm kiếm"
                                 className="w-[150px] sm:w-[200px] h-9 px-3 text-sm border border-gray-300 rounded-l focus:outline-none"
+                                value={searchQuery}
+                                onChange={handleSearchChange}
                             />
                             <button className="w-9 h-9 flex items-center justify-center bg-[#5c9a38] text-white rounded-r hover:bg-[#5c9a38]/90">
                                 <Search size={16} />
@@ -407,12 +337,13 @@ export default function ProductsPage() {
                                 <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 font-semibold w-24 text-right">Giá nhập</th>
                                 <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 font-semibold w-24 text-right">Giá bán lẻ</th>
                                 <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 font-semibold w-24 text-right">Giá bán buôn</th>
+                                <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 font-semibold w-24 text-center">Số lượng</th>
                                 <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 font-semibold w-28 text-center">Ngày sử dụng</th>
                                 <th className="px-2 py-3 w-[80px]"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
-                            {products.map((product) => (
+                            {paginatedProducts.map((product) => (
                                 <tr key={product.id} className="hover:bg-gray-50/50 dark:hover:bg-neutral-800/50 text-gray-800 dark:text-gray-300">
                                     <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 font-medium text-[11px]">{product.id}</td>
 
@@ -436,8 +367,34 @@ export default function ProductsPage() {
                                     <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 text-right text-[11px]">
                                         {formatCurrency(product.wholesalePrice)}
                                     </td>
+                                    <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 text-center text-[11px] font-medium text-blue-600 dark:text-blue-400">
+                                        {(() => {
+                                            const total = product.batches && product.batches.length > 0
+                                                ? product.batches.reduce((sum, b) => sum + b.quantity, 0)
+                                                : product.baseQuantity
+                                            const qty = Math.floor(total / (product.conversionRate || 1))
+                                            return (
+                                                <div className="flex flex-col leading-none gap-1">
+                                                    <span>{qty} {product.unit}</span>
+                                                    {product.batches && product.batches.length > 1 && (
+                                                        <span className="text-[9px] text-gray-400">({product.batches.length} lô)</span>
+                                                    )}
+                                                </div>
+                                            )
+                                        })()}
+                                    </td>
 
-                                    <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 text-center text-[11px] text-gray-400">{product.expiryDate || "."}</td>
+                                    <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 text-center text-[11px] text-gray-400">
+                                        {(() => {
+                                            if (product.batches && product.batches.length > 0) {
+                                                // Sort by expiry date (assuming DD/MM/YYYY or simple string sort for now)
+                                                // Simplified: just pick the first one which is usually the oldest/nearest
+                                                const sorted = [...product.batches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
+                                                return sorted[0].expiryDate
+                                            }
+                                            return product.expiryDate || "."
+                                        })()}
+                                    </td>
 
                                     <td className="px-2 py-2 text-center whitespace-nowrap">
                                         <div className="flex items-center justify-center gap-1">
@@ -460,33 +417,68 @@ export default function ProductsPage() {
                         </tbody>
                     </table>
 
-                    {/* Pagination */}
-                    <div className="flex items-center justify-center mt-6 text-xs text-gray-500 dark:text-gray-400 mb-2 gap-4">
+                    <div className="flex items-center justify-center mt-6 text-xs text-gray-500 dark:text-gray-400 mb-2 gap-4 uppercase font-semibold">
                         <div className="mr-8">
-                            Tổng số bản ghi: 235 - Tổng số trang: 16
+                            Tổng số bản ghi: {totalRecords} - Tổng số trang: {totalPages}
                         </div>
                         <div className="flex items-center space-x-1">
-                            <button className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-gray-600">
+                            <button
+                                onClick={() => setCurrentPage(1)}
+                                disabled={currentPage === 1}
+                                className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100'}`}
+                            >
                                 &laquo;
                             </button>
-                            <button className="w-6 h-6 flex items-center justify-center rounded text-gray-400 hover:text-gray-600">
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                                disabled={currentPage === 1}
+                                className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100'}`}
+                            >
                                 &lsaquo;
                             </button>
-                            <button className="w-6 h-6 flex items-center justify-center rounded bg-blue-100/50 text-blue-600 font-medium">
-                                1
-                            </button>
-                            <button className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100">2</button>
-                            <button className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100">3</button>
-                            <button className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100">4</button>
-                            <button className="w-6 h-6 flex items-center justify-center rounded hover:bg-gray-100">5</button>
-                            <button className="w-6 h-6 flex items-center justify-center rounded text-gray-600 hover:text-gray-800">
+
+                            {/* Render up to 5 page buttons */}
+                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                // Logic to show pages around currentPage
+                                let pageNum = i + 1;
+                                if (totalPages > 5) {
+                                    if (currentPage > 3) {
+                                        pageNum = currentPage - 2 + i;
+                                        if (pageNum > totalPages) pageNum = totalPages - (4 - i);
+                                    }
+                                }
+                                if (pageNum > totalPages) return null;
+
+                                return (
+                                    <button
+                                        key={pageNum}
+                                        onClick={() => setCurrentPage(pageNum)}
+                                        className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${currentPage === pageNum
+                                            ? 'bg-[#5c9a38] text-white font-bold'
+                                            : 'text-gray-600 hover:bg-gray-100'
+                                            }`}
+                                    >
+                                        {pageNum}
+                                    </button>
+                                );
+                            })}
+
+                            <button
+                                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                                disabled={currentPage === totalPages || totalPages === 0}
+                                className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${currentPage === totalPages || totalPages === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100'}`}
+                            >
                                 &rsaquo;
                             </button>
-                            <button className="w-6 h-6 flex items-center justify-center rounded text-gray-600 hover:text-gray-800">
+                            <button
+                                onClick={() => setCurrentPage(totalPages)}
+                                disabled={currentPage === totalPages || totalPages === 0}
+                                className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${currentPage === totalPages || totalPages === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100'}`}
+                            >
                                 &raquo;
                             </button>
-                            <div className="ml-2 border border-gray-300 rounded px-2 py-1 flex items-center bg-white h-6">
-                                <span>1</span>
+                            <div className="ml-2 border border-gray-300 rounded px-2 py-1 flex items-center bg-white dark:bg-neutral-800 h-6">
+                                <span>{currentPage}</span>
                             </div>
                         </div>
                     </div>

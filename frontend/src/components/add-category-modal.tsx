@@ -1,6 +1,8 @@
 import { useState } from "react"
 import { X } from "lucide-react"
 import { type Category } from "@/lib/mock-data"
+import { NumericInput } from "@/components/ui/numeric-input"
+import { parseFloatSafe } from "@/lib/utils"
 
 interface AddCategoryModalProps {
     isOpen: boolean
@@ -34,7 +36,7 @@ export default function AddCategoryModal({
         const name = formData.get("name") as string
         const type = formData.get("type") as string
         const amountString = formData.get("amount") as string
-        const amount = amountString ? parseInt(amountString.replace(/,/g, ''), 10) : 0
+        const amount = parseFloatSafe(amountString)
         const date = formData.get("date") as string
 
         if (!name) newErrors.name = "Vui lòng nhập tên nhóm"
@@ -116,12 +118,11 @@ export default function AddCategoryModal({
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                         Số tiền <span className="text-red-500">*</span>
                                     </label>
-                                    <input
-                                        type="number"
+                                    <NumericInput
                                         name="amount"
-                                        defaultValue={initialData?.amount || ""}
+                                        value={initialData?.amount || 0}
                                         className={`w-full rounded-md border ${errors.amount ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-neutral-700 focus:ring-[#65a34e]'} bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-1 dark:bg-neutral-950 dark:text-white transition-shadow`}
-                                        placeholder="VD: 1500000"
+                                        placeholder="VD: 1.500.000"
                                     />
                                     {errors.amount && <p className="text-xs text-red-500 mt-1">{errors.amount}</p>}
                                 </div>

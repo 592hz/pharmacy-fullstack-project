@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { X } from "lucide-react"
 import { toast } from "sonner"
 import { supplierSchema, type Supplier } from "@/lib/schemas"
@@ -13,6 +13,29 @@ interface AddSupplierModalProps {
 
 export default function AddSupplierModal({ isOpen, onClose, onAdd, onEdit, initialData }: AddSupplierModalProps) {
     const [errors, setErrors] = useState<Record<string, string>>({})
+
+    const [supplierId, setSupplierId] = useState("")
+
+    useEffect(() => {
+        if (!isOpen) {
+            if (supplierId !== "") {
+                const timer = setTimeout(() => setSupplierId(""), 0)
+                return () => clearTimeout(timer)
+            }
+            return
+        }
+
+        if (initialData) {
+            if (supplierId !== initialData.id) {
+                const timer = setTimeout(() => setSupplierId(initialData.id), 0)
+                return () => clearTimeout(timer)
+            }
+        } else if (!supplierId) {
+            const nextId = "NCC" + Math.floor(10000 + Math.random() * 90000).toString()
+            const timer = setTimeout(() => setSupplierId(nextId), 0)
+            return () => clearTimeout(timer)
+        }
+    }, [isOpen, initialData, supplierId])
 
     const handleClose = () => {
         setErrors({})
@@ -31,7 +54,7 @@ export default function AddSupplierModal({ isOpen, onClose, onAdd, onEdit, initi
             isDefaultImport: formData.get('isDefaultImport') === 'on',
             debt: initialData?.debt || 0
         })
-        
+
         if (!result.success) {
             const newErrors: Record<string, string> = {}
             result.error.issues.forEach(issue => {
@@ -83,7 +106,14 @@ export default function AddSupplierModal({ isOpen, onClose, onAdd, onEdit, initi
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                     Mã nhà cung cấp <span className="text-red-500">*</span>
                                 </label>
-                                <input name="id" defaultValue={initialData?.id || ''} type="text" placeholder="NCC00023" className={`w-full rounded-md border ${errors.id ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'} px-3 py-2 text-sm focus:outline-none focus:ring-1 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white`} />
+                                <input
+                                    name="id"
+                                    value={supplierId}
+                                    onChange={(e) => setSupplierId(e.target.value)}
+                                    type="text"
+                                    placeholder="NCC00023"
+                                    className={`w-full rounded-md border ${errors.id ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'} px-3 py-2 text-sm focus:outline-none focus:ring-1 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white`}
+                                />
                                 {errors.id && <p className="text-xs text-red-500">{errors.id}</p>}
                             </div>
                             {/* Tên nhà cung cấp */}
@@ -133,17 +163,6 @@ export default function AddSupplierModal({ isOpen, onClose, onAdd, onEdit, initi
                                 <input name="notes" defaultValue={initialData?.notes || ''} type="text" placeholder="Ghi chú" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" />
                             </div>
 
-                            {/* Checkboxes */}
-                            <div className="flex items-end pb-2 gap-6">
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input name="isNational" type="checkbox" defaultChecked={initialData?.isNational !== false} className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" />
-                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">DQG</span>
-                                </label>
-                                <label className="flex items-center gap-2 cursor-pointer">
-                                    <input name="isDefaultImport" type="checkbox" defaultChecked={!!initialData?.isDefaultImport} className="w-4 h-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500" />
-                                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Mặc định nhập</span>
-                                </label>
-                            </div>
                         </div>
                     </div>
 
@@ -156,7 +175,7 @@ export default function AddSupplierModal({ isOpen, onClose, onAdd, onEdit, initi
                         >
                             <X size={16} /> Thoát
                         </button>
-                        <button type="submit" className="flex items-center justify-center gap-2 rounded-md bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        <button type="submit" className="flex items-center justify-center gap-2 rounded-md bg-[#5c9a38] px-5 py-2 text-sm font-medium text-white hover:bg-[#5c9a38] focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
                             ✓ Lưu lại
                         </button>
                     </div>

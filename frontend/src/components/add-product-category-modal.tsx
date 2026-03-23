@@ -109,7 +109,7 @@ export default function AddProductCategoryModal({ isOpen, onClose, onAdd, onEdit
                         >
                             <X size={16} /> Thoát
                         </button>
-                        <button type="submit" className="flex items-center justify-center gap-2 rounded-md bg-blue-600 px-5 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+                        <button type="submit" className="flex items-center justify-center gap-2 rounded-md bg-[#5c9a38] px-5 py-2 text-sm font-medium text-white hover:bg-[#5c9a38] focus:ring-2 focus:ring-[#5c9a38] focus:ring-offset-2">
                             ✓ Lưu lại
                         </button>
                     </div>
