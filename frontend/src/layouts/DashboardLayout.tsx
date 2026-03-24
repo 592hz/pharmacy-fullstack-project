@@ -7,12 +7,18 @@ export default function DashboardLayout() {
     return (
         <SidebarProvider>
             <AppSidebar />
-            <main className="flex flex-1 flex-col gap-4 p-4 selection:bg-primary/20">
-                <div className="flex items-center justify-between space-x-2">
-                    <SidebarTrigger />
-                    <ModeToggle />
-                </div>
-                <div className="flex flex-1 flex-col">
+            <main className="flex flex-1 flex-col transition-all duration-300 ease-in-out bg-gray-50 dark:bg-neutral-950 min-h-screen">
+                <header className="sticky top-0 z-30 flex h-14 items-center justify-between px-4 border-b border-gray-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-md">
+                    <div className="flex items-center gap-2">
+                        <SidebarTrigger className="hover:bg-gray-100 dark:hover:bg-neutral-800 p-2 rounded-md transition-colors" />
+                        <div className="h-6 w-[1px] bg-gray-200 dark:bg-neutral-800 mx-1 hidden sm:block" />
+                        <h1 className="text-sm font-bold text-gray-800 dark:text-gray-100 hidden sm:block">QUẢN LÝ NHÀ THUỐC</h1>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <ModeToggle />
+                    </div>
+                </header>
+                <div className="flex flex-1 flex-col p-3 sm:p-6 lg:p-8">
                     <Outlet />
                 </div>
             </main>
