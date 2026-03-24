@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Search, List, Download, RefreshCw } from "lucide-react"
+import { Search, List, Download, RefreshCw, Plus, FileText } from "lucide-react"
 import { AddProductModal } from "@/components/add-product-modal"
 import { toast } from "sonner"
 import { mockProducts, mockProductCategories, mockSuppliersList, type Product } from "@/lib/mock-data"
@@ -22,6 +22,7 @@ export default function ProductsPage() {
     const [supplierFilter, setSupplierFilter] = useState("Tất cả")
     const [currentPage, setCurrentPage] = useState(1)
     const [itemsPerPage] = useState(15)
+    const [showFilters, setShowFilters] = useState(false)
 
     // Filter Logic
     const filteredProducts = products.filter(product => {
@@ -169,7 +170,7 @@ export default function ProductsPage() {
     }
 
     return (
-        <div className="flex flex-1 flex-col md:flex-row gap-4 p-4 md:p-6 border border-gray-200 dark:border-neutral-800 rounded-lg bg-gray-100 dark:bg-neutral-950 min-h-screen">
+        <div className="flex flex-1 flex-col lg:flex-row gap-4 p-4 md:p-6 bg-gray-50 dark:bg-neutral-950 min-h-screen font-sans">
             <AddProductModal
                 key={isAddModalOpen ? `new-product` : (editingProduct ? `edit-${editingProduct.id}` : 'closed')}
                 isOpen={isAddModalOpen || !!editingProduct}
@@ -181,19 +182,17 @@ export default function ProductsPage() {
                 onSuccess={handleSaveProduct}
             />
 
-            {/* LEFT SIDEBAR: Filters (1/4 width on desktop) */}
-            <div className="w-full md:w-1/4 max-w-[300px] flex flex-col gap-3">
-
+            {/* LEFT SIDEBAR: Filters */}
+            <div className={`w-full lg:w-1/4 max-w-[300px] flex flex-col gap-3 ${showFilters ? 'block' : 'hidden lg:flex'}`}>
                 {/* Header that aligns with table header */}
-                <div className="h-12 bg-[#5c9a38] rounded-xl hidden md:flex items-center">
-                    {/* Empty to match table header height/color conceptually if needed, or left blank. Will adjust based on image.
-                   The image shows "Thêm sản phẩm mới" button aligns with the left sidebar top. */}
+                <div className="h-12 bg-[#5c9a38] rounded-t-xl hidden lg:flex items-center">
                     <div className="relative w-full h-full">
                         <button
                             onClick={() => setIsAddModalOpen(true)}
-                            className="absolute inset-0 w-full h-full flex items-center justify-between px-4 bg-[#5c9a38] text-white rounded-sm font-medium text-sm hover:bg-[#5c9a38]/90 transition-colors"
+                            className="absolute inset-0 w-full h-full flex items-center justify-between px-4 bg-[#5c9a38] text-white rounded-t-xl font-bold text-sm hover:bg-[#5c9a38]/90 transition-colors shadow-sm"
                         >
                             <span>Thêm sản phẩm mới</span>
+                            <Plus size={18} />
                         </button>
                     </div>
                 </div>
@@ -280,48 +279,59 @@ export default function ProductsPage() {
                 </div>
             </div>
 
-            {/* RIGHT MAIN CONTENT: Table and Actions (3/4 width on desktop) */}
-            <div className="w-full md:w-3/4 flex flex-col gap-0 border border-gray-200 dark:border-neutral-800 rounded-lg overflow-hidden shadow-sm">
+            {/* RIGHT MAIN CONTENT: Table and Actions */}
+            <div className="w-full lg:w-3/4 flex flex-col gap-0 bg-white dark:bg-neutral-900 rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-neutral-800">
 
                 {/* Tool bar row */}
-                <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-gray-100 dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-800">
-                    <div className="flex items-center gap-2">
-                        {/* Mobile Add Button if needed */}
-                        <div className="md:hidden relative w-[180px] h-9">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-gray-50 dark:bg-neutral-800/50 border-b border-gray-200 dark:border-neutral-800">
+                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                        <button 
+                            onClick={() => setShowFilters(!showFilters)}
+                            className="lg:hidden flex items-center gap-2 bg-white dark:bg-neutral-800 border border-gray-300 dark:border-neutral-700 px-3 h-10 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
+                        >
+                            <List size={18} />
+                            <span>Lọc</span>
+                        </button>
+                        
+                        <div className="flex flex-1 sm:hidden">
                             <button
                                 onClick={() => setIsAddModalOpen(true)}
-                                className="absolute inset-0 w-full h-full flex items-center justify-between px-3 bg-[#5c9a38] text-white rounded font-medium text-xs hover:bg-[#5c9a38]/90 transition-colors"
+                                className="w-full h-10 flex items-center justify-center gap-2 bg-[#5c9a38] text-white rounded-md font-bold text-xs hover:bg-[#5c9a38]/90 transition-colors"
                             >
-                                <span>Thêm sản phẩm mới</span>
+                                <Plus size={16} /> <span>Thêm mới</span>
                             </button>
                         </div>
-                        {/* Action Icons */}
-                        <button className="w-9 h-9 flex items-center justify-center bg-[#5c9a38] text-white rounded hover:bg-[#5c9a38]/90">
-                            <List size={18} />
-                        </button>
-                        <button className="w-9 h-9 flex items-center justify-center bg-[#5c9a38] text-white rounded hover:bg-[#5c9a38]/90">
-                            <Download size={18} />
-                        </button>
-                        <button className="w-9 h-9 flex items-center justify-center bg-[#5c9a38] text-white rounded hover:bg-[#5c9a38]/90">
-                            <RefreshCw size={18} />
-                        </button>
+
+                        <div className="hidden sm:flex gap-1">
+                            <button className="w-10 h-10 flex items-center justify-center bg-[#5c9a38] text-white rounded-md hover:bg-[#5c9a38]/90 shadow-sm transition-transform active:scale-95">
+                                <List size={18} />
+                            </button>
+                            <button className="w-10 h-10 flex items-center justify-center bg-[#5c9a38] text-white rounded-md hover:bg-[#5c9a38]/90 shadow-sm transition-transform active:scale-95">
+                                <Download size={18} />
+                            </button>
+                            <button className="w-10 h-10 flex items-center justify-center bg-[#5c9a38] text-white rounded-md hover:bg-[#5c9a38]/90 shadow-sm transition-transform active:scale-95">
+                                <RefreshCw size={18} />
+                            </button>
+                        </div>
 
                         {/* Search Bar */}
-                        <div className="flex ml-2">
-                            <input
-                                type="text"
-                                placeholder="Tìm kiếm"
-                                className="w-[150px] sm:w-[200px] h-9 px-3 text-sm border border-gray-300 rounded-l focus:outline-none"
-                                value={searchQuery}
-                                onChange={handleSearchChange}
-                            />
-                            <button className="w-9 h-9 flex items-center justify-center bg-[#5c9a38] text-white rounded-r hover:bg-[#5c9a38]/90">
-                                <Search size={16} />
-                            </button>
+                        <div className="flex items-center w-full sm:w-auto mt-2 sm:mt-0">
+                            <div className="relative flex-1 sm:w-64">
+                                <input
+                                    type="text"
+                                    placeholder="Tìm mã hoặc tên"
+                                    className="w-full h-10 pl-3 pr-10 text-sm border border-gray-300 dark:border-neutral-700 rounded-md bg-white dark:bg-neutral-800 focus:outline-none focus:ring-2 focus:ring-[#5c9a38]/30 transition-all"
+                                    value={searchQuery}
+                                    onChange={handleSearchChange}
+                                />
+                                <button className="absolute right-0 top-0 h-10 w-10 flex items-center justify-center text-gray-400 hover:text-[#5c9a38]">
+                                    <Search size={16} />
+                                </button>
+                            </div>
                         </div>
                     </div>
 
-                    <div className="text-sm font-medium text-gray-700 dark:text-gray-300 px-2">
+                    <div className="hidden lg:block text-sm font-bold text-gray-700 dark:text-gray-200 px-2 uppercase tracking-tight">
                         Danh mục sản phẩm
                     </div>
                 </div>
@@ -329,66 +339,60 @@ export default function ProductsPage() {
                 {/* Table wrapper */}
                 <div className="overflow-x-auto bg-white dark:bg-neutral-900 pb-4">
                     <table className="w-full text-xs text-left whitespace-nowrap lg:whitespace-normal">
-                        <thead className="text-gray-700 bg-white border-b border-gray-200 dark:border-neutral-800 dark:text-gray-300">
+                        <thead className="text-gray-700 bg-gray-50/50 border-b border-gray-200 dark:border-neutral-800 dark:text-gray-300">
                             <tr>
-                                <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 font-semibold w-24">Mã</th>
-                                <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 font-semibold min-w-[250px] max-w-[300px]">Tên sản phẩm</th>
-                                <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 font-semibold w-20 text-center">ĐVT</th>
-                                <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 font-semibold w-24 text-right">Giá nhập</th>
-                                <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 font-semibold w-24 text-right">Giá bán lẻ</th>
-                                <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 font-semibold w-24 text-right">Giá bán buôn</th>
-                                <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 font-semibold w-24 text-center">Số lượng</th>
-                                <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 font-semibold w-28 text-center">Ngày sử dụng</th>
-                                <th className="px-2 py-3 w-[80px]"></th>
+                                <th className="px-3 py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-24 hidden md:table-cell text-center uppercase tracking-wider">Mã</th>
+                                <th className="px-3 py-4 border-r border-gray-200 dark:border-neutral-800 font-bold min-w-[200px] uppercase tracking-wider">Sản phẩm</th>
+                                <th className="px-3 py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-20 text-center uppercase tracking-wider">ĐVT</th>
+                                <th className="px-3 py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-28 text-right uppercase tracking-wider">Giá bán lẻ</th>
+                                <th className="px-3 py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-24 text-center uppercase tracking-wider">Tồn kho</th>
+                                <th className="px-3 py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-28 text-center hidden sm:table-cell uppercase tracking-wider">Hạn dùng</th>
+                                <th className="px-3 py-4 w-[100px] text-center uppercase tracking-wider">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
                             {paginatedProducts.map((product) => (
-                                <tr key={product.id} className="hover:bg-gray-50/50 dark:hover:bg-neutral-800/50 text-gray-800 dark:text-gray-300">
-                                    <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 font-medium text-[11px]">{product.id}</td>
+                                <tr key={product.id} className="hover:bg-gray-50 dark:hover:bg-neutral-800/20 text-gray-800 dark:text-gray-300 transition-colors">
+                                    <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 font-medium text-[11px] hidden md:table-cell text-center">{product.id}</td>
 
-                                    <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 whitespace-normal break-words leading-tight">
-                                        <div className="flex flex-wrap items-center gap-1">
-                                            <span className="text-[11px] md:text-xs">{product.name}</span>
-                                            {product.isDQG && (
-                                                <span className="text-[#5c9a38] text-[9px] font-bold tracking-tighter">(DQG)</span>
-                                            )}
+                                    <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 whitespace-normal leading-snug">
+                                        <div className="flex flex-col">
+                                            <div className="flex items-center gap-1">
+                                                <span className="text-xs sm:text-sm font-semibold">{product.name}</span>
+                                                {product.isDQG && (
+                                                    <span className="text-[#5c9a38] text-[9px] font-black border border-[#5c9a38] px-0.5 rounded">DQG</span>
+                                                )}
+                                            </div>
+                                            <span className="text-[10px] text-gray-400 md:hidden">{product.id}</span>
                                         </div>
                                     </td>
 
-                                    <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 text-center text-[11px]">{product.unit}</td>
+                                    <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 text-center text-xs">{product.unit}</td>
 
-                                    <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 text-right text-[11px]">
-                                        {formatCurrency(product.importPrice)}
-                                    </td>
-                                    <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 text-right text-[11px]">
+                                    <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 text-right text-xs font-bold text-[#5c9a38]">
                                         {formatCurrency(product.retailPrice)}
                                     </td>
-                                    <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 text-right text-[11px]">
-                                        {formatCurrency(product.wholesalePrice)}
-                                    </td>
-                                    <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 text-center text-[11px] font-medium text-blue-600 dark:text-blue-400">
+                                    
+                                    <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 text-center text-xs font-semibold text-blue-600 dark:text-blue-400">
                                         {(() => {
                                             const total = product.batches && product.batches.length > 0
                                                 ? product.batches.reduce((sum, b) => sum + b.quantity, 0)
                                                 : product.baseQuantity
                                             const qty = Math.floor(total / (product.conversionRate || 1))
                                             return (
-                                                <div className="flex flex-col leading-none gap-1">
-                                                    <span>{qty} {product.unit}</span>
+                                                <div className="flex flex-col leading-none">
+                                                    <span className={qty <= 5 ? 'text-red-500' : ''}>{qty}</span>
                                                     {product.batches && product.batches.length > 1 && (
-                                                        <span className="text-[9px] text-gray-400">({product.batches.length} lô)</span>
+                                                        <span className="text-[9px] text-gray-400 font-normal">({product.batches.length} lô)</span>
                                                     )}
                                                 </div>
                                             )
                                         })()}
                                     </td>
 
-                                    <td className="px-3 py-2 border-r border-gray-100 dark:border-neutral-800 text-center text-[11px] text-gray-400">
+                                    <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 text-center text-xs text-gray-500 hidden sm:table-cell">
                                         {(() => {
                                             if (product.batches && product.batches.length > 0) {
-                                                // Sort by expiry date (assuming DD/MM/YYYY or simple string sort for now)
-                                                // Simplified: just pick the first one which is usually the oldest/nearest
                                                 const sorted = [...product.batches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
                                                 return sorted[0].expiryDate
                                             }
@@ -396,19 +400,21 @@ export default function ProductsPage() {
                                         })()}
                                     </td>
 
-                                    <td className="px-2 py-2 text-center whitespace-nowrap">
-                                        <div className="flex items-center justify-center gap-1">
+                                    <td className="px-3 py-3 text-center whitespace-nowrap">
+                                        <div className="flex items-center justify-center gap-2">
                                             <button
                                                 onClick={() => setEditingProduct(product)}
-                                                className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-2 py-1 rounded text-[10px] font-semibold"
+                                                className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white p-1.5 rounded transition-transform active:scale-95"
+                                                title="Sửa"
                                             >
-                                                Sửa
+                                                <FileText size={14} />
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteClick(product)}
-                                                className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-[10px] font-semibold"
+                                                className="bg-red-500 hover:bg-red-600 text-white p-1.5 rounded transition-transform active:scale-95"
+                                                title="Xóa"
                                             >
-                                                Xóa
+                                                <Plus className="rotate-45" size={14} />
                                             </button>
                                         </div>
                                     </td>
@@ -417,69 +423,65 @@ export default function ProductsPage() {
                         </tbody>
                     </table>
 
-                    <div className="flex items-center justify-center mt-6 text-xs text-gray-500 dark:text-gray-400 mb-2 gap-4 uppercase font-semibold">
-                        <div className="mr-8">
-                            Tổng số bản ghi: {totalRecords} - Tổng số trang: {totalPages}
+                    {/* Pagination */}
+                    <div className="flex flex-col sm:flex-row items-center justify-between p-4 gap-4 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-neutral-800">
+                        <div className="order-2 sm:order-1 flex items-center gap-2">
+                             <span>Tổng: <span className="font-bold text-gray-700 dark:text-gray-200">{totalRecords}</span></span>
+                             <span className="text-gray-300">|</span>
+                             <span>Trang <span className="font-medium text-gray-700 dark:text-gray-200">{currentPage}</span>/{totalPages}</span>
                         </div>
-                        <div className="flex items-center space-x-1">
+                        <div className="flex items-center space-x-1 order-1 sm:order-2">
                             <button
                                 onClick={() => setCurrentPage(1)}
                                 disabled={currentPage === 1}
-                                className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100'}`}
+                                className="w-8 h-8 flex items-center justify-center rounded border border-gray-200 dark:border-neutral-800 hover:bg-gray-100 disabled:opacity-40"
                             >
                                 &laquo;
                             </button>
                             <button
                                 onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
                                 disabled={currentPage === 1}
-                                className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${currentPage === 1 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100'}`}
+                                className="px-2 h-8 flex items-center justify-center rounded border border-gray-200 dark:border-neutral-800 hover:bg-gray-100 disabled:opacity-40"
                             >
-                                &lsaquo;
+                                <span className="sm:inline hidden">Trước</span>
+                                <span className="sm:hidden">&lsaquo;</span>
                             </button>
 
-                            {/* Render up to 5 page buttons */}
-                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                // Logic to show pages around currentPage
-                                let pageNum = i + 1;
-                                if (totalPages > 5) {
-                                    if (currentPage > 3) {
-                                        pageNum = currentPage - 2 + i;
-                                        if (pageNum > totalPages) pageNum = totalPages - (4 - i);
+                            <div className="hidden md:flex items-center gap-1">
+                                {[...Array(totalPages)].map((_, i) => {
+                                    const pageNum = i + 1;
+                                    if (pageNum === 1 || pageNum === totalPages || (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)) {
+                                        return (
+                                            <button
+                                                key={pageNum}
+                                                onClick={() => setCurrentPage(pageNum)}
+                                                className={`w-8 h-8 flex items-center justify-center rounded font-medium transition-all ${currentPage === pageNum ? 'bg-[#5c9a38] text-white border-[#5c9a38]' : 'hover:bg-gray-100 border border-gray-200 dark:border-neutral-800'}`}
+                                            >
+                                                {pageNum}
+                                            </button>
+                                        );
+                                    } else if ((pageNum === 2 && currentPage > 3) || (pageNum === totalPages - 1 && currentPage < totalPages - 2)) {
+                                        return <span key={pageNum} className="px-1 text-gray-400">...</span>;
                                     }
-                                }
-                                if (pageNum > totalPages) return null;
-
-                                return (
-                                    <button
-                                        key={pageNum}
-                                        onClick={() => setCurrentPage(pageNum)}
-                                        className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${currentPage === pageNum
-                                            ? 'bg-[#5c9a38] text-white font-bold'
-                                            : 'text-gray-600 hover:bg-gray-100'
-                                            }`}
-                                    >
-                                        {pageNum}
-                                    </button>
-                                );
-                            })}
+                                    return null;
+                                })}
+                            </div>
 
                             <button
                                 onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
                                 disabled={currentPage === totalPages || totalPages === 0}
-                                className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${currentPage === totalPages || totalPages === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100'}`}
+                                className="px-2 h-8 flex items-center justify-center rounded border border-gray-200 dark:border-neutral-800 hover:bg-gray-100 disabled:opacity-40"
                             >
-                                &rsaquo;
+                                <span className="sm:inline hidden">Sau</span>
+                                <span className="sm:hidden">&rsaquo;</span>
                             </button>
                             <button
                                 onClick={() => setCurrentPage(totalPages)}
                                 disabled={currentPage === totalPages || totalPages === 0}
-                                className={`w-6 h-6 flex items-center justify-center rounded transition-colors ${currentPage === totalPages || totalPages === 0 ? 'text-gray-300 cursor-not-allowed' : 'text-gray-500 hover:bg-gray-100'}`}
+                                className="w-8 h-8 flex items-center justify-center rounded border border-gray-200 dark:border-neutral-800 hover:bg-gray-100 disabled:opacity-40"
                             >
                                 &raquo;
                             </button>
-                            <div className="ml-2 border border-gray-300 rounded px-2 py-1 flex items-center bg-white dark:bg-neutral-800 h-6">
-                                <span>{currentPage}</span>
-                            </div>
                         </div>
                     </div>
                 </div>
