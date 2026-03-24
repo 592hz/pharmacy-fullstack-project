@@ -18,6 +18,7 @@ export const loginSchema = z.object({
 export const signupSchema = z.object({
     name: z.string().min(1, "Vui lòng nhập họ tên"),
     username: z.string().min(3, "Tên đăng nhập phải có ít nhất 3 ký tự"),
+    email: z.string().email("Email không hợp lệ").optional().or(z.literal("")),
     password: z.string().min(6, "Mật khẩu phải có ít nhất 6 ký tự"),
     confirmPassword: z.string().min(1, "Vui lòng xác nhận mật khẩu"),
 }).refine((data) => data.password === data.confirmPassword, {
@@ -37,6 +38,8 @@ export const customerSchema = z.object({
     age: z.string().optional(),
     notes: z.string().optional(),
 })
+
+export type Customer = z.infer<typeof customerSchema>
 
 // ─── SUPPLIER ───
 export const supplierSchema = z.object({
@@ -67,19 +70,56 @@ export const productUnitSchema = z.object({
     isDefault: z.boolean().default(false),
 })
 
+export const batchSchema = z.object({
+    batchNumber: z.string(),
+    expiryDate: z.string(),
+    quantity: z.number(),
+})
+
 export const productSchema = z.object({
+    id: z.string().optional(),
     productCode: z.string().min(1, "Mã hàng hóa không được để trống"),
     productName: z.string().min(1, "Vui lòng nhập Tên hàng hóa"),
+    name: z.string().optional(), // For backward compatibility
     categoryId: z.string().min(1, "Vui lòng chọn Nhóm hàng hóa"),
     supplierId: z.string().optional().or(z.literal("")),
     vatPercent: z.number().min(0).max(100).default(0),
     discountPercent: z.number().min(0).max(100).default(0),
     initialQuantity: z.number().gte(0, "Số lượng tồn kho không được âm"),
     baseUnitName: z.string().min(1, "Vui lòng nhập Đơn vị cơ bản"),
+    unit: z.string().optional(), // For backward compatibility
+    importPrice: z.number().optional(), // For backward compatibility
+    retailPrice: z.number().optional(), // For backward compatibility
+    wholesalePrice: z.number().optional(), // For backward compatibility
     batchNumber: z.string().optional().or(z.literal("")),
     expiryDate: dateValidation,
     units: z.array(productUnitSchema).min(1, "Phải có ít nhất một đơn vị tính"),
+    batches: z.array(batchSchema).optional(),
+    conversionRate: z.number().optional(),
+    baseQuantity: z.number().optional(),
 })
+
+export type Product = z.infer<typeof productSchema>
+
+export const productCategorySchema = z.object({
+    id: z.string().optional(),
+    code: z.string().optional(), // Made optional as backend generates it
+    name: z.string().min(1, "Vui lòng nhập tên nhóm hàng hóa"),
+    notes: z.string().optional(),
+})
+
+export type ProductCategory = z.infer<typeof productCategorySchema>
+
+export const categorySchema = z.object({
+    id: z.string().optional(),
+    name: z.string().min(1, "Vui lòng nhập tên"),
+    type: z.enum(["Thu", "Chi"]),
+    amount: z.number().gte(0),
+    date: z.string().optional(),
+    notes: z.string().optional(),
+})
+
+export type Category = z.infer<typeof categorySchema>
 
 // ─── PAYMENT METHOD ───
 export const paymentMethodSchema = z.object({
@@ -110,12 +150,12 @@ export const noteSchema = z.object({
 
 // ─── EXPORT ORDER ───
 export const exportOrderItemSchema = z.object({
-    id: z.string(),
+    id: z.string().optional(),
     code: z.string(),
     name: z.string(),
     unit: z.string(),
-    batchNumber: z.string().optional().or(z.literal("")),
-    expiryDate: dateValidation,
+    batchNumber: z.string().default(""),
+    expiryDate: z.string().default(""),
     quantity: z.number().min(0.0001, "Số lượng phải lớn hơn 0"),
     retailPrice: z.number().min(0),
     importPrice: z.number().min(0),
@@ -126,7 +166,7 @@ export const exportOrderItemSchema = z.object({
 })
 
 export const exportOrderSchema = z.object({
-    id: z.string(),
+    id: z.string().optional(),
     exportDate: z.string(),
     customerId: z.string(),
     customerName: z.string().min(1, "Vui lòng chọn khách hàng"),
@@ -142,14 +182,17 @@ export const exportOrderSchema = z.object({
     items: z.array(exportOrderItemSchema).min(1, "Phiếu bán hàng phải có ít nhất một sản phẩm"),
 })
 
+export type ExportOrder = z.infer<typeof exportOrderSchema>
+export type ExportOrderItem = z.infer<typeof exportOrderItemSchema>
+
 // ─── PURCHASE ORDER ───
 export const purchaseOrderItemSchema = z.object({
-    id: z.string(),
+    id: z.string().optional(),
     code: z.string(),
     name: z.string(),
     unit: z.string(),
-    batchNumber: z.string().optional().or(z.literal("")),
-    expiryDate: dateValidation,
+    batchNumber: z.string().default(""),
+    expiryDate: z.string().default(""),
     quantity: z.number().min(0.0001, "Số lượng phải lớn hơn 0"),
     importPrice: z.number().min(0),
     retailPrice: z.number().min(0),
@@ -163,7 +206,7 @@ export const purchaseOrderItemSchema = z.object({
 })
 
 export const purchaseOrderSchema = z.object({
-    id: z.string(),
+    id: z.string().optional(),
     importDate: z.string(),
     supplierId: z.string().min(1, "Vui lòng chọn nhà cung cấp"),
     supplierName: z.string().optional(),
@@ -177,3 +220,6 @@ export const purchaseOrderSchema = z.object({
     paymentMethod: z.string().optional(),
     items: z.array(purchaseOrderItemSchema).min(1, "Phiếu nhập hàng phải có ít nhất một sản phẩm"),
 })
+
+export type PurchaseOrder = z.infer<typeof purchaseOrderSchema>
+export type PurchaseOrderItem = z.infer<typeof purchaseOrderItemSchema>

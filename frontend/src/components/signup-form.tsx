@@ -18,24 +18,22 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { toast } from "sonner"
-
-const signupSchema = z.object({
-  name: z.string().min(2, { message: "Tên phải có ít nhất 2 ký tự" }),
-  email: z.string().email({ message: "Vui lòng nhập địa chỉ email hợp lệ" }),
-  password: z.string().min(8, { message: "Mật khẩu phải có ít nhất 8 ký tự" }),
-  confirmPassword: z.string()
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Mật khẩu xác nhận không khớp",
-  path: ["confirmPassword"],
-})
+import { signupSchema } from "@/lib/schemas"
+import { useAuth } from "@/context/AuthContext"
+import { useNavigate } from "react-router-dom"
+import { useState } from "react"
+import { Loader2 } from "lucide-react"
 
 type SignupFormValues = z.infer<typeof signupSchema>
-
 
 export function SignupForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
+  const { register: authRegister } = useAuth()
+  const navigate = useNavigate()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const {
     register,
     handleSubmit,
@@ -43,19 +41,31 @@ export function SignupForm({
   } = useForm<SignupFormValues>({
     resolver: zodResolver(signupSchema),
     defaultValues: {
+      username: "",
       name: "",
-      email: "",
       password: "",
       confirmPassword: "",
     },
   })
 
-  const onSubmit = (data: SignupFormValues) => {
-    // Xử lý logic đăng ký
-    console.log("Đăng ký với:", data)
-    toast.success("Đăng ký thành công!", {
-      description: "Tài khoản của bạn đã được tạo.",
-    })
+  const onSubmit = async (data: SignupFormValues) => {
+    setIsSubmitting(true)
+    try {
+      await authRegister({ 
+        username: data.username, 
+        name: data.name, 
+        email: data.email,
+        password: data.password 
+      })
+      toast.success("Đăng ký thành công!", {
+        description: "Tài khoản của bạn đã được tạo.",
+      })
+      navigate("/")
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || error.message || "Đăng ký thất bại")
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -64,12 +74,23 @@ export function SignupForm({
         <CardHeader className="text-center">
           <CardTitle className="text-xl">Đăng ký</CardTitle>
           <CardDescription>
-            Đăng ký với tài khoản Apple hoặc Google của bạn
+            Tạo tài khoản mới để quản lý nhà thuốc của bạn
           </CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)}>
             <FieldGroup>
+              <Field>
+                <FieldLabel htmlFor="username">Tên đăng nhập</FieldLabel>
+                <Input
+                  id="username"
+                  type="text"
+                  placeholder="admin"
+                  error={!!errors.username}
+                  errorMessage={errors.username?.message as React.ReactNode}
+                  {...register("username")}
+                />
+              </Field>
               <Field>
                 <FieldLabel htmlFor="name">Họ và tên</FieldLabel>
                 <Input
@@ -82,18 +103,18 @@ export function SignupForm({
                 />
               </Field>
               <Field>
-                <FieldLabel htmlFor="email">Email</FieldLabel>
+                <FieldLabel htmlFor="email">Email (Tùy chọn)</FieldLabel>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="nguyenvana@example.com"
+                  placeholder="name@example.com"
                   error={!!errors.email}
                   errorMessage={errors.email?.message as React.ReactNode}
                   {...register("email")}
                 />
               </Field>
               <Field>
-                <Field className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4">
                   <Field>
                     <FieldLabel htmlFor="password">Mật khẩu</FieldLabel>
                     <Input
@@ -116,15 +137,22 @@ export function SignupForm({
                       {...register("confirmPassword")}
                     />
                   </Field>
-                </Field>
+                </div>
                 <FieldDescription>
-                  Mật khẩu phải có ít nhất 8 ký tự
+                  Mật khẩu phải có ít nhất 6 ký tự
                 </FieldDescription>
               </Field>
               <Field>
-                <Button type="submit" className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white  dark:bg-[#5c9a38]  dark:text-white dark:hover:bg-[#5c9a38]/90">Đăng ký</Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white dark:bg-[#5c9a38] dark:text-white dark:hover:bg-[#5c9a38]/90 w-full"
+                >
+                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Đăng ký
+                </Button>
                 <FieldDescription className="text-center">
-                  Bạn đã có tài khoản? <a href="/login">Đăng nhập</a>
+                  Bạn đã có tài khoản? <a href="/login" className="underline underline-offset-4">Đăng nhập</a>
                 </FieldDescription>
               </Field>
             </FieldGroup>

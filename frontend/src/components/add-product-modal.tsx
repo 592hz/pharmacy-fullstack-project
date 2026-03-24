@@ -1,10 +1,15 @@
 import { useState, useCallback } from "react"
 import { X } from "lucide-react"
 import { toast } from "sonner"
-import { mockProductCategories, mockSuppliersList, type Product } from "@/lib/mock-data"
+import { type Product } from "@/lib/mock-data"
 import { parseFloatSafe } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { productSchema } from "@/lib/schemas"
+import { supplierService } from "@/services/supplier.service"
+import { useEffect } from "react"
+import { productCategoryService } from "@/services/product-category.service"
+import { productService } from "@/services/product.service"
+import { type Category as ProductCategory, type Supplier } from "@/lib/schemas"
 
 // dữ liệu được lấy từ database 
 export interface ProductUnit {
@@ -133,6 +138,28 @@ const InputField = ({ label, required, value, onChange, placeholder = "", type =
 }
 
 export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: AddProductModalProps) {
+    const [categories, setCategories] = useState<any[]>([])
+    const [suppliers, setSuppliers] = useState<any[]>([])
+
+    useEffect(() => {
+        if (isOpen) {
+            const fetchData = async () => {
+                try {
+                    const [cats, sups] = await Promise.all([
+                        productCategoryService.getAll(),
+                        supplierService.getAll()
+                    ])
+                    setCategories(cats)
+                    setSuppliers(sups)
+                } catch (error) {
+                    console.error("Error fetching data:", error)
+                    toast.error("Không thể tải dữ liệu danh mục/nhà cung cấp")
+                }
+            }
+            fetchData()
+        }
+    }, [isOpen])
+
     const [formData, setFormData] = useState<ProductFormData>(() => {
         if (initialData) {
             const firstBatch = initialData.batches?.[0]
@@ -318,7 +345,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                     onChange={(e) => handleInputChange('supplierId', e.target.value)}
                                 >
                                     <option value="">Chọn nhà cung cấp...</option>
-                                    {mockSuppliersList.map(s => (
+                                    {suppliers.map(s => (
                                         <option key={s.id} value={s.id}>{s.name}</option>
                                     ))}
                                 </select>
@@ -334,7 +361,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                     onChange={(e) => handleInputChange('categoryId', e.target.value)}
                                 >
                                     <option value="">Chọn nhóm...</option>
-                                    {mockProductCategories.map(c => (
+                                    {categories.map(c => (
                                         <option key={c.id} value={c.id}>{c.name}</option>
                                     ))}
                                 </select>

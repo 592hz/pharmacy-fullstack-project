@@ -1,8 +1,10 @@
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { AlertCircle, Search, PlusCircle, Trash2, Save, X, Printer } from "lucide-react"
 import { toast } from "sonner"
-import { mockExportSlips, mockProducts, type ExportSlipItem, type Product } from "@/lib/mock-data"
+import { type ExportOrder, type ExportOrderItem, type Product } from "@/lib/schemas"
+import { exportSlipService } from "@/services/export-slip.service"
+import { productService } from "@/services/product.service"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
 import { parseFloatSafe } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
@@ -11,21 +13,34 @@ export default function ExportOrderDetailPage() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
 
-    // Find the slip
-    const originalSlip = useMemo(() => mockExportSlips.find(s => s.id === id) || null, [id])
-
-    const slip = originalSlip
-    const [items, setItems] = useState<ExportSlipItem[]>(originalSlip?.items || [])
+    const [slip, setSlip] = useState<ExportOrder | null>(null)
+    const [items, setItems] = useState<ExportOrderItem[]>([])
+    const [isLoading, setIsLoading] = useState(true)
     const [showAddModal, setShowAddModal] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
+    const [allProducts, setAllProducts] = useState<Product[]>([])
 
-    // Reset items when order changes (e.g. navigation between orders)
-    const [prevId, setPrevId] = useState(id)
-    if (id !== prevId) {
-        setPrevId(id)
-        setItems(originalSlip?.items || [])
-        setIsEditing(false)
-    }
+    const fetchData = useCallback(async () => {
+        if (!id) return
+        setIsLoading(true)
+        try {
+            const [slipData, productsData] = await Promise.all([
+                exportSlipService.getById(id),
+                productService.getAll()
+            ])
+            setSlip(slipData)
+            setItems(slipData.items || [])
+            setAllProducts(productsData)
+        } catch (error) {
+            toast.error("Không thể tải thông tin phiếu xuất")
+        } finally {
+            setIsLoading(false)
+        }
+    }, [id])
+
+    useEffect(() => {
+        fetchData()
+    }, [fetchData])
 
     // Search state
     const [searchQuery, setSearchQuery] = useState("")
@@ -34,11 +49,11 @@ export default function ExportOrderDetailPage() {
     const filteredSuggestions = useMemo(() => {
         if (!searchQuery.trim()) return []
         const query = searchQuery.toLowerCase()
-        return mockProducts.filter(p =>
-            p.name.toLowerCase().includes(query) ||
-            p.id.toLowerCase().includes(query)
+        return allProducts.filter(p =>
+            (p.productName || p.name || "").toLowerCase().includes(query) ||
+            ((p.id || p.productCode || "")).toLowerCase().includes(query)
         ).slice(0, 10)
-    }, [searchQuery])
+    }, [allProducts, searchQuery])
 
     const handleQuickAdd = useCallback((product: Product) => {
         const qty = 1
@@ -51,11 +66,11 @@ export default function ExportOrderDetailPage() {
             ? [...product.batches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))[0]
             : null
 
-        const newItem: ExportSlipItem = {
+        const newItem: ExportOrderItem = {
             id: `new-${Date.now()}-${Math.random()}`,
-            code: product.id,
-            name: product.name,
-            unit: product.unit,
+            code: product.productCode || product.id || "",
+            name: product.productName || product.name || "",
+            unit: product.baseUnitName || product.unit || "",
             batchNumber: firstBatch?.batchNumber || "",
             expiryDate: firstBatch?.expiryDate || product.expiryDate || "",
             quantity: qty,
@@ -89,7 +104,7 @@ export default function ExportOrderDetailPage() {
         const importPrice = firstUnit?.importPrice || 0
         const total = qty * retailPrice
 
-        const newItem: ExportSlipItem = {
+        const newItem: ExportOrderItem = {
             id: `new-${Date.now()}-${Math.random()}`,
             code: formData.productCode || "",
             name: formData.productName,
@@ -109,7 +124,9 @@ export default function ExportOrderDetailPage() {
     }, [])
 
     const handleCancelEdit = () => {
-        setItems(originalSlip?.items || [])
+        if (slip) {
+            setItems(slip.items || [])
+        }
         setIsEditing(false)
         toast.info("Đã hủy thay đổi")
     }
@@ -129,7 +146,7 @@ export default function ExportOrderDetailPage() {
         toast.error("Đã xóa sản phẩm khỏi phiếu")
     }
 
-    const updateItemField = useCallback((id: string, field: keyof ExportSlipItem, value: string | number | boolean) => {
+    const updateItemField = useCallback((id: string, field: keyof ExportOrderItem, value: string | number | boolean) => {
         setItems(prev => prev.map(item => {
             if (item.id !== id) return item
 
@@ -149,9 +166,30 @@ export default function ExportOrderDetailPage() {
         }))
     }, [])
 
-    const handleSaveOrder = () => {
-        setIsEditing(false)
-        toast.success("Đã lưu thay đổi phiếu xuất")
+    const handleSaveOrder = async () => {
+        if (!slip || !id) return
+        
+        try {
+            const updatedSlip = {
+                ...slip,
+                items: items.map(({ id: _id, ...rest }) => rest) as any
+            }
+            await exportSlipService.update(id, updatedSlip)
+            setSlip(updatedSlip)
+            setIsEditing(false)
+            toast.success("Đã lưu thay đổi phiếu xuất")
+        } catch (error) {
+            toast.error("Không thể lưu thay đổi phiếu xuất")
+        }
+    }
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full space-y-4">
+                <div className="w-12 h-12 border-4 border-[#5c9a38] border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-gray-500">Đang tải thông tin phiếu xuất...</p>
+            </div>
+        )
     }
 
     if (!slip) {
@@ -376,27 +414,27 @@ export default function ExportOrderDetailPage() {
                                     <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700">{item.unit}</td>
                                     <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700">
                                         {isEditing ? (
-                                            <input type="text" className="w-full border rounded px-1" value={item.batchNumber} onChange={(e) => updateItemField(item.id, 'batchNumber', e.target.value)} />
+                                            <input type="text" className="w-full border rounded px-1" value={item.batchNumber || ""} onChange={(e) => updateItemField(item.id!, 'batchNumber', e.target.value)} />
                                         ) : item.batchNumber}
                                     </td>
                                     <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700">
                                         {isEditing ? (
-                                            <input type="text" className="w-full border rounded px-1" value={item.expiryDate} onChange={(e) => updateItemField(item.id, 'expiryDate', e.target.value)} />
+                                            <input type="text" className="w-full border rounded px-1" value={item.expiryDate || ""} onChange={(e) => updateItemField(item.id!, 'expiryDate', e.target.value)} />
                                         ) : item.expiryDate}
                                     </td>
                                     <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700 text-right font-medium">
                                         {isEditing ? (
-                                            <NumericInput className="w-16 border rounded px-1 text-right" value={Number(item.quantity)} onChange={(v) => updateItemField(item.id, 'quantity', v)} />
+                                            <NumericInput className="w-16 border rounded px-1 text-right" value={Number(item.quantity)} onChange={(v) => updateItemField(item.id!, 'quantity', v)} />
                                         ) : item.quantity}
                                     </td>
                                     <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700 text-right text-gray-500">
                                         {isEditing ? (
-                                            <NumericInput className="w-24 border rounded px-1 text-right text-[11px]" value={Number(item.importPrice)} onChange={(v) => updateItemField(item.id, 'importPrice', v)} />
+                                            <NumericInput className="w-24 border rounded px-1 text-right text-[11px]" value={Number(item.importPrice)} onChange={(v) => updateItemField(item.id!, 'importPrice', v)} />
                                         ) : vnd(item.importPrice)}
                                     </td>
                                     <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700 text-right font-medium">
                                         {isEditing ? (
-                                            <NumericInput className="w-24 border rounded px-1 text-right" value={Number(item.retailPrice)} onChange={(v) => updateItemField(item.id, 'retailPrice', v)} />
+                                            <NumericInput className="w-24 border rounded px-1 text-right" value={Number(item.retailPrice)} onChange={(v) => updateItemField(item.id!, 'retailPrice', v)} />
                                         ) : vnd(item.retailPrice)}
                                     </td>
                                     <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700 text-right font-bold">{vnd(item.remainingAmount)}</td>
@@ -405,7 +443,7 @@ export default function ExportOrderDetailPage() {
                                     </td>
                                     {isEditing && (
                                         <td className="px-3 py-2 text-center">
-                                            <button onClick={() => removeItem(item.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
+                                            <button onClick={() => removeItem(item.id!)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
                                         </td>
                                     )}
                                 </tr>

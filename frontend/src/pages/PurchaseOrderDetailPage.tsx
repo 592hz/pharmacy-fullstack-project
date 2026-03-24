@@ -2,7 +2,10 @@ import { useState, useMemo, useCallback } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { Plus, AlertCircle, Search, PlusCircle, Trash2, Save, X } from "lucide-react"
 import { toast } from "sonner"
-import { mockPurchaseOrders, mockProducts, type PurchaseOrderItem } from "@/lib/mock-data"
+import { type PurchaseOrder, type PurchaseOrderItem, type Product } from "@/lib/schemas"
+import { purchaseOrderService } from "@/services/purchase-order.service"
+import { productService } from "@/services/product.service"
+import { useEffect } from "react"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
 import { parseFloatSafe } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
@@ -12,20 +15,33 @@ export default function PurchaseOrderDetailPage() {
     const navigate = useNavigate()
 
     // Find the order
-    const originalOrder = useMemo(() => mockPurchaseOrders.find(o => o.id === id) || null, [id])
-
-    const order = originalOrder
-    const [items, setItems] = useState<PurchaseOrderItem[]>(originalOrder?.items || [])
+    const [order, setOrder] = useState<PurchaseOrder | null>(null)
+    const [items, setItems] = useState<PurchaseOrderItem[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [allProducts, setAllProducts] = useState<Product[]>([])
     const [showAddModal, setShowAddModal] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
 
-    // Reset items when order changes (e.g. navigation between orders)
-    const [prevId, setPrevId] = useState(id)
-    if (id !== prevId) {
-        setPrevId(id)
-        setItems(originalOrder?.items || [])
-        setIsEditing(false)
-    }
+    useEffect(() => {
+        const fetchData = async () => {
+            if (!id) return
+            setIsLoading(true)
+            try {
+                const [orderData, productsData] = await Promise.all([
+                    purchaseOrderService.getById(id),
+                    productService.getAll()
+                ])
+                setOrder(orderData)
+                setItems(orderData.items || [])
+                setAllProducts(productsData)
+            } catch (error) {
+                toast.error("Không thể tải thông tin phiếu nhập")
+            } finally {
+                setIsLoading(false)
+            }
+        }
+        fetchData()
+    }, [id])
 
     // Search state
     const [searchQuery, setSearchQuery] = useState("")
@@ -34,13 +50,13 @@ export default function PurchaseOrderDetailPage() {
     const filteredSuggestions = useMemo(() => {
         if (!searchQuery.trim()) return []
         const query = searchQuery.toLowerCase()
-        return mockProducts.filter(p =>
-            p.name.toLowerCase().includes(query) ||
-            p.id.toLowerCase().includes(query)
+        return allProducts.filter(p =>
+            p.productName.toLowerCase().includes(query) ||
+            p.productCode.toLowerCase().includes(query)
         ).slice(0, 10)
-    }, [searchQuery])
+    }, [searchQuery, allProducts])
 
-    const handleQuickAdd = useCallback((product: typeof mockProducts[0]) => {
+    const handleQuickAdd = useCallback((product: Product) => {
         const qty = 1
         const importPrice = product.importPrice || 0
         const total = qty * importPrice
@@ -49,9 +65,9 @@ export default function PurchaseOrderDetailPage() {
 
         const newItem: PurchaseOrderItem = {
             id: `new-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            code: product.id,
-            name: product.name,
-            unit: product.unit,
+            code: product.productCode,
+            name: product.productName,
+            unit: product.baseUnitName,
             batchNumber: "",
             expiryDate: "",
             quantity: qty,
@@ -63,13 +79,12 @@ export default function PurchaseOrderDetailPage() {
             vatPercent: vatPct,
             vatAmount: vatAmt,
             remainingAmount: total + vatAmt,
-            registrationNumber: "-",
         }
 
         setItems(prev => [...prev, newItem])
         setSearchQuery("")
         setShowResults(false)
-        toast.success(`Đã thêm nhanh: ${product.name}`)
+        toast.success(`Đã thêm nhanh: ${product.productName}`)
     }, [])
 
     // Handler when AddProductModal saves a new product → convert to PurchaseOrderItem
@@ -106,7 +121,9 @@ export default function PurchaseOrderDetailPage() {
     }, [])
 
     const handleCancelEdit = () => {
-        setItems(originalOrder?.items || [])
+        if (order) {
+            setItems(order.items || [])
+        }
         setIsEditing(false)
         toast.info("Đã hủy thay đổi")
     }
@@ -150,9 +167,26 @@ export default function PurchaseOrderDetailPage() {
         }))
     }, [])
 
-    const handleSaveOrder = () => {
-        setIsEditing(false)
-        toast.success("Đã lưu thay đổi phiếu nhập")
+    const handleSaveOrder = async () => {
+        if (!order || !id) return
+        try {
+            const updatedOrder = { ...order, items }
+            await purchaseOrderService.update(id, updatedOrder)
+            setOrder(updatedOrder)
+            setIsEditing(false)
+            toast.success("Đã lưu thay đổi phiếu nhập")
+        } catch (error: any) {
+            toast.error(`Lỗi: ${error.message}`)
+        }
+    }
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full space-y-4">
+                <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-gray-500">Đang tải thông tin phiếu nhập...</p>
+            </div>
+        )
     }
 
     if (!order) {
@@ -331,7 +365,7 @@ export default function PurchaseOrderDetailPage() {
                                                     <span>&bull;</span>
                                                     <span>ĐVT: {product.unit}</span>
                                                     <span>&bull;</span>
-                                                    <span className="text-green-600 dark:text-green-400 font-medium">Giá: {vnd(product.importPrice)}</span>
+                                                    <span className="text-green-600 dark:text-green-400 font-medium">Giá: {vnd(product.importPrice || 0)}</span>
                                                 </div>
                                             </div>
                                             <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-blue-600 text-white px-2 py-1 rounded text-[10px] font-bold">

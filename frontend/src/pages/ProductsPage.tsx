@@ -2,18 +2,44 @@ import { useState } from "react"
 import { Search, List, Download, RefreshCw, Plus, FileText } from "lucide-react"
 import { AddProductModal } from "@/components/add-product-modal"
 import { toast } from "sonner"
-import { mockProducts, mockProductCategories, mockSuppliersList, type Product } from "@/lib/mock-data"
+import { type Product } from "@/lib/mock-data"
 import { type ProductFormData } from "@/components/add-product-modal"
-
-// Use common mock data
-const initialProducts = mockProducts
+import { productService } from "@/services/product.service"
+import { categoryService } from "@/services/category.service"
+import { supplierService } from "@/services/supplier.service"
+import { useEffect } from "react"
 
 export default function ProductsPage() {
-    const [products, setProducts] = useState<Product[]>(initialProducts)
+    const [products, setProducts] = useState<Product[]>([])
+    const [categories, setCategories] = useState<any[]>([])
+    const [suppliers, setSuppliers] = useState<any[]>([])
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
     const [productToDelete, setProductToDelete] = useState<Product | null>(null)
     const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
+    const [isLoading, setIsLoading] = useState(true)
+
+    const fetchData = async () => {
+        setIsLoading(true)
+        try {
+            const [productsData, categoriesData, suppliersData] = await Promise.all([
+                productService.getAll(),
+                categoryService.getAll(),
+                supplierService.getAll()
+            ])
+            setProducts(productsData)
+            setCategories(categoriesData)
+            setSuppliers(suppliersData)
+        } catch (error) {
+            toast.error("Không thể tải dữ liệu sản phẩm")
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchData()
+    }, [])
 
     // Search and Pagination State
     const [searchQuery, setSearchQuery] = useState("")
@@ -29,8 +55,8 @@ export default function ProductsPage() {
         // 1. Text Search
         const query = searchQuery.toLowerCase().trim()
 
-        const category = mockProductCategories.find(c => c.id === product.categoryId)
-        const supplier = mockSuppliersList.find(s => s.id === product.supplierId)
+        const category = categories.find(c => c.id === product.categoryId)
+        const supplier = suppliers.find(s => s.id === product.supplierId)
 
         const matchesQuery = !query ||
             product.name.toLowerCase().includes(query) ||
@@ -97,11 +123,17 @@ export default function ProductsPage() {
             return
         }
 
-        if (deleteConfirmCount === 2) {
-            setProducts(products.filter(p => p.id !== productToDelete?.id))
-            toast.success("Đã xóa sản phẩm thành công!")
-            setProductToDelete(null)
-            setDeleteConfirmCount(0)
+        if (deleteConfirmCount === 2 && productToDelete) {
+            productService.delete(productToDelete.id)
+                .then(() => {
+                    setProducts(products.filter(p => p.id !== productToDelete.id))
+                    toast.success("Đã xóa sản phẩm thành công!")
+                    setProductToDelete(null)
+                    setDeleteConfirmCount(0)
+                })
+                .catch(err => {
+                    toast.error(`Lỗi khi xóa: ${err.message}`)
+                })
         }
     }
 
@@ -110,59 +142,62 @@ export default function ProductsPage() {
         setDeleteConfirmCount(0)
     }
 
-    const handleSaveProduct = (formData: ProductFormData) => {
-        if (editingProduct) {
-            // Update existing product
-            setProducts(products.map(p =>
-                p.id === editingProduct.id
-                    ? {
-                        ...p,
-                        name: formData.productName,
-                        unit: formData.units[0]?.unitName || p.unit,
-                        importPrice: formData.units[0]?.importPrice || p.importPrice,
-                        retailPrice: formData.units[0]?.retailPrice || p.retailPrice,
-                        wholesalePrice: formData.units[0]?.wholesalePrice || p.wholesalePrice,
-                        baseQuantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1),
-                        baseUnitName: formData.baseUnitName || p.baseUnitName,
-                        conversionRate: formData.units[0]?.conversionRate || 1,
-                        categoryId: formData.categoryId,
-                        supplierId: formData.supplierId,
-                        batches: p.batches && p.batches.length > 0 
-                            ? p.batches.map((b, i) => i === 0 ? { ...b, batchNumber: formData.batchNumber, expiryDate: formData.expiryDate, quantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1) } : b)
-                            : [{ batchNumber: formData.batchNumber, expiryDate: formData.expiryDate, quantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1) }]
-                    }
-                    : p
-            ))
-            setEditingProduct(null)
-        } else {
-            // Add new product
-            const newProduct: Product = {
-                id: formData.productCode,
-                name: formData.productName,
-                isDQG: false,
-                unit: formData.units[0]?.unitName || "",
-                manufacturer: ".",
-                importPrice: formData.units[0]?.importPrice || 0,
-                retailPrice: formData.units[0]?.retailPrice || 0,
-                wholesalePrice: formData.units[0]?.wholesalePrice || 0,
-                expiryDate: formData.expiryDate,
-                registrationNo: ".",
-                baseQuantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1),
-                baseUnitName: formData.baseUnitName || "",
-                conversionRate: formData.units[0]?.conversionRate || 1,
-                categoryId: formData.categoryId,
-                supplierId: formData.supplierId,
-                batches: [
-                    { 
-                        batchNumber: formData.batchNumber || "MỚI", 
-                        expiryDate: formData.expiryDate || ".", 
-                        quantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1) 
-                    }
-                ]
+    const handleSaveProduct = async (formData: ProductFormData) => {
+        try {
+            if (editingProduct) {
+                const updatedProductData = {
+                    ...editingProduct,
+                    name: formData.productName,
+                    unit: formData.units[0]?.unitName || editingProduct.unit,
+                    importPrice: formData.units[0]?.importPrice || editingProduct.importPrice,
+                    retailPrice: formData.units[0]?.retailPrice || editingProduct.retailPrice,
+                    wholesalePrice: formData.units[0]?.wholesalePrice || editingProduct.wholesalePrice,
+                    baseQuantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1),
+                    baseUnitName: formData.baseUnitName || editingProduct.baseUnitName,
+                    conversionRate: formData.units[0]?.conversionRate || 1,
+                    categoryId: formData.categoryId,
+                    supplierId: formData.supplierId,
+                    batches: editingProduct.batches && editingProduct.batches.length > 0 
+                        ? editingProduct.batches.map((b: any, i: number) => i === 0 ? { ...b, batchNumber: formData.batchNumber, expiryDate: formData.expiryDate, quantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1) } : b)
+                        : [{ batchNumber: formData.batchNumber, expiryDate: formData.expiryDate, quantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1) }]
+                }
+                const data = await productService.update(editingProduct.id, updatedProductData)
+                setProducts(products.map(p => p.id === data.id ? data : p))
+                toast.success("Cập nhật sản phẩm thành công!")
+                setEditingProduct(null)
+            } else {
+                const newProduct: any = {
+                    id: formData.productCode,
+                    name: formData.productName,
+                    isDQG: false,
+                    unit: formData.units[0]?.unitName || "",
+                    manufacturer: ".",
+                    importPrice: formData.units[0]?.importPrice || 0,
+                    retailPrice: formData.units[0]?.retailPrice || 0,
+                    wholesalePrice: formData.units[0]?.wholesalePrice || 0,
+                    expiryDate: formData.expiryDate,
+                    registrationNo: ".",
+                    baseQuantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1),
+                    baseUnitName: formData.baseUnitName || "",
+                    conversionRate: formData.units[0]?.conversionRate || 1,
+                    categoryId: formData.categoryId,
+                    supplierId: formData.supplierId,
+                    batches: [
+                        { 
+                            batchNumber: formData.batchNumber || "MỚI", 
+                            expiryDate: formData.expiryDate || ".", 
+                            quantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1) 
+                        }
+                    ]
+                }
+                const data = await productService.create(newProduct)
+                setProducts([data, ...products])
+                toast.success("Thêm sản phẩm mới thành công!")
             }
-            setProducts([newProduct, ...products])
+            setIsAddModalOpen(false)
+        } catch (error: any) {
+            toast.error(`Lỗi: ${error.message}`)
         }
-        setIsAddModalOpen(false)
     }
 
     const formatCurrency = (value: number) => {
@@ -224,7 +259,7 @@ export default function ProductsPage() {
                             }}
                         >
                             <option value="Tất cả">Nhóm sản phẩm</option>
-                            {mockProductCategories.map(cat => (
+                            {categories.map(cat => (
                                 <option key={cat.id} value={cat.id}>{cat.name}</option>
                             ))}
                         </select>
@@ -240,7 +275,7 @@ export default function ProductsPage() {
                             }}
                         >
                             <option value="Tất cả">Nhà cung cấp</option>
-                            {mockSuppliersList.map(sup => (
+                            {suppliers.map(sup => (
                                 <option key={sup.id} value={sup.id}>{sup.name}</option>
                             ))}
                         </select>
@@ -429,6 +464,7 @@ export default function ProductsPage() {
                              <span>Tổng: <span className="font-bold text-gray-700 dark:text-gray-200">{totalRecords}</span></span>
                              <span className="text-gray-300">|</span>
                              <span>Trang <span className="font-medium text-gray-700 dark:text-gray-200">{currentPage}</span>/{totalPages}</span>
+                             {isLoading && <span className="text-[#5c9a38] animate-pulse ml-2">Đang tải...</span>}
                         </div>
                         <div className="flex items-center space-x-1 order-1 sm:order-2">
                             <button

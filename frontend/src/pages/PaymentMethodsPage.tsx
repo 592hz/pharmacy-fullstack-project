@@ -3,28 +3,34 @@ import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import AddPaymentMethodModal from "@/components/add-payment-method-modal"
 import { type PaymentMethod } from "@/lib/schemas"
+import { paymentMethodService } from "@/services/payment-method.service"
+import { useEffect } from "react"
 
-const initialPaymentMethods = [
-    {
-        id: "PM0001",
-        name: "Chuyển khoản",
-        notes: "",
-        isDefault: false,
-    },
-    {
-        id: "PM0002",
-        name: "Tiền mặt",
-        notes: "",
-        isDefault: true,
-    },
-]
+
 
 export default function PaymentMethodsPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-    const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>(initialPaymentMethods)
+    const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
+    const [isLoading, setIsLoading] = useState(true)
     const [editingPaymentMethod, setEditingPaymentMethod] = useState<PaymentMethod | null>(null)
     const [paymentMethodToDelete, setPaymentMethodToDelete] = useState<PaymentMethod | null>(null)
     const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
+
+    const fetchPaymentMethods = async () => {
+        setIsLoading(true)
+        try {
+            const data = await paymentMethodService.getAll()
+            setPaymentMethods(data)
+        } catch (error) {
+            toast.error("Không thể tải phương thức thanh toán")
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchPaymentMethods()
+    }, [])
 
     const handleDeleteClick = (paymentMethod: PaymentMethod) => {
         setPaymentMethodToDelete(paymentMethod)
@@ -37,11 +43,17 @@ export default function PaymentMethodsPage() {
             return
         }
 
-        if (deleteConfirmCount === 2) {
-            setPaymentMethods(paymentMethods.filter(s => s.id !== paymentMethodToDelete?.id))
-            toast.success("Đã xóa phương thức thanh toán thành công!")
-            setPaymentMethodToDelete(null)
-            setDeleteConfirmCount(0)
+        if (deleteConfirmCount === 2 && paymentMethodToDelete && paymentMethodToDelete.id) {
+            paymentMethodService.delete(paymentMethodToDelete.id)
+                .then(() => {
+                    setPaymentMethods(paymentMethods.filter(s => s.id !== paymentMethodToDelete.id))
+                    toast.success("Đã xóa phương thức thanh toán thành công!")
+                    setPaymentMethodToDelete(null)
+                    setDeleteConfirmCount(0)
+                })
+                .catch(err => {
+                    toast.error(`Lỗi khi xóa: ${err.message}`)
+                })
         }
     }
 
@@ -50,14 +62,25 @@ export default function PaymentMethodsPage() {
         setDeleteConfirmCount(0)
     }
 
-    const handleAddPaymentMethod = (newPaymentMethod: PaymentMethod) => {
-        setPaymentMethods([newPaymentMethod, ...paymentMethods])
-        toast.success("Đã thêm phương thức thanh toán mới thành công!")
+    const handleAddPaymentMethod = async (newPaymentMethod: PaymentMethod) => {
+        try {
+            const data = await paymentMethodService.create(newPaymentMethod)
+            setPaymentMethods([data, ...paymentMethods])
+            toast.success("Đã thêm phương thức thanh toán mới thành công!")
+        } catch (error: any) {
+            toast.error(`Lỗi: ${error.message}`)
+        }
     }
 
-    const handleEditPaymentMethod = (updatedPaymentMethod: PaymentMethod) => {
-        setPaymentMethods(paymentMethods.map(s => s.id === updatedPaymentMethod.id ? updatedPaymentMethod : s))
-        toast.success("Cập nhật thông tin phương thức thanh toán thành công!")
+    const handleEditPaymentMethod = async (updatedPaymentMethod: PaymentMethod) => {
+        try {
+            if (!updatedPaymentMethod.id) return
+            const data = await paymentMethodService.update(updatedPaymentMethod.id, updatedPaymentMethod)
+            setPaymentMethods(paymentMethods.map(s => s.id === data.id ? data : s))
+            toast.success("Cập nhật thông tin phương thức thanh toán thành công!")
+        } catch (error: any) {
+            toast.error(`Lỗi: ${error.message}`)
+        }
     }
 
     return (
@@ -143,6 +166,7 @@ export default function PaymentMethodsPage() {
                     <div className="flex items-center justify-between mt-6 text-sm text-gray-500 dark:text-gray-400">
                         <div>
                             Tổng số bản ghi: {paymentMethods.length} - Tổng số trang: 1
+                            {isLoading && <span className="text-[#5c9a38] animate-pulse ml-2">Đang tải...</span>}
                         </div>
                         <div className="flex items-center space-x-1">
                             <button className="w-8 h-8 flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-neutral-800 disabled:opacity-50" disabled>

@@ -1,50 +1,76 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import AddUnitModal from "@/components/add-unit-modal"
 import { type Unit } from "@/lib/schemas"
-
-const initialUnits = [
-    { id: "1", name: "Que" },
-    { id: "2", name: "Miếng" },
-    { id: "3", name: "Bịch" },
-    { id: "4", name: "Lốc" },
-    { id: "5", name: "Bánh" },
-    { id: "6", name: "Can" }
-]
+import { unitService } from "@/services/unit.service"
 
 export default function UnitsPage() {
-    const [units, setUnits] = useState<Unit[]>(initialUnits)
+    const [units, setUnits] = useState<Unit[]>([])
+    const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [editingUnit, setEditingUnit] = useState<Unit | null>(null)
     const [unitToDelete, setUnitToDelete] = useState<Unit | null>(null)
 
+    const fetchUnits = async () => {
+        setIsLoading(true)
+        try {
+            const data = await unitService.getAll()
+            setUnits(data)
+        } catch (error) {
+            toast.error("Không thể tải danh sách đơn vị tính")
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchUnits()
+    }, [])
+
     const handleDeleteClick = (unit: Unit) => {
         setUnitToDelete(unit)
     }
 
-    const confirmDelete = () => {
-        setUnits(units.filter(u => u.id !== unitToDelete?.id))
-        toast.success("Đã xóa đơn vị tính thành công!")
-        setUnitToDelete(null)
+    const confirmDelete = async () => {
+        if (!unitToDelete || !unitToDelete.id) return
+        try {
+            await unitService.delete(unitToDelete.id)
+            setUnits(units.filter(u => u.id !== unitToDelete.id))
+            toast.success("Đã xóa đơn vị tính thành công!")
+            setUnitToDelete(null)
+        } catch (error: any) {
+            toast.error(`Lỗi khi xóa: ${error.message}`)
+        }
     }
 
     const cancelDelete = () => {
         setUnitToDelete(null)
     }
 
-    const handleAddUnit = (newUnit: Unit) => {
-        setUnits([newUnit, ...units])
-        toast.success("Đã thêm đơn vị tính mới thành công!")
-        setIsAddModalOpen(false)
+    const handleAddUnit = async (newUnit: Unit) => {
+        try {
+            const data = await unitService.create(newUnit)
+            setUnits([data, ...units])
+            toast.success("Đã thêm đơn vị tính mới thành công!")
+            setIsAddModalOpen(false)
+        } catch (error: any) {
+            toast.error(`Lỗi: ${error.message}`)
+        }
     }
 
-    const handleEditUnit = (updatedUnit: Unit) => {
-        setUnits(units.map(u => u.id === updatedUnit.id ? updatedUnit : u))
-        toast.success("Cập nhật thông tin đơn vị tính thành công!")
-        setIsAddModalOpen(false)
-        setEditingUnit(null)
+    const handleEditUnit = async (updatedUnit: Unit) => {
+        try {
+            if (!updatedUnit.id) return
+            const data = await unitService.update(updatedUnit.id, updatedUnit)
+            setUnits(units.map(u => u.id === data.id ? data : u))
+            toast.success("Cập nhật thông tin đơn vị tính thành công!")
+            setIsAddModalOpen(false)
+            setEditingUnit(null)
+        } catch (error: any) {
+            toast.error(`Lỗi: ${error.message}`)
+        }
     }
 
     const filteredUnits = units.filter(unit =>
@@ -58,6 +84,7 @@ export default function UnitsPage() {
 
                 {/* Actions & Search */}
                 <div className="flex items-center gap-2 mb-4">
+                    {isLoading && <span className="text-[#5c9a38] animate-pulse mr-2 text-sm italic">Đang tải...</span>}
                     <div className="flex-1 max-w-2xl relative">
                         <input
                             type="text"

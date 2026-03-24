@@ -2,7 +2,11 @@ import { useState, useMemo, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { Search, PlusCircle, Trash2, Save, X, Calendar, User, CreditCard, TrendingUp, Plus } from "lucide-react"
 import { toast } from "sonner"
-import { mockProducts, mockCustomers, type ExportSlipItem, type ExportSlip, addMockExportSlip, setMockCustomers, type Customer } from "@/lib/mock-data"
+import { type ExportOrder, type ExportOrderItem, type Product, type Customer } from "@/lib/schemas"
+import { exportSlipService } from "@/services/export-slip.service"
+import { productService } from "@/services/product.service"
+import { customerService } from "@/services/customer.service"
+import { useEffect } from "react"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
 import AddCustomerModal from "@/components/add-customer-modal"
 import { parseFloatSafe } from "@/lib/utils"
@@ -12,17 +16,40 @@ export default function CreateExportOrderPage() {
     const navigate = useNavigate()
 
     // Form state
-    const [customerName, setCustomerName] = useState("Khách lẻ")
     const [notes, setNotes] = useState("")
-    const [items, setItems] = useState<ExportSlipItem[]>([])
+    const [items, setItems] = useState<ExportOrderItem[]>([])
     const [paymentMethod, setPaymentMethod] = useState("Tiền mặt")
     const [isPrescription, setIsPrescription] = useState(false)
     const [doctorName, setDoctorName] = useState("")
+    const [customerId, setCustomerId] = useState<string>("")
+    const [customerName, setCustomerName] = useState("Khách lẻ")
+
+    const [allProducts, setAllProducts] = useState<Product[]>([])
+    const [allCustomers, setAllCustomers] = useState<Customer[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+
+    useEffect(() => {
+        const fetchData = async () => {
+            setIsLoading(true)
+            try {
+                const [productsData, customersData] = await Promise.all([
+                    productService.getAll(),
+                    customerService.getAll()
+                ])
+                setAllProducts(productsData)
+                setAllCustomers(customersData)
+            } catch (error) {
+                toast.error("Không thể tải dữ liệu")
+            } finally {
+                setIsLoading(false)
+            }
+        }
+        fetchData()
+    }, [])
 
     // Metadata
     const [orderId] = useState(() => `PX${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`)
-    const [exportDate] = useState(() => new Date().toISOString())
-    const createdBy = "Quản trị viên"
+    const exportDate = new Date().toISOString()
 
     const [showAddModal, setShowAddModal] = useState(false)
     const [showAddCustomerModal, setShowAddCustomerModal] = useState(false)
@@ -34,23 +61,23 @@ export default function CreateExportOrderPage() {
     const filteredSuggestions = useMemo(() => {
         if (!searchQuery.trim()) return []
         const query = searchQuery.toLowerCase()
-        return mockProducts.filter(p =>
-            p.name.toLowerCase().includes(query) ||
-            p.id.toLowerCase().includes(query)
+        return allProducts.filter(p =>
+            p.productName.toLowerCase().includes(query) ||
+            p.productCode.toLowerCase().includes(query)
         ).slice(0, 10)
-    }, [searchQuery])
+    }, [searchQuery, allProducts])
 
-    const handleQuickAdd = useCallback((product: typeof mockProducts[0]) => {
+    const handleQuickAdd = useCallback((product: Product) => {
         const qty = 1
         const retailPrice = product.retailPrice || 0
         const importPrice = product.importPrice || 0
         const total = qty * retailPrice
 
-        const newItem: ExportSlipItem = {
+        const newItem: ExportOrderItem = {
             id: `new-${Date.now()}-${Math.random()}`,
-            code: product.id,
-            name: product.name,
-            unit: product.unit,
+            code: product.productCode,
+            name: product.productName,
+            unit: product.baseUnitName,
             batchNumber: "LÔ" + Math.floor(Math.random() * 1000),
             expiryDate: "31-12-2027",
             quantity: qty,
@@ -65,7 +92,7 @@ export default function CreateExportOrderPage() {
         setItems(prev => [newItem, ...prev])
         setSearchQuery("")
         setShowResults(false)
-        toast.success(`Đã thêm nhanh: ${product.name}`)
+        toast.success(`Đã thêm nhanh: ${product.productName}`)
     }, [])
 
     const handleProductSaved = useCallback((formData: ProductFormData) => {
@@ -75,7 +102,7 @@ export default function CreateExportOrderPage() {
         const importPrice = firstUnit?.importPrice || 0
         const total = qty * retailPrice
 
-        const newItem: ExportSlipItem = {
+        const newItem: ExportOrderItem = {
             id: `new-${Date.now()}-${Math.random()}`,
             code: formData.productCode || "SP" + Math.floor(Math.random() * 100000),
             name: formData.productName,
@@ -95,8 +122,8 @@ export default function CreateExportOrderPage() {
     }, [])
 
     const handleCustomerAdded = useCallback((customer: Customer) => {
-        const newCustomers = [customer, ...mockCustomers]
-        setMockCustomers(newCustomers)
+        setAllCustomers(prev => [customer, ...prev])
+        setCustomerId(customer.id || "")
         setCustomerName(customer.name)
         toast.success(`Đã thêm và chọn khách hàng: ${customer.name}`)
     }, [])
@@ -106,7 +133,7 @@ export default function CreateExportOrderPage() {
         toast.error("Đã xóa sản phẩm khỏi phiếu")
     }
 
-    const updateItemField = useCallback((id: string, field: keyof ExportSlipItem, value: string | number | boolean) => {
+    const updateItemField = useCallback((id: string, field: keyof ExportOrderItem, value: string | number | boolean) => {
         setItems(prev => prev.map(item => {
             if (item.id !== id) return item
 
@@ -126,8 +153,8 @@ export default function CreateExportOrderPage() {
         }))
     }, [])
 
-    const handleSaveOrder = () => {
-        if (!customerName) {
+    const handleSaveOrder = async () => {
+        if (!customerId) {
             toast.error("Vui lòng chọn khách hàng")
             return
         }
@@ -136,28 +163,31 @@ export default function CreateExportOrderPage() {
             return
         }
 
-        const selectedCustomer = mockCustomers.find(c => c.name === customerName)
+        const selectedCustomer = allCustomers.find(c => c.id === customerId)
 
-        const newSlip: ExportSlip = {
-            id: orderId,
-            exportDate,
-            customerId: selectedCustomer?.id || "KH_NEW",
-            customerName,
+        const newSlip: ExportOrder = {
+            exportDate: new Date().toISOString(),
+            customerId: customerId,
+            customerName: customerName,
             customerPhone: selectedCustomer?.phone || "",
             totalAmount: amountToPay,
             grandTotal: amountToPay,
             notes,
-            createdBy,
+            createdBy: "Quản trị viên",
             paymentMethod,
             paymentStatus: "Đã thanh toán",
             isPrescription,
             doctorName: isPrescription ? doctorName : undefined,
-            items
+            items: items.map(({ id: _id, ...rest }) => rest) as any
         }
 
-        addMockExportSlip(newSlip)
-        toast.success("Đã tạo phiếu bán hàng thành công!")
-        navigate("/export-manage")
+        try {
+            await exportSlipService.create(newSlip)
+            toast.success("Đã tạo phiếu bán hàng thành công!")
+            navigate("/export-manage")
+        } catch (error: any) {
+            toast.error(`Lỗi: ${error.message}`)
+        }
     }
 
     const vnd = (val: number) => val.toLocaleString("vi-VN")
@@ -166,6 +196,15 @@ export default function CreateExportOrderPage() {
     const amountToPay = totalAmount
     const totalImportPrice = items.reduce((sum, item) => sum + (item.quantity * item.importPrice), 0)
     const totalProfit = amountToPay - totalImportPrice
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full space-y-4">
+                <div className="w-12 h-12 border-4 border-[#5c9a38] border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-gray-500">Đang tải dữ liệu...</p>
+            </div>
+        )
+    }
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-neutral-900 overflow-hidden">
@@ -318,7 +357,7 @@ export default function CreateExportOrderPage() {
                                                     <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
                                                     <span>ĐVT: <b className="text-gray-700 dark:text-gray-300">{product.unit}</b></span>
                                                     <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                                    <span className="text-blue-600 dark:text-blue-400 font-bold font-mono">Giá bán: {vnd(product.retailPrice)}</span>
+                                                    <span className="text-blue-600 dark:text-blue-400 font-bold font-mono">Giá bán: {vnd(product.retailPrice || 0)}</span>
                                                 </div>
                                             </div>
                                             <div className="bg-[#5c9a38] text-white px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wider opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all shadow-lg">
@@ -348,7 +387,7 @@ export default function CreateExportOrderPage() {
             <AddCustomerModal
                 isOpen={showAddCustomerModal}
                 onClose={() => setShowAddCustomerModal(false)}
-                onAdd={handleCustomerAdded}
+                onAdd={handleCustomerAdded as any}
             />
 
             {/* ── PRODUCTS TABLE ── */}
@@ -394,23 +433,23 @@ export default function CreateExportOrderPage() {
                                                 <input
                                                     type="text"
                                                     className="w-full bg-transparent border border-transparent hover:border-gray-300 dark:hover:border-neutral-600 px-2 py-1.5 rounded text-center outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] font-semibold transition-all"
-                                                    value={item.batchNumber}
-                                                    onChange={(e) => updateItemField(item.id, 'batchNumber', e.target.value)}
+                                                    value={item.batchNumber || ""}
+                                                    onChange={(e) => updateItemField(item.id!, 'batchNumber', e.target.value)}
                                                 />
                                             </td>
                                             <td className="px-3 py-4 border-r border-gray-100 dark:border-neutral-800">
                                                 <input
                                                     type="text"
                                                     className="w-full bg-transparent border border-transparent hover:border-gray-300 dark:hover:border-neutral-600 px-2 py-1.5 rounded text-center outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] font-semibold transition-all"
-                                                    value={item.expiryDate}
-                                                    onChange={(e) => updateItemField(item.id, 'expiryDate', e.target.value)}
+                                                    value={item.expiryDate || ""}
+                                                    onChange={(e) => updateItemField(item.id!, 'expiryDate', e.target.value)}
                                                 />
                                             </td>
                                             <td className="px-3 py-4 border-r border-gray-100 dark:border-neutral-800">
                                                 <NumericInput
                                                     className="w-full bg-blue-50/50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-2 py-1.5 rounded text-right outline-none focus:ring-2 focus:ring-[#5c9a38]/20 focus:border-[#5c9a38] font-black text-blue-600 dark:text-blue-400 transition-all"
                                                     value={Number(item.quantity)}
-                                                    onChange={(v) => updateItemField(item.id, 'quantity', v)}
+                                                    onChange={(v) => updateItemField(item.id!, 'quantity', v)}
                                                 />
                                             </td>
                                             <td className="px-3 py-4 border-r border-gray-100 dark:border-neutral-800 text-right text-gray-400 font-medium italic bg-gray-50/30 dark:bg-neutral-800/20">
@@ -420,7 +459,7 @@ export default function CreateExportOrderPage() {
                                                 <NumericInput
                                                     className="w-full bg-transparent border border-transparent hover:border-green-300 dark:hover:border-green-600/50 px-2 py-1.5 rounded text-right outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] font-black text-[#5c9a38] transition-all"
                                                     value={Number(item.retailPrice)}
-                                                    onChange={(v) => updateItemField(item.id, 'retailPrice', v)}
+                                                    onChange={(v) => updateItemField(item.id!, 'retailPrice', v)}
                                                 />
                                             </td>
                                             <td className="px-3 py-4 border-r border-gray-100 dark:border-neutral-800 text-right font-black text-gray-700 dark:text-gray-200">
@@ -431,7 +470,7 @@ export default function CreateExportOrderPage() {
                                             </td>
                                             <td className="px-3 py-4 text-center">
                                                 <button
-                                                    onClick={() => removeItem(item.id)}
+                                                    onClick={() => removeItem(item.id!)}
                                                     className="text-gray-300 hover:text-red-500 p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all"
                                                     title="Xóa sản phẩm"
                                                 >

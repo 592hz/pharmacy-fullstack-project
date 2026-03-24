@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { X } from "lucide-react"
 import { toast } from "sonner"
-import { type ProductCategory } from "@/lib/mock-data"
+import { type ProductCategory } from "@/lib/schemas"
 
 interface AddProductCategoryModalProps {
     isOpen: boolean
@@ -24,7 +24,7 @@ export default function AddProductCategoryModal({ isOpen, onClose, onAdd, onEdit
     const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault()
         const formData = new FormData(e.currentTarget)
-        const id = formData.get('id') as string
+        const code = formData.get('code') as string
         const name = formData.get('name') as string
         const notes = formData.get('notes') as string
 
@@ -39,7 +39,8 @@ export default function AddProductCategoryModal({ isOpen, onClose, onAdd, onEdit
         }
 
         const categoryData: ProductCategory = {
-            id: initialData?.id || id || `PC-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+            id: initialData?.id,
+            code: initialData?.code || code || undefined,
             name,
             notes,
         }
@@ -80,7 +81,7 @@ export default function AddProductCategoryModal({ isOpen, onClose, onAdd, onEdit
                                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300">
                                     Mã nhóm
                                 </label>
-                                <input name="id" defaultValue={initialData?.id || ''} type="text" placeholder="Mã nhóm (để trống sẽ tự tạo)" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" />
+                                <input name="code" defaultValue={initialData?.code || ''} type="text" placeholder="Mã nhóm (để trống sẽ tự tạo)" className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white" />
                             </div>
 
                             {/* Tên nhóm */}

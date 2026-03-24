@@ -2,16 +2,22 @@ import { useState, useMemo, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { Plus, Search, PlusCircle, Trash2, Save, X, Calendar, FileText, CreditCard, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
-import { mockProducts, type PurchaseOrderItem, addMockPurchaseOrder, type PurchaseOrder, mockSuppliersList } from "@/lib/mock-data"
-import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
+import { AddProductModal } from "@/components/add-product-modal"
+import { type ProductFormData } from "@/components/add-product-modal"
 import { parseFloatSafe } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { purchaseOrderSchema } from "@/lib/schemas"
+import { productService } from "@/services/product.service"
+import { supplierService } from "@/services/supplier.service"
+import { purchaseOrderService } from "@/services/purchase-order.service"
+import { useEffect } from "react"
+import { type Product, type PurchaseOrderItem, type PurchaseOrder, type Supplier } from "@/lib/schemas"
 
 export default function CreatePurchaseOrderPage() {
     const navigate = useNavigate()
 
     // Form state
+    const [supplierId, setSupplierId] = useState("")
     const [supplierName, setSupplierName] = useState("")
     const [invoiceNumber, setInvoiceNumber] = useState("")
     const [notes, setNotes] = useState("")
@@ -28,17 +34,35 @@ export default function CreatePurchaseOrderPage() {
     // Search state
     const [searchQuery, setSearchQuery] = useState("")
     const [showResults, setShowResults] = useState(false)
+    const [allProducts, setAllProducts] = useState<Product[]>([])
+    const [allSuppliers, setAllSuppliers] = useState<Supplier[]>([])
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [products, suppliers] = await Promise.all([
+                    productService.getAll(),
+                    supplierService.getAll()
+                ]);
+                setAllProducts(products);
+                setAllSuppliers(suppliers);
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            }
+        };
+        fetchData();
+    }, []);
 
     const filteredSuggestions = useMemo(() => {
         if (!searchQuery.trim()) return []
         const query = searchQuery.toLowerCase()
-        return mockProducts.filter(p =>
-            p.name.toLowerCase().includes(query) ||
-            p.id.toLowerCase().includes(query)
+        return allProducts.filter(p =>
+            p.productName.toLowerCase().includes(query) ||
+            p.productCode.toLowerCase().includes(query)
         ).slice(0, 10)
-    }, [searchQuery])
+    }, [searchQuery, allProducts])
 
-    const handleQuickAdd = useCallback((product: typeof mockProducts[0]) => {
+    const handleQuickAdd = useCallback((product: Product) => {
         const qty = 1
         const importPrice = product.importPrice || 0
         const total = qty * importPrice
@@ -47,9 +71,9 @@ export default function CreatePurchaseOrderPage() {
 
         const newItem: PurchaseOrderItem = {
             id: `new-${Date.now()}-${Math.random()}`,
-            code: product.id,
-            name: product.name,
-            unit: product.unit,
+            code: product.productCode,
+            name: product.productName,
+            unit: product.baseUnitName,
             batchNumber: "",
             expiryDate: "",
             quantity: qty,
@@ -154,7 +178,7 @@ export default function CreatePurchaseOrderPage() {
         const orderData = {
             id: orderId,
             importDate,
-            supplierId: "NEW_ID", // Temporary 
+            supplierId,
             supplierName,
             totalAmount,
             discount: totalDiscount,
@@ -193,7 +217,7 @@ export default function CreatePurchaseOrderPage() {
         const newOrder: PurchaseOrder = {
             id: orderId,
             importDate,
-            supplierId: "NEW_ID",
+            supplierId,
             supplierName,
             totalAmount,
             discount: totalDiscount,
@@ -208,9 +232,14 @@ export default function CreatePurchaseOrderPage() {
 
         console.log("Saving Purchase Order:", newOrder);
 
-        addMockPurchaseOrder(newOrder)
-        toast.success("Đã tạo phiếu nhập mới thành công")
-        navigate("/purchase-orders")
+        purchaseOrderService.create(newOrder)
+            .then(() => {
+                toast.success("Đã tạo phiếu nhập mới thành công")
+                navigate("/purchase-orders")
+            })
+            .catch(err => {
+                toast.error(`Lỗi khi lưu phiếu: ${err.message}`)
+            })
     }, [amountToPay, createdBy, importDate, invoiceNumber, items, navigate, notes, orderId, paymentMethod, supplierName, totalAmount, totalDiscount, totalVat])
 
     return (
@@ -243,13 +272,17 @@ export default function CreatePurchaseOrderPage() {
                     <div className="col-span-2 flex flex-col gap-1.5">
                         <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Nhà cung cấp *</label>
                         <select
-                            value={supplierName}
-                            onChange={(e) => setSupplierName(e.target.value)}
+                            value={supplierId}
+                            onChange={(e) => {
+                                const s = allSuppliers.find(x => x.id === e.target.value)
+                                setSupplierId(e.target.value)
+                                setSupplierName(s?.name || "")
+                            }}
                             className="w-full bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
                         >
                             <option value="">Chọn nhà cung cấp...</option>
-                            {mockSuppliersList.map(s => (
-                                <option key={s.id} value={s.name}>{s.name}</option>
+                            {allSuppliers.map(s => (
+                                <option key={s.id} value={s.id}>{s.name}</option>
                             ))}
                         </select>
                     </div>
@@ -351,9 +384,9 @@ export default function CreatePurchaseOrderPage() {
                                                 <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-3 mt-1">
                                                     <span className="bg-gray-100 dark:bg-neutral-700 px-2 py-0.5 rounded-md font-mono text-[10px]">{product.id}</span>
                                                     <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                                    <span>ĐVT: <b className="text-gray-700 dark:text-gray-300">{product.unit}</b></span>
+                                                    <span>ĐVT: <b className="text-gray-700 dark:text-gray-300">{product.baseUnitName}</b></span>
                                                     <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                                    <span className="text-green-600 dark:text-green-400 font-bold">Giá: {vnd(product.importPrice)}</span>
+                                                    <span className="text-green-600 dark:text-green-400 font-bold">Giá: {vnd(product.importPrice || 0)}</span>
                                                 </div>
                                             </div>
                                             <div className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wider opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all shadow-lg">
@@ -432,39 +465,39 @@ export default function CreatePurchaseOrderPage() {
                                             <input
                                                 type="text"
                                                 className="w-full bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-center outline-none focus:ring-1 focus:ring-blue-500"
-                                                value={item.batchNumber}
+                                                value={item.batchNumber || ""}
                                                 placeholder="Lô..."
-                                                onChange={(e) => updateItemField(item.id, 'batchNumber', e.target.value)}
+                                                onChange={(e) => updateItemField(item.id!, 'batchNumber', e.target.value)}
                                             />
                                         </td>
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800">
                                             <input
                                                 type="text"
                                                 className="w-full bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-center outline-none focus:ring-1 focus:ring-blue-500"
-                                                value={item.expiryDate}
+                                                value={item.expiryDate || ""}
                                                 placeholder="HH-DD-YYYY"
-                                                onChange={(e) => updateItemField(item.id, 'expiryDate', e.target.value)}
+                                                onChange={(e) => updateItemField(item.id!, 'expiryDate', e.target.value)}
                                             />
                                         </td>
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right">
                                             <NumericInput
                                                 className="w-16 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none focus:ring-1 focus:ring-blue-500 font-bold"
                                                 value={Number(item.quantity)}
-                                                onChange={(v) => updateItemField(item.id, 'quantity', v)}
+                                                onChange={(v) => updateItemField(item.id!, 'quantity', v)}
                                             />
                                         </td>
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right">
                                             <NumericInput
                                                 className="w-24 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none focus:ring-1 focus:ring-blue-500 font-bold text-red-600 dark:text-red-400"
                                                 value={Number(item.importPrice)}
-                                                onChange={(v) => updateItemField(item.id, 'importPrice', v)}
+                                                onChange={(v) => updateItemField(item.id!, 'importPrice', v)}
                                             />
                                         </td>
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right">
                                             <NumericInput
                                                 className="w-24 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none focus:ring-1 focus:ring-blue-500 font-bold"
                                                 value={Number(item.retailPrice)}
-                                                onChange={(v) => updateItemField(item.id, 'retailPrice', v)}
+                                                onChange={(v) => updateItemField(item.id!, 'retailPrice', v)}
                                             />
                                         </td>
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right font-medium">{vnd(item.totalAmount)}</td>
@@ -472,7 +505,7 @@ export default function CreatePurchaseOrderPage() {
                                             <NumericInput
                                                 className="w-12 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none"
                                                 value={Number(item.discountPercent)}
-                                                onChange={(v) => updateItemField(item.id, 'discountPercent', v)}
+                                                onChange={(v) => updateItemField(item.id!, 'discountPercent', v)}
                                             />
                                         </td>
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right text-gray-500">{vnd(item.discountAmount)}</td>
@@ -480,7 +513,7 @@ export default function CreatePurchaseOrderPage() {
                                             <NumericInput
                                                 className="w-12 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none"
                                                 value={Number(item.vatPercent)}
-                                                onChange={(v) => updateItemField(item.id, 'vatPercent', v)}
+                                                onChange={(v) => updateItemField(item.id!, 'vatPercent', v)}
                                             />
                                         </td>
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right text-gray-500">{vnd(item.vatAmount)}</td>
@@ -489,14 +522,14 @@ export default function CreatePurchaseOrderPage() {
                                             <input
                                                 type="text"
                                                 className="w-16 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-center outline-none focus:ring-1 focus:ring-blue-500"
-                                                value={item.registrationNumber}
+                                                value={item.registrationNumber || ""}
                                                 placeholder="SĐK..."
-                                                onChange={(e) => updateItemField(item.id, 'registrationNumber', e.target.value)}
+                                                onChange={(e) => updateItemField(item.id!, 'registrationNumber', e.target.value)}
                                             />
                                         </td>
                                         <td className="px-2 py-3 text-center">
                                             <button
-                                                onClick={() => removeItem(item.id)}
+                                                onClick={() => removeItem(item.id!)}
                                                 className="text-red-400 hover:text-red-600 p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
                                             >
                                                 <Trash2 size={16} />
