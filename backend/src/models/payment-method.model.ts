@@ -10,6 +10,14 @@ const PaymentMethodSchema: Schema = new Schema({
     name: { type: String, required: true, unique: true },
     notes: { type: String },
     isDefault: { type: Boolean, default: false }
-}, { timestamps: true });
+}, { 
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+});
+
+PaymentMethodSchema.virtual('id').get(function() {
+    return (this as any)._id.toHexString();
+});
 
 export default mongoose.model<IPaymentMethod>('PaymentMethod', PaymentMethodSchema);

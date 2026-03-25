@@ -12,6 +12,14 @@ const NoteSchema: Schema = new Schema({
     content: { type: String, required: true },
     date: { type: Date, default: Date.now },
     color: { type: String }
-}, { timestamps: true });
+}, { 
+    timestamps: true,
+    toJSON: { virtuals: true },
+    toObject: { virtuals: true }
+});
+
+NoteSchema.virtual('id').get(function() {
+    return (this as any)._id.toHexString();
+});
 
 export default mongoose.model<INote>('Note', NoteSchema);

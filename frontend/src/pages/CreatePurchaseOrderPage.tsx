@@ -57,8 +57,8 @@ export default function CreatePurchaseOrderPage() {
         if (!searchQuery.trim()) return []
         const query = searchQuery.toLowerCase()
         return allProducts.filter(p =>
-            p.productName.toLowerCase().includes(query) ||
-            p.productCode.toLowerCase().includes(query)
+            (p.name && p.name.toLowerCase().includes(query)) ||
+            (p.id && p.id.toLowerCase().includes(query))
         ).slice(0, 10)
     }, [searchQuery, allProducts])
 
@@ -71,8 +71,8 @@ export default function CreatePurchaseOrderPage() {
 
         const newItem: PurchaseOrderItem = {
             id: `new-${Date.now()}-${Math.random()}`,
-            code: product.productCode,
-            name: product.productName,
+            code: product.id || "",
+            name: product.name || "",
             unit: product.baseUnitName,
             batchNumber: "",
             expiryDate: "",
@@ -94,7 +94,7 @@ export default function CreatePurchaseOrderPage() {
         toast.success(`Đã thêm nhanh: ${product.name}`)
     }, [])
 
-    const handleProductSaved = useCallback((formData: ProductFormData) => {
+    const handleProductSaved = useCallback((savedProduct: any, formData: ProductFormData) => {
         const firstUnit = formData.units?.[0]
         const qty = 1
         const importPrice = firstUnit?.importPrice || 0
@@ -104,10 +104,11 @@ export default function CreatePurchaseOrderPage() {
         const total = qty * importPrice
         const discountAmt = Math.round(total * discountPct / 100)
         const vatAmt = Math.round((total - discountAmt) * vatPct / 100)
+        
         const newItem: PurchaseOrderItem = {
             id: `new-${Date.now()}-${Math.random()}`,
-            code: formData.productCode || "",
-            name: formData.productName,
+            code: savedProduct.id || formData.productCode || "",
+            name: savedProduct.name || formData.productName,
             unit: firstUnit?.unitName || "",
             batchNumber: "",
             expiryDate: "",
@@ -123,7 +124,6 @@ export default function CreatePurchaseOrderPage() {
             registrationNumber: "-",
         }
         setItems(prev => [...prev, newItem])
-        toast.success(`Đã thêm: ${newItem.name}`)
     }, [])
 
     const removeItem = useCallback((id: string) => {

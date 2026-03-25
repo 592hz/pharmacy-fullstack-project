@@ -1,20 +1,9 @@
 import { api } from './api';
+import { type Unit } from '@/lib/schemas';
 
 export const unitService = {
-  getAll: async () => {
-    const response = await api.get('/units');
-    return response.data;
-  },
-  create: async (data: any) => {
-    const response = await api.post('/units', data);
-    return response.data;
-  },
-  update: async (id: string, data: any) => {
-    const response = await api.put(`/units/${id}`, data);
-    return response.data;
-  },
-  delete: async (id: string) => {
-    const response = await api.delete(`/units/${id}`);
-    return response.data;
-  }
+  getAll: () => api.get('/units'),
+  create: (data: Partial<Unit>) => api.post('/units', data),
+  update: (id: string, data: Partial<Unit>) => api.put(`/units/${id}`, data),
+  delete: (id: string) => api.delete(`/units/${id}`)
 };

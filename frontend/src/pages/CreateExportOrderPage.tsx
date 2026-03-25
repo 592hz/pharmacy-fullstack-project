@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { Search, PlusCircle, Trash2, Save, X, Calendar, User, CreditCard, TrendingUp, Plus } from "lucide-react"
 import { toast } from "sonner"
-import { type ExportOrder, type ExportOrderItem, type Product, type Customer } from "@/lib/schemas"
+import { type ExportOrder, type ExportOrderItem, type Product, type Customer, exportOrderSchema } from "@/lib/schemas"
 import { exportSlipService } from "@/services/export-slip.service"
 import { productService } from "@/services/product.service"
 import { customerService } from "@/services/customer.service"
@@ -62,8 +62,8 @@ export default function CreateExportOrderPage() {
         if (!searchQuery.trim()) return []
         const query = searchQuery.toLowerCase()
         return allProducts.filter(p =>
-            p.productName.toLowerCase().includes(query) ||
-            p.productCode.toLowerCase().includes(query)
+            (p.name && p.name.toLowerCase().includes(query)) ||
+            (p.id && p.id.toLowerCase().includes(query))
         ).slice(0, 10)
     }, [searchQuery, allProducts])
 
@@ -75,9 +75,9 @@ export default function CreateExportOrderPage() {
 
         const newItem: ExportOrderItem = {
             id: `new-${Date.now()}-${Math.random()}`,
-            code: product.productCode,
-            name: product.productName,
-            unit: product.baseUnitName,
+            code: product.id || "",
+            name: product.name || "",
+            unit: product.baseUnitName || "",
             batchNumber: "LÔ" + Math.floor(Math.random() * 1000),
             expiryDate: "31-12-2027",
             quantity: qty,
@@ -92,10 +92,10 @@ export default function CreateExportOrderPage() {
         setItems(prev => [newItem, ...prev])
         setSearchQuery("")
         setShowResults(false)
-        toast.success(`Đã thêm nhanh: ${product.productName}`)
+        toast.success(`Đã thêm nhanh: ${product.name}`)
     }, [])
 
-    const handleProductSaved = useCallback((formData: ProductFormData) => {
+    const handleProductSaved = useCallback((savedProduct: any, formData: ProductFormData) => {
         const firstUnit = formData.units?.[0]
         const qty = 1
         const retailPrice = firstUnit?.retailPrice || 0
@@ -104,8 +104,8 @@ export default function CreateExportOrderPage() {
 
         const newItem: ExportOrderItem = {
             id: `new-${Date.now()}-${Math.random()}`,
-            code: formData.productCode || "SP" + Math.floor(Math.random() * 100000),
-            name: formData.productName,
+            code: savedProduct.id || formData.productCode || "",
+            name: savedProduct.name || formData.productName,
             unit: firstUnit?.unitName || "Viên",
             batchNumber: "",
             expiryDate: "",
@@ -118,7 +118,6 @@ export default function CreateExportOrderPage() {
             remainingAmount: total,
         }
         setItems(prev => [newItem, ...prev])
-        toast.success(`Đã thêm: ${newItem.name}`)
     }, [])
 
     const handleCustomerAdded = useCallback((customer: Customer) => {
@@ -154,15 +153,6 @@ export default function CreateExportOrderPage() {
     }, [])
 
     const handleSaveOrder = async () => {
-        if (!customerId) {
-            toast.error("Vui lòng chọn khách hàng")
-            return
-        }
-        if (items.length === 0) {
-            toast.error("Vui lòng thêm ít nhất một sản phẩm")
-            return
-        }
-
         const selectedCustomer = allCustomers.find(c => c.id === customerId)
 
         const newSlip: ExportOrder = {
@@ -178,12 +168,28 @@ export default function CreateExportOrderPage() {
             paymentStatus: "Đã thanh toán",
             isPrescription,
             doctorName: isPrescription ? doctorName : undefined,
-            items: items.map(({ id: _id, ...rest }) => rest) as any
+            items: items.map(item => ({
+                ...item,
+                quantity: Number(item.quantity),
+                retailPrice: Number(item.retailPrice),
+                importPrice: Number(item.importPrice),
+                totalAmount: Number(item.totalAmount),
+                discountPercent: Number(item.discountPercent),
+                discountAmount: Number(item.discountAmount),
+                remainingAmount: Number(item.remainingAmount)
+            }))
+        }
+
+        // Validate using schema
+        const validation = exportOrderSchema.safeParse(newSlip)
+        if (!validation.success) {
+            toast.error(validation.error.issues[0].message)
+            return
         }
 
         try {
             await exportSlipService.create(newSlip)
-            toast.success("Đã tạo phiếu bán hàng thành công!")
+            toast.success("Tạo phiếu bán hàng thành công!")
             navigate("/export-manage")
         } catch (error: any) {
             toast.error(`Lỗi: ${error.message}`)

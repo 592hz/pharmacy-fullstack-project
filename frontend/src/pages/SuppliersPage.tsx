@@ -35,7 +35,7 @@ export default function SuppliersPage() {
 
     const filteredSuppliers = suppliers.filter(s =>
         s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (s.code && s.code.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (s.phone && s.phone.includes(searchTerm))
     )
 
@@ -54,7 +54,7 @@ export default function SuppliersPage() {
             return
         }
 
-        if (deleteConfirmCount === 2 && supplierToDelete) {
+        if (deleteConfirmCount === 2 && supplierToDelete && supplierToDelete.id) {
             supplierService.delete(supplierToDelete.id)
                 .then(() => {
                     setSuppliers(suppliers.filter(s => s.id !== supplierToDelete.id))
@@ -85,6 +85,7 @@ export default function SuppliersPage() {
 
     const handleEditSupplier = async (updatedSupplier: Supplier) => {
         try {
+            if (!updatedSupplier.id) return;
             const data = await supplierService.update(updatedSupplier.id, updatedSupplier)
             setSuppliers(suppliers.map(s => s.id === data.id ? data : s))
             toast.success("Cập nhật thông tin nhà cung cấp thành công!")
@@ -161,7 +162,7 @@ export default function SuppliersPage() {
                                     </tr>
                                 ) : displayedSuppliers.map((supplier) => (
                                     <tr key={supplier.id} className="hover:bg-gray-50 dark:hover:bg-neutral-800/50 text-gray-700 dark:text-gray-300">
-                                        <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 font-medium">{supplier.id}</td>
+                                        <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 font-medium">{supplier.code}</td>
                                         <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 max-w-[250px] text-xs leading-relaxed whitespace-normal break-words">{supplier.name}</td>
                                         <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 text-xs leading-relaxed max-w-[180px] break-words whitespace-normal">{supplier.address}</td>
                                         <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800">{supplier.phone}</td>

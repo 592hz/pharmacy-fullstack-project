@@ -14,28 +14,28 @@ interface AddSupplierModalProps {
 export default function AddSupplierModal({ isOpen, onClose, onAdd, onEdit, initialData }: AddSupplierModalProps) {
     const [errors, setErrors] = useState<Record<string, string>>({})
 
-    const [supplierId, setSupplierId] = useState("")
+    const [supplierCode, setSupplierCode] = useState("")
 
     useEffect(() => {
         if (!isOpen) {
-            if (supplierId !== "") {
-                const timer = setTimeout(() => setSupplierId(""), 0)
+            if (supplierCode !== "") {
+                const timer = setTimeout(() => setSupplierCode(""), 0)
                 return () => clearTimeout(timer)
             }
             return
         }
 
         if (initialData) {
-            if (supplierId !== initialData.id) {
-                const timer = setTimeout(() => setSupplierId(initialData.id), 0)
+            if (supplierCode !== initialData.code) {
+                const timer = setTimeout(() => setSupplierCode(initialData.code || ""), 0)
                 return () => clearTimeout(timer)
             }
-        } else if (!supplierId) {
-            const nextId = "NCC" + Math.floor(10000 + Math.random() * 90000).toString()
-            const timer = setTimeout(() => setSupplierId(nextId), 0)
+        } else if (!supplierCode) {
+            const nextCode = "NCC" + Math.floor(10000 + Math.random() * 90000).toString()
+            const timer = setTimeout(() => setSupplierCode(nextCode), 0)
             return () => clearTimeout(timer)
         }
-    }, [isOpen, initialData, supplierId])
+    }, [isOpen, initialData, supplierCode])
 
     const handleClose = () => {
         setErrors({})
@@ -107,14 +107,14 @@ export default function AddSupplierModal({ isOpen, onClose, onAdd, onEdit, initi
                                     Mã nhà cung cấp <span className="text-red-500">*</span>
                                 </label>
                                 <input
-                                    name="id"
-                                    value={supplierId}
-                                    onChange={(e) => setSupplierId(e.target.value)}
+                                    name="code"
+                                    value={supplierCode}
+                                    onChange={(e) => setSupplierCode(e.target.value)}
                                     type="text"
                                     placeholder="NCC00023"
-                                    className={`w-full rounded-md border ${errors.id ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'} px-3 py-2 text-sm focus:outline-none focus:ring-1 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white`}
+                                    className={`w-full rounded-md border ${errors.code ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:border-blue-500 focus:ring-blue-500'} px-3 py-2 text-sm focus:outline-none focus:ring-1 dark:border-neutral-700 dark:bg-neutral-900 dark:text-white`}
                                 />
-                                {errors.id && <p className="text-xs text-red-500">{errors.id}</p>}
+                                {errors.code && <p className="text-xs text-red-500">{errors.code}</p>}
                             </div>
                             {/* Tên nhà cung cấp */}
                             <div className="space-y-2">

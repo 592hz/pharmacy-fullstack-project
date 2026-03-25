@@ -1,15 +1,13 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { X } from "lucide-react"
 import { toast } from "sonner"
-import { type Product } from "@/lib/mock-data"
 import { parseFloatSafe } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { productSchema } from "@/lib/schemas"
 import { supplierService } from "@/services/supplier.service"
-import { useEffect } from "react"
 import { productCategoryService } from "@/services/product-category.service"
 import { productService } from "@/services/product.service"
-import { type Category as ProductCategory, type Supplier } from "@/lib/schemas"
+import { unitService } from "@/services/unit.service"
 
 // dữ liệu được lấy từ database 
 export interface ProductUnit {
@@ -79,23 +77,13 @@ const initialFormData: ProductFormData = {
     expiryDate: "",
 }
 
-// 3. Đơn vị tính
-const mockUnits = [
-    { id: "u1", name: "Viên" },
-    { id: "u2", name: "Vỉ" },
-    { id: "u3", name: "Hộp" },
-    { id: "u4", name: "Lọ" },
-    { id: "u5", name: "Tuýp" },
-    { id: "u6", name: "Gói" },
-    { id: "u7", name: "Chai" },
-    { id: "u8", name: "Ống" }
-]
+
 
 export interface AddProductModalProps {
     isOpen: boolean
     onClose: () => void
-    onSuccess: (data: ProductFormData) => void
-    initialData?: Product | null // To support editing
+    onSuccess: (savedProduct: any, formData: ProductFormData) => void
+    initialData?: any | null // Changed to any to avoid strict type issues during transition
 }
 
 interface InputFieldProps {
@@ -140,17 +128,20 @@ const InputField = ({ label, required, value, onChange, placeholder = "", type =
 export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: AddProductModalProps) {
     const [categories, setCategories] = useState<any[]>([])
     const [suppliers, setSuppliers] = useState<any[]>([])
+    const [availableUnits, setAvailableUnits] = useState<any[]>([])
 
     useEffect(() => {
         if (isOpen) {
             const fetchData = async () => {
                 try {
-                    const [cats, sups] = await Promise.all([
+                    const [cats, sups, unts] = await Promise.all([
                         productCategoryService.getAll(),
-                        supplierService.getAll()
+                        supplierService.getAll(),
+                        unitService.getAll()
                     ])
                     setCategories(cats)
                     setSuppliers(sups)
+                    setAvailableUnits(unts)
                 } catch (error) {
                     console.error("Error fetching data:", error)
                     toast.error("Không thể tải dữ liệu danh mục/nhà cung cấp")
@@ -283,7 +274,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
             units: prev.units.filter(u => u.id !== id)
         }))
     }
-    const handleSubmit = (action: 'save' | 'save_new') => {
+    const handleSubmit = async (action: 'save' | 'save_new') => {
         const validation = productSchema.safeParse(formData)
 
         if (!validation.success) {
@@ -292,15 +283,52 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
             return
         }
 
-        console.log("Saving exactly matching Database Schema:", formData)
-        toast.success(initialData ? "Cập nhật sản phẩm thành công!" : "Thêm mới sản phẩm thành công!")
+        try {
+            const firstUnit = formData.units[0]
+            const conversionRate = firstUnit?.conversionRate || 1
+            
+            const productData: any = {
+                id: formData.productCode,
+                name: formData.productName,
+                unit: firstUnit?.unitName || "",
+                importPrice: Number(firstUnit?.importPrice) || 0,
+                retailPrice: Number(firstUnit?.retailPrice) || 0,
+                wholesalePrice: Number(firstUnit?.wholesalePrice) || 0,
+                registrationNo: initialData?.registrationNo || ".",
+                isDQG: initialData?.isDQG || false,
+                manufacturer: initialData?.manufacturer || ".",
+                categoryId: formData.categoryId,
+                supplierId: formData.supplierId && formData.supplierId.trim() !== "" ? formData.supplierId : undefined,
+                baseQuantity: Number(formData.initialQuantity) * conversionRate,
+                baseUnitName: formData.baseUnitName || "",
+                conversionRate: conversionRate,
+                batches: [
+                    {
+                        batchNumber: formData.batchNumber || (initialData ? "MỚI" : "LÔ ĐẦU"),
+                        expiryDate: (formData.expiryDate && formData.expiryDate !== ".") ? formData.expiryDate : "01-01-2099",
+                        quantity: Number(formData.initialQuantity) * conversionRate
+                    }
+                ]
+            }
 
-        if (action === 'save') {
-            onSuccess(formData)
-            onClose()
-        } else if (action === 'save_new') {
-            onSuccess(formData)
-            setFormData(initialFormData) 
+            let savedProduct: any
+            if (initialData) {
+                savedProduct = await productService.update(initialData.id, productData)
+                toast.success("Cập nhật sản phẩm thành công!")
+            } else {
+                savedProduct = await productService.create(productData)
+                toast.success("Thêm mới sản phẩm thành công!")
+            }
+
+            if (action === 'save') {
+                onSuccess(savedProduct, formData)
+                onClose()
+            } else if (action === 'save_new') {
+                onSuccess(savedProduct, formData)
+                setFormData(initialFormData) 
+            }
+        } catch (error: any) {
+            toast.error(`Lỗi: ${error.message}`)
         }
     }
 
@@ -469,7 +497,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                                         placeholder="Chọn/Nhập đơn vị tính *"
                                                     />
                                                     <datalist id={`unit-list-${unit.id}`}>
-                                                        {mockUnits.map(mu => (
+                                                        {availableUnits.map(mu => (
                                                             <option key={mu.id} value={mu.name} />
                                                         ))}
                                                     </datalist>

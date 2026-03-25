@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { AlertCircle, Search, PlusCircle, Trash2, Save, X, Printer } from "lucide-react"
 import { toast } from "sonner"
-import { type ExportOrder, type ExportOrderItem, type Product } from "@/lib/schemas"
+import { type ExportOrder, type ExportOrderItem, type Product, exportOrderSchema } from "@/lib/schemas"
 import { exportSlipService } from "@/services/export-slip.service"
 import { productService } from "@/services/product.service"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
@@ -13,12 +13,15 @@ export default function ExportOrderDetailPage() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
 
+    const roundTo3 = (num: number) => Math.round((num + Number.EPSILON) * 1000) / 1000
+
     const [slip, setSlip] = useState<ExportOrder | null>(null)
     const [items, setItems] = useState<ExportOrderItem[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [showAddModal, setShowAddModal] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
     const [allProducts, setAllProducts] = useState<Product[]>([])
+    const [notes, setNotes] = useState("")
 
     const fetchData = useCallback(async () => {
         if (!id) return
@@ -30,6 +33,7 @@ export default function ExportOrderDetailPage() {
             ])
             setSlip(slipData)
             setItems(slipData.items || [])
+            setNotes(slipData.notes || "")
             setAllProducts(productsData)
         } catch (error) {
             toast.error("Không thể tải thông tin phiếu xuất")
@@ -97,7 +101,7 @@ export default function ExportOrderDetailPage() {
         }
     }, [slip])
 
-    const handleProductSaved = useCallback((formData: ProductFormData) => {
+    const handleProductSaved = useCallback((savedProduct: any, formData: ProductFormData) => {
         const firstUnit = formData.units?.[0]
         const qty = 1
         const retailPrice = firstUnit?.retailPrice || 0
@@ -106,8 +110,8 @@ export default function ExportOrderDetailPage() {
 
         const newItem: ExportOrderItem = {
             id: `new-${Date.now()}-${Math.random()}`,
-            code: formData.productCode || "",
-            name: formData.productName,
+            code: savedProduct.id || formData.productCode || "",
+            name: savedProduct.name || formData.productName,
             unit: firstUnit?.unitName || "",
             batchNumber: formData.batchNumber || "",
             expiryDate: formData.expiryDate || "",
@@ -120,12 +124,12 @@ export default function ExportOrderDetailPage() {
             remainingAmount: total,
         }
         setItems(prev => [...prev, newItem])
-        toast.success(`Đã thêm: ${newItem.name}`)
     }, [])
 
     const handleCancelEdit = () => {
         if (slip) {
             setItems(slip.items || [])
+            setNotes(slip.notes || "")
         }
         setIsEditing(false)
         toast.info("Đã hủy thay đổi")
@@ -169,17 +173,37 @@ export default function ExportOrderDetailPage() {
     const handleSaveOrder = async () => {
         if (!slip || !id) return
         
+        const updatedSlip: ExportOrder = {
+            ...slip,
+            notes,
+            items: items.map(item => ({
+                ...item,
+                quantity: Number(item.quantity),
+                retailPrice: Number(item.retailPrice),
+                importPrice: Number(item.importPrice),
+                totalAmount: Number(item.totalAmount),
+                discountPercent: Number(item.discountPercent),
+                discountAmount: Number(item.discountAmount),
+                remainingAmount: Number(item.remainingAmount)
+            })),
+            totalAmount: roundTo3(totalAmount),
+            grandTotal: roundTo3(amountToPay)
+        }
+
+        // Validate using schema
+        const validation = exportOrderSchema.safeParse(updatedSlip)
+        if (!validation.success) {
+            toast.error(validation.error.issues[0].message)
+            return
+        }
+
         try {
-            const updatedSlip = {
-                ...slip,
-                items: items.map(({ id: _id, ...rest }) => rest) as any
-            }
             await exportSlipService.update(id, updatedSlip)
             setSlip(updatedSlip)
             setIsEditing(false)
             toast.success("Đã lưu thay đổi phiếu xuất")
-        } catch (error) {
-            toast.error("Không thể lưu thay đổi phiếu xuất")
+        } catch (error: any) {
+            toast.error(`Lỗi: ${error.message}`)
         }
     }
 
@@ -455,18 +479,32 @@ export default function ExportOrderDetailPage() {
 
             {/* ── FOOTER TOTALS ── */}
             <div className="flex-none p-4 border-t-2 border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900/80">
+                <div className="flex gap-4 mb-4">
+                    <div className="flex-1 flex flex-col gap-1">
+                        <label className="text-[11px] font-semibold text-gray-800 dark:text-gray-200 uppercase tracking-wider">Ghi chú</label>
+                        <textarea
+                            rows={1}
+                            placeholder="Nhập ghi chú phiếu xuất..."
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            readOnly={!isEditing}
+                            className={`w-full ${isEditing ? 'bg-white' : 'bg-transparent text-gray-500'} border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded text-sm outline-none focus:ring-1 focus:ring-[#5c9a38] transition-all resize-none`}
+                        />
+                    </div>
+                </div>
+
                 <div className="flex justify-end gap-10 text-sm font-semibold">
                     <div className="flex flex-col items-end">
-                        <span className="text-gray-500 uppercase text-[10px]">Tổng giá nhập</span>
+                        <span className="text-gray-500 uppercase text-[10px] tracking-wider mb-1">Tổng giá nhập</span>
                         <span className="text-xl text-gray-700 dark:text-gray-300 font-bold">{vnd(totalImport)}</span>
                     </div>
                     <div className="flex flex-col items-end">
-                        <span className="text-[#5c9a38] uppercase text-[10px]">Tổng lợi nhuận</span>
+                        <span className="text-[#5c9a38] uppercase text-[10px] tracking-wider mb-1">Tổng lợi nhuận</span>
                         <span className="text-xl text-[#5c9a38] font-bold">{vnd(totalProfit)}</span>
                     </div>
                     <div className="flex flex-col items-end">
-                        <span className="text-gray-500 uppercase text-[10px]">Tổng tiền bán</span>
-                        <span className="text-2xl text-green-600 font-bold">{vnd(amountToPay)}</span>
+                        <span className="text-gray-500 uppercase text-[10px] tracking-wider mb-1">Tổng tiền bán</span>
+                        <span className="text-2xl text-green-600 font-extrabold">{vnd(amountToPay)}</span>
                     </div>
                 </div>
 

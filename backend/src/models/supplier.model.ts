@@ -1,7 +1,7 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
 export interface ISupplier extends Document {
-    id: string;
+    code: string;
     name: string;
     address?: string;
     taxCode?: string;
@@ -16,7 +16,7 @@ export interface ISupplier extends Document {
 }
 
 const SupplierSchema: Schema = new Schema({
-    id: { type: String, required: true, unique: true },
+    code: { type: String, required: true, unique: true },
     name: { type: String, required: true },
     address: { type: String },
     taxCode: { type: String },
@@ -28,6 +28,16 @@ const SupplierSchema: Schema = new Schema({
     isNational: { type: Boolean, default: true },
     isDefaultImport: { type: Boolean, default: false },
     debt: { type: Number, default: 0 }
-}, { timestamps: true });
+}, { 
+    timestamps: true,
+    toJSON: {
+        transform: function(doc, ret: any) {
+            ret.id = ret._id;
+            delete ret._id;
+            delete ret.__v;
+            return ret;
+        }
+    }
+});
 
 export default mongoose.model<ISupplier>('Supplier', SupplierSchema);

@@ -43,7 +43,8 @@ export type Customer = z.infer<typeof customerSchema>
 
 // ─── SUPPLIER ───
 export const supplierSchema = z.object({
-    id: z.string().min(1, "Vui lòng nhập mã nhà cung cấp"),
+    id: z.string().optional(),
+    code: z.string().min(1, "Vui lòng nhập mã nhà cung cấp"),
     name: z.string().min(1, "Vui lòng nhập tên nhà cung cấp"),
     address: z.string().optional(),
     taxCode: z.string().optional(),

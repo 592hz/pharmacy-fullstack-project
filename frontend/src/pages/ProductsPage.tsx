@@ -3,7 +3,6 @@ import { Search, List, Download, RefreshCw, Plus, FileText } from "lucide-react"
 import { AddProductModal } from "@/components/add-product-modal"
 import { toast } from "sonner"
 import { type Product } from "@/lib/mock-data"
-import { type ProductFormData } from "@/components/add-product-modal"
 import { productService } from "@/services/product.service"
 import { categoryService } from "@/services/category.service"
 import { supplierService } from "@/services/supplier.service"
@@ -142,57 +141,13 @@ export default function ProductsPage() {
         setDeleteConfirmCount(0)
     }
 
-    const handleSaveProduct = async (formData: ProductFormData) => {
+    const handleSaveProduct = async (savedProduct: any) => {
         try {
             if (editingProduct) {
-                const updatedProductData = {
-                    ...editingProduct,
-                    name: formData.productName,
-                    unit: formData.units[0]?.unitName || editingProduct.unit,
-                    importPrice: formData.units[0]?.importPrice || editingProduct.importPrice,
-                    retailPrice: formData.units[0]?.retailPrice || editingProduct.retailPrice,
-                    wholesalePrice: formData.units[0]?.wholesalePrice || editingProduct.wholesalePrice,
-                    baseQuantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1),
-                    baseUnitName: formData.baseUnitName || editingProduct.baseUnitName,
-                    conversionRate: formData.units[0]?.conversionRate || 1,
-                    categoryId: formData.categoryId,
-                    supplierId: formData.supplierId,
-                    batches: editingProduct.batches && editingProduct.batches.length > 0 
-                        ? editingProduct.batches.map((b: any, i: number) => i === 0 ? { ...b, batchNumber: formData.batchNumber, expiryDate: formData.expiryDate, quantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1) } : b)
-                        : [{ batchNumber: formData.batchNumber, expiryDate: formData.expiryDate, quantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1) }]
-                }
-                const data = await productService.update(editingProduct.id, updatedProductData)
-                setProducts(products.map(p => p.id === data.id ? data : p))
-                toast.success("Cập nhật sản phẩm thành công!")
+                setProducts(products.map(p => p.id === savedProduct.id ? savedProduct : p))
                 setEditingProduct(null)
             } else {
-                const newProduct: any = {
-                    id: formData.productCode,
-                    name: formData.productName,
-                    isDQG: false,
-                    unit: formData.units[0]?.unitName || "",
-                    manufacturer: ".",
-                    importPrice: formData.units[0]?.importPrice || 0,
-                    retailPrice: formData.units[0]?.retailPrice || 0,
-                    wholesalePrice: formData.units[0]?.wholesalePrice || 0,
-                    expiryDate: formData.expiryDate,
-                    registrationNo: ".",
-                    baseQuantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1),
-                    baseUnitName: formData.baseUnitName || "",
-                    conversionRate: formData.units[0]?.conversionRate || 1,
-                    categoryId: formData.categoryId,
-                    supplierId: formData.supplierId,
-                    batches: [
-                        { 
-                            batchNumber: formData.batchNumber || "MỚI", 
-                            expiryDate: formData.expiryDate || ".", 
-                            quantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1) 
-                        }
-                    ]
-                }
-                const data = await productService.create(newProduct)
-                setProducts([data, ...products])
-                toast.success("Thêm sản phẩm mới thành công!")
+                setProducts([savedProduct, ...products])
             }
             setIsAddModalOpen(false)
         } catch (error: any) {

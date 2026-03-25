@@ -1,20 +1,9 @@
 import { api } from './api';
+import { type PaymentMethod } from '@/lib/schemas';
 
 export const paymentMethodService = {
-  getAll: async () => {
-    const response = await api.get('/payment-methods');
-    return response.data;
-  },
-  create: async (data: any) => {
-    const response = await api.post('/payment-methods', data);
-    return response.data;
-  },
-  update: async (id: string, data: any) => {
-    const response = await api.put(`/payment-methods/${id}`, data);
-    return response.data;
-  },
-  delete: async (id: string) => {
-    const response = await api.delete(`/payment-methods/${id}`);
-    return response.data;
-  }
+  getAll: () => api.get('/payment-methods'),
+  create: (data: Partial<PaymentMethod>) => api.post('/payment-methods', data),
+  update: (id: string, data: Partial<PaymentMethod>) => api.put(`/payment-methods/${id}`, data),
+  delete: (id: string) => api.delete(`/payment-methods/${id}`)
 };
