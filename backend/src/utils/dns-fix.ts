@@ -1,4 +1,8 @@
 import dns from 'dns';
+import dotenv from 'dotenv';
+
+// Ensure env vars are loaded as early as possible
+dotenv.config();
 
 /**
  * Fix for MongoDB querySrv ECONNREFUSED on Windows.
@@ -11,6 +15,8 @@ export const applyDnsFix = () => {
     if (mongodbUri.includes('mongodb+srv://')) {
         console.log('🔧 [System] DNS Fix: Forcing Node.js to use Google DNS for SRV resolution...');
         dns.setServers(['8.8.8.8', '8.8.4.4']);
+    } else {
+        console.log('ℹ️ [System] DNS Fix: Skipping (not using mongodb+srv://)');
     }
 };
 

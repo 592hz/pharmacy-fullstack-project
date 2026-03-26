@@ -73,10 +73,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             url: "/income-expense-categories",
           },
           {
-            title: "Danh mục đơn thuốc",
-            url: "#",
-          },
-          {
             title: "Danh mục đơn vị tính",
             url: "/units",
           },

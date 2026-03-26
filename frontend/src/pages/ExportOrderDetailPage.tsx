@@ -5,9 +5,11 @@ import { toast } from "sonner"
 import { type ExportOrder, type ExportOrderItem, type Product, exportOrderSchema } from "@/lib/schemas"
 import { exportSlipService } from "@/services/export-slip.service"
 import { productService } from "@/services/product.service"
+import { paymentMethodService } from "@/services/payment-method.service"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
 import { parseFloatSafe } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
+import { type PaymentMethod } from "@/lib/schemas"
 
 export default function ExportOrderDetailPage() {
     const { id } = useParams<{ id: string }>()
@@ -22,19 +24,24 @@ export default function ExportOrderDetailPage() {
     const [isEditing, setIsEditing] = useState(false)
     const [allProducts, setAllProducts] = useState<Product[]>([])
     const [notes, setNotes] = useState("")
+    const [paymentMethod, setPaymentMethod] = useState("")
+    const [allPaymentMethods, setAllPaymentMethods] = useState<PaymentMethod[]>([])
 
     const fetchData = useCallback(async () => {
         if (!id) return
         setIsLoading(true)
         try {
-            const [slipData, productsData] = await Promise.all([
+            const [slipData, productsData, paymentMethodsData] = await Promise.all([
                 exportSlipService.getById(id),
-                productService.getAll()
+                productService.getAll(),
+                paymentMethodService.getAll()
             ])
             setSlip(slipData)
             setItems(slipData.items || [])
             setNotes(slipData.notes || "")
+            setPaymentMethod(slipData.paymentMethod || "")
             setAllProducts(productsData)
+            setAllPaymentMethods(paymentMethodsData)
         } catch (error) {
             toast.error("Không thể tải thông tin phiếu xuất")
         } finally {
@@ -130,6 +137,7 @@ export default function ExportOrderDetailPage() {
         if (slip) {
             setItems(slip.items || [])
             setNotes(slip.notes || "")
+            setPaymentMethod(slip.paymentMethod || "")
         }
         setIsEditing(false)
         toast.info("Đã hủy thay đổi")
@@ -176,6 +184,7 @@ export default function ExportOrderDetailPage() {
         const updatedSlip: ExportOrder = {
             ...slip,
             notes,
+            paymentMethod,
             items: items.map(item => ({
                 ...item,
                 quantity: Number(item.quantity),
@@ -314,12 +323,25 @@ export default function ExportOrderDetailPage() {
                     </div>
                     <div className="flex flex-col gap-1">
                         <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">HTTT</label>
-                        <input
-                            type="text"
-                            value={slip.paymentMethod || "Tiền mặt"}
-                            disabled
-                            className="bg-gray-50 dark:bg-neutral-800/50 border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-500"
-                        />
+                        {isEditing ? (
+                            <select
+                                value={paymentMethod}
+                                onChange={(e) => setPaymentMethod(e.target.value)}
+                                className="bg-white dark:bg-neutral-800 border border-gray-300 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-800 dark:text-gray-300 outline-none focus:ring-1 focus:ring-[#5c9a38]"
+                            >
+                                <option value="">Chọn...</option>
+                                {allPaymentMethods.map(m => (
+                                    <option key={m.id || m.name} value={m.name}>{m.name}</option>
+                                ))}
+                            </select>
+                        ) : (
+                            <input
+                                type="text"
+                                value={paymentMethod || "Tiền mặt"}
+                                disabled
+                                className="bg-gray-50 dark:bg-neutral-800/50 border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-500"
+                            />
+                        )}
                     </div>
                     <div className="flex flex-col gap-1">
                         <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">Trạng thái TT</label>

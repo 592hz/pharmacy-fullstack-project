@@ -27,7 +27,35 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
         const newOrder = new PurchaseOrder(req.body);
         const savedOrder = await newOrder.save();
         
-        // Optional: Update product stock/batches logic here
+        // Update product stock and batches
+        for (const item of savedOrder.items) {
+            const product = await Product.findOne({ id: item.code });
+            if (product) {
+                // Initialize batches if undefined
+                if (!product.batches) product.batches = [];
+                
+                // Find matching batch (batchNumber AND expiryDate should match)
+                const existingBatch = product.batches.find(b => 
+                    b.batchNumber === item.batchNumber && 
+                    b.expiryDate === item.expiryDate
+                );
+                
+                if (existingBatch) {
+                    existingBatch.quantity += item.quantity;
+                } else {
+                    product.batches.push({
+                        batchNumber: item.batchNumber,
+                        expiryDate: item.expiryDate,
+                        quantity: item.quantity
+                    });
+                }
+                
+                // Recalculate total quantity
+                product.baseQuantity = product.batches.reduce((sum, b) => sum + b.quantity, 0);
+                
+                await product.save();
+            }
+        }
         
         res.status(201).json(savedOrder);
     } catch (error) {

@@ -10,8 +10,9 @@ import { purchaseOrderSchema } from "@/lib/schemas"
 import { productService } from "@/services/product.service"
 import { supplierService } from "@/services/supplier.service"
 import { purchaseOrderService } from "@/services/purchase-order.service"
+import { paymentMethodService } from "@/services/payment-method.service"
 import { useEffect } from "react"
-import { type Product, type PurchaseOrderItem, type PurchaseOrder, type Supplier } from "@/lib/schemas"
+import { type Product, type PurchaseOrderItem, type PurchaseOrder, type Supplier, type PaymentMethod } from "@/lib/schemas"
 
 export default function CreatePurchaseOrderPage() {
     const navigate = useNavigate()
@@ -28,6 +29,7 @@ export default function CreatePurchaseOrderPage() {
     const [importDate] = useState(() => new Date().toISOString())
     const createdBy = "Quản trị viên"
     const [paymentMethod, setPaymentMethod] = useState("Chuyển khoản")
+    const [allPaymentMethods, setAllPaymentMethods] = useState<PaymentMethod[]>([])
 
     const [showAddModal, setShowAddModal] = useState(false)
 
@@ -40,12 +42,22 @@ export default function CreatePurchaseOrderPage() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [products, suppliers] = await Promise.all([
+                const [products, suppliers, paymentMethods] = await Promise.all([
                     productService.getAll(),
-                    supplierService.getAll()
+                    supplierService.getAll(),
+                    paymentMethodService.getAll()
                 ]);
                 setAllProducts(products);
                 setAllSuppliers(suppliers);
+                setAllPaymentMethods(paymentMethods);
+
+                // Set default payment method
+                const defaultMethod = paymentMethods.find((m: PaymentMethod) => m.isDefault);
+                if (defaultMethod) {
+                    setPaymentMethod(defaultMethod.name);
+                } else if (paymentMethods.length > 0) {
+                    setPaymentMethod(paymentMethods[0].name);
+                }
             } catch (error) {
                 console.error("Error fetching data:", error);
             }
@@ -323,9 +335,9 @@ export default function CreatePurchaseOrderPage() {
                             onChange={(e) => setPaymentMethod(e.target.value)}
                             className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
                         >
-                            <option value="Chuyển khoản">Chuyển khoản</option>
-                            <option value="Tiền mặt">Tiền mặt</option>
-                            <option value="Nợ">Ghi nợ</option>
+                            {allPaymentMethods.map(m => (
+                                <option key={m.id || m.name} value={m.name}>{m.name}</option>
+                            ))}
                         </select>
                     </div>
                     <div className="flex flex-col gap-1.5">

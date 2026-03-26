@@ -383,6 +383,29 @@ export default function ProductsPage() {
                                     <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 text-center text-xs text-gray-500 hidden sm:table-cell">
                                         {(() => {
                                             if (product.batches && product.batches.length > 0) {
+                                                // Priority 1: First batch with quantity > 0 that is NOT "LÔ ĐẦU"
+                                                // Priority 2: First batch with quantity > 0
+                                                // Priority 3: First batch that is NOT "LÔ ĐẦU" (even if 0 qty)
+                                                // Priority 4: First batch available (likely "LÔ ĐẦU")
+                                                
+                                                const activeOtherBatches = product.batches.filter(b => b.quantity > 0 && b.batchNumber !== "LÔ ĐẦU")
+                                                if (activeOtherBatches.length > 0) {
+                                                    const sorted = [...activeOtherBatches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
+                                                    return sorted[0].expiryDate
+                                                }
+
+                                                const activeBatches = product.batches.filter(b => b.quantity > 0)
+                                                if (activeBatches.length > 0) {
+                                                    const sorted = [...activeBatches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
+                                                    return sorted[0].expiryDate
+                                                }
+
+                                                const otherBatches = product.batches.filter(b => b.batchNumber !== "LÔ ĐẦU")
+                                                if (otherBatches.length > 0) {
+                                                    const sorted = [...otherBatches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
+                                                    return sorted[0].expiryDate
+                                                }
+
                                                 const sorted = [...product.batches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
                                                 return sorted[0].expiryDate
                                             }

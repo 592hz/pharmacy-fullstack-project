@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import ExportSlip from '../models/export-slip.model.js';
+import Product from '../models/product.model.js';
 
 export const getExportSlips = async (req: Request, res: Response) => {
     try {
@@ -25,6 +26,34 @@ export const createExportSlip = async (req: Request, res: Response) => {
     try {
         const newSlip = new ExportSlip(req.body);
         const savedSlip = await newSlip.save();
+        
+        // Update product stock and batches (reduction)
+        for (const item of savedSlip.items) {
+            const product = await Product.findOne({ id: item.code });
+            if (product && product.batches) {
+                // Find matching batch
+                const existingBatch = product.batches.find(b => 
+                    b.batchNumber === item.batchNumber && 
+                    b.expiryDate === item.expiryDate
+                );
+                
+                if (existingBatch) {
+                    existingBatch.quantity -= item.quantity;
+                } else {
+                    // Fallback: if batch not matched exactly, try finding any batch with enough quantity
+                    const availableBatch = product.batches.find(b => b.quantity >= item.quantity);
+                    if (availableBatch) {
+                        availableBatch.quantity -= item.quantity;
+                    }
+                }
+                
+                // Recalculate total quantity
+                product.baseQuantity = product.batches.reduce((sum, b) => sum + b.quantity, 0);
+                
+                await product.save();
+            }
+        }
+        
         res.status(201).json(savedSlip);
     } catch (error) {
         res.status(400).json({ message: (error as Error).message });

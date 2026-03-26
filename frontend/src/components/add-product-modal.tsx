@@ -20,6 +20,12 @@ export interface ProductUnit {
     isDefault: boolean
 }
 
+export interface Batch {
+    batchNumber: string
+    expiryDate: string
+    quantity: number
+}
+
 export interface ProductFormData {
     // 1. Identification
     // 1. Mã sản phẩm
@@ -48,34 +54,9 @@ export interface ProductFormData {
     baseUnitName: string
     batchNumber: string
     expiryDate: string
+    batches: Batch[]
 }
 
-const initialFormData: ProductFormData = {
-    productCode: "",
-    productName: "",
-    categoryId: "",
-    supplierId: "",
-    vatPercent: 0,
-    discountPercent: 0,
-    // 6. Đơn vị tính   
-    units: [
-        // Default empty row
-        // 1. Đơn vị tính
-        {
-            id: "1",
-            unitName: "",
-            conversionRate: 1,
-            importPrice: 0,
-            retailPrice: 0,
-            wholesalePrice: 0,
-            isDefault: true
-        }
-    ],
-    initialQuantity: 0,
-    baseUnitName: "Viên",
-    batchNumber: "",
-    expiryDate: "",
-}
 
 
 
@@ -125,7 +106,68 @@ const InputField = ({ label, required, value, onChange, placeholder = "", type =
     )
 }
 
+const generateInitialFormData = (data?: any): ProductFormData => {
+    if (data) {
+        const firstBatch = data.batches?.[0]
+        return {
+            productName: data.name || "",
+            supplierId: data.supplierId || data.manufacturer || "",
+            categoryId: data.categoryId || "",
+            productCode: data.id || "",
+            vatPercent: 10,
+            discountPercent: 0,
+            units: [{
+                id: "1",
+                unitName: data.unit || "",
+                isDefault: true,
+                conversionRate: data.conversionRate || 1,
+                importPrice: data.importPrice || 0,
+                retailPrice: data.retailPrice || 0,
+                wholesalePrice: data.wholesalePrice || 0,
+            }],
+            initialQuantity: firstBatch ? firstBatch.quantity / (data.conversionRate || 1) : (data.baseQuantity || 0) / (data.conversionRate || 1),
+            baseUnitName: data.baseUnitName || "Viên",
+            batchNumber: firstBatch?.batchNumber || "",
+            expiryDate: firstBatch?.expiryDate || data.expiryDate || "",
+            batches: data.batches || []
+        }
+    }
+
+    const newId = "SP" + Math.floor(100000 + Math.random() * 900000).toString()
+    return {
+        productName: "",
+        supplierId: "",
+        categoryId: "",
+        productCode: newId,
+        vatPercent: 10,
+        discountPercent: 0,
+        units: [{
+            id: "1",
+            unitName: "Viên",
+            isDefault: true,
+            conversionRate: 1,
+            importPrice: 0,
+            retailPrice: 0,
+            wholesalePrice: 0,
+        }],
+        initialQuantity: 0,
+        baseUnitName: "Viên",
+        batchNumber: "",
+        expiryDate: "",
+        batches: []
+    }
+}
+
 export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: AddProductModalProps) {
+    const [formData, setFormData] = useState<ProductFormData>(() => generateInitialFormData(initialData))
+
+    // Sync formData if initialData changes (e.g. when opening modal for different products)
+    useEffect(() => {
+        if (isOpen) {
+            setFormData(generateInitialFormData(initialData))
+        }
+    }, [isOpen, initialData])
+
     const [categories, setCategories] = useState<any[]>([])
     const [suppliers, setSuppliers] = useState<any[]>([])
     const [availableUnits, setAvailableUnits] = useState<any[]>([])
@@ -150,59 +192,6 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
             fetchData()
         }
     }, [isOpen])
-
-    const [formData, setFormData] = useState<ProductFormData>(() => {
-        if (initialData) {
-            const firstBatch = initialData.batches?.[0]
-            // Mapping from Product (mock-data.ts) to ProductFormData
-            return {
-                productName: initialData.name || "",
-                supplierId: initialData.supplierId || initialData.manufacturer || "",
-                categoryId: initialData.categoryId || "",
-                productCode: initialData.id || "",
-                vatPercent: 10, // Default for mock data
-                discountPercent: 0,
-                units: [{
-                    id: "1",
-                    unitName: initialData.unit || "",
-                    isDefault: true,
-                    conversionRate: initialData.conversionRate || 1,
-                    importPrice: initialData.importPrice || 0,
-                    retailPrice: initialData.retailPrice || 0,
-                    wholesalePrice: initialData.wholesalePrice || 0,
-                }],
-                initialQuantity: firstBatch ? firstBatch.quantity / (initialData.conversionRate || 1) : initialData.baseQuantity / (initialData.conversionRate || 1),
-                baseUnitName: initialData.baseUnitName || "Viên",
-                batchNumber: firstBatch?.batchNumber || "",
-                expiryDate: firstBatch?.expiryDate || initialData.expiryDate || "",
-            }
-        }
-
-        // New random ID for new products
-        // State initializers are allowed to be "impure" as they only run once on mount
-        const newId = "SP" + Math.floor(100000 + Math.random() * 900000).toString()
-        return {
-            productName: "",
-            supplierId: "",
-            categoryId: "",
-            productCode: newId,
-            vatPercent: 10,
-            discountPercent: 0,
-            units: [{
-                id: "1",
-                unitName: "Viên",
-                isDefault: true,
-                conversionRate: 1,
-                importPrice: 0,
-                retailPrice: 0,
-                wholesalePrice: 0,
-            }],
-            initialQuantity: 0,
-            baseUnitName: "Viên",
-            batchNumber: "",
-            expiryDate: "",
-        }
-    })
 
     // Helper to update basic string/number/boolean fields
     // Các hàm hỗ trợ sử lý dữ liệu
@@ -274,6 +263,16 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
             units: prev.units.filter(u => u.id !== id)
         }))
     }
+
+    const handleBatchExpiryChange = (batchNumber: string, newExpiry: string) => {
+        setFormData(prev => ({
+            ...prev,
+            batches: prev.batches.map(b => 
+                b.batchNumber === batchNumber ? { ...b, expiryDate: newExpiry } : b
+            )
+        }))
+    }
+
     const handleSubmit = async (action: 'save' | 'save_new') => {
         const validation = productSchema.safeParse(formData)
 
@@ -302,13 +301,15 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                 baseQuantity: Number(formData.initialQuantity) * conversionRate,
                 baseUnitName: formData.baseUnitName || "",
                 conversionRate: conversionRate,
-                batches: [
-                    {
-                        batchNumber: formData.batchNumber || (initialData ? "MỚI" : "LÔ ĐẦU"),
-                        expiryDate: (formData.expiryDate && formData.expiryDate !== ".") ? formData.expiryDate : "01-01-2099",
-                        quantity: Number(formData.initialQuantity) * conversionRate
-                    }
-                ]
+                batches: initialData && formData.batches.length > 0 
+                    ? formData.batches 
+                    : [
+                        {
+                            batchNumber: formData.batchNumber || (initialData ? "MỚI" : "LÔ ĐẦU"),
+                            expiryDate: (formData.expiryDate && formData.expiryDate !== ".") ? formData.expiryDate : "01-01-2099",
+                            quantity: Number(formData.initialQuantity) * conversionRate
+                        }
+                    ]
             }
 
             let savedProduct: any
@@ -325,7 +326,8 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                 onClose()
             } else if (action === 'save_new') {
                 onSuccess(savedProduct, formData)
-                setFormData(initialFormData) 
+                // Use the helper to generate a completely fresh state with a new ID
+                setFormData(generateInitialFormData()) 
             }
         } catch (error: any) {
             toast.error(`Lỗi: ${error.message}`)
@@ -438,7 +440,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                             {/* Batch & Expiry Section */}
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-gray-700">Số lô</label>
+                                    <label className="text-xs font-semibold text-gray-700">Số lô {initialData && "(Lô mới)"}</label>
                                     <input
                                         type="text"
                                         value={formData.batchNumber}
@@ -448,7 +450,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-gray-700">Hạn dùng (DD-MM-YYYY)</label>
+                                    <label className="text-xs font-semibold text-gray-700">Hạn dùng (DD-MM-YYYY) {initialData && "(Lô mới)"}</label>
                                     <input
                                         type="text"
                                         value={formData.expiryDate}
@@ -459,6 +461,51 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                 </div>
                             </div>
                         </div>
+
+                        {/* --- BATCHES TABLE (Only for Edit Mode) --- */}
+                        {initialData && formData.batches && formData.batches.length > 0 && (
+                            <div className="mt-4 border-t border-gray-100 pt-4">
+                                <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                    <span className="w-1.5 h-4 bg-[#5c9a38] rounded-full"></span>
+                                    Quản lý lô hàng & Hạn dùng hiện tại
+                                </h3>
+                                <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50/30">
+                                    <table className="w-full text-xs text-left">
+                                        <thead className="bg-gray-100 text-gray-700 font-bold uppercase tracking-wider">
+                                            <tr>
+                                                <th className="px-4 py-2 border-r border-gray-200 w-1/3">Số lô</th>
+                                                <th className="px-4 py-2 border-r border-gray-200 w-1/3 text-center">Hạn dùng (Sửa tại đây)</th>
+                                                <th className="px-4 py-2 text-right">Số lượng tồn</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-200 bg-white">
+                                            {formData.batches.map((batch, idx) => (
+                                                <tr key={`${batch.batchNumber}-${idx}`} className="hover:bg-gray-50 transition-colors">
+                                                    <td className="px-4 py-2 border-r border-gray-200 font-medium text-gray-700">
+                                                        {batch.batchNumber}
+                                                    </td>
+                                                    <td className="px-4 py-2 border-r border-gray-200">
+                                                        <input
+                                                            type="text"
+                                                            value={batch.expiryDate}
+                                                            onChange={(e) => handleBatchExpiryChange(batch.batchNumber, e.target.value)}
+                                                            className="w-full border border-gray-300 rounded px-2 py-1 text-center focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white"
+                                                            placeholder="DD-MM-YYYY"
+                                                        />
+                                                    </td>
+                                                    <td className="px-4 py-2 text-right font-bold text-blue-600">
+                                                        {(batch.quantity / (initialData.conversionRate || 1)).toLocaleString()}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <p className="text-[10px] text-gray-400 mt-2 italic">
+                                    * Thay đổi hạn dùng tại bảng trên sẽ được cập nhật trực tiếp cho từng lô hàng tương ứng.
+                                </p>
+                            </div>
+                        )}
 
                         {/* --- UNIT ADD --- */}
                         <div className="flex flex-wrap items-center gap-x-8 gap-y-4 pt-2">

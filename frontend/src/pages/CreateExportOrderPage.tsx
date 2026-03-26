@@ -6,11 +6,13 @@ import { type ExportOrder, type ExportOrderItem, type Product, type Customer, ex
 import { exportSlipService } from "@/services/export-slip.service"
 import { productService } from "@/services/product.service"
 import { customerService } from "@/services/customer.service"
+import { paymentMethodService } from "@/services/payment-method.service"
 import { useEffect } from "react"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
 import AddCustomerModal from "@/components/add-customer-modal"
 import { parseFloatSafe } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
+import { type PaymentMethod } from "@/lib/schemas"
 
 export default function CreateExportOrderPage() {
     const navigate = useNavigate()
@@ -19,6 +21,7 @@ export default function CreateExportOrderPage() {
     const [notes, setNotes] = useState("")
     const [items, setItems] = useState<ExportOrderItem[]>([])
     const [paymentMethod, setPaymentMethod] = useState("Tiền mặt")
+    const [allPaymentMethods, setAllPaymentMethods] = useState<PaymentMethod[]>([])
     const [isPrescription, setIsPrescription] = useState(false)
     const [doctorName, setDoctorName] = useState("")
     const [customerId, setCustomerId] = useState<string>("")
@@ -32,12 +35,22 @@ export default function CreateExportOrderPage() {
         const fetchData = async () => {
             setIsLoading(true)
             try {
-                const [productsData, customersData] = await Promise.all([
+                const [productsData, customersData, paymentMethodsData] = await Promise.all([
                     productService.getAll(),
-                    customerService.getAll()
+                    customerService.getAll(),
+                    paymentMethodService.getAll()
                 ])
                 setAllProducts(productsData)
                 setAllCustomers(customersData)
+                setAllPaymentMethods(paymentMethodsData)
+
+                // Set default payment method
+                const defaultMethod = paymentMethodsData.find((m: PaymentMethod) => m.isDefault);
+                if (defaultMethod) {
+                    setPaymentMethod(defaultMethod.name);
+                } else if (paymentMethodsData.length > 0) {
+                    setPaymentMethod(paymentMethodsData[0].name);
+                }
             } catch (error) {
                 toast.error("Không thể tải dữ liệu")
             } finally {
@@ -286,9 +299,9 @@ export default function CreateExportOrderPage() {
                             onChange={(e) => setPaymentMethod(e.target.value)}
                             className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
                         >
-                            <option value="Tiền mặt">Tiền mặt</option>
-                            <option value="Chuyển khoản">Chuyển khoản</option>
-                            <option value="Nợ">Ghi nợ</option>
+                            {allPaymentMethods.map(m => (
+                                <option key={m.id || m.name} value={m.name}>{m.name}</option>
+                            ))}
                         </select>
                     </div>
 

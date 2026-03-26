@@ -35,7 +35,7 @@ export default function PurchaseOrdersPage() {
             try {
                 const data = await purchaseOrderService.getAll()
                 setOrders(data)
-            } catch (error) {
+            } catch {
                 toast.error("Không thể tải danh sách phiếu nhập")
             } finally {
                 setIsLoading(false)
@@ -93,7 +93,7 @@ export default function PurchaseOrdersPage() {
             if (
                 kw &&
                 !o.supplierName?.toLowerCase().includes(kw) &&
-                !o.id.toLowerCase().includes(kw) &&
+                !o.id?.toLowerCase().includes(kw) &&
                 !o.invoiceNumber?.toLowerCase().includes(kw)
             )
                 return false
@@ -132,15 +132,15 @@ export default function PurchaseOrdersPage() {
 
     const confirmDelete = async () => {
         if (deleteStep === 1) { setDeleteStep(2); return }
-        if (deleteStep === 2 && orderToDelete) {
+        if (deleteStep === 2 && orderToDelete?.id) {
             try {
                 await purchaseOrderService.delete(orderToDelete.id)
                 setOrders((prev) => prev.filter((o) => o.id !== orderToDelete.id))
                 toast.success(`Đã xóa phiếu nhập ${orderToDelete.id}!`)
                 setOrderToDelete(null)
                 setDeleteStep(0)
-            } catch (error: any) {
-                toast.error(`Lỗi: ${error.message}`)
+            } catch (error) {
+                toast.error(`Lỗi: ${error instanceof Error ? error.message : String(error)}`)
             }
         }
     }
@@ -148,7 +148,9 @@ export default function PurchaseOrdersPage() {
     const cancelDelete = () => { setOrderToDelete(null); setDeleteStep(0) }
 
     const handleView = (order: PurchaseOrder) => {
-        navigate(`/purchase-orders/${order.id}`)
+        if (order.id) {
+            navigate(`/purchase-orders/${order.id}`)
+        }
     }
 
 

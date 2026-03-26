@@ -14,6 +14,16 @@ const CategorySchema: Schema = new Schema({
     type: { type: String, enum: ['Thu', 'Chi'], required: true },
     amount: { type: Number, required: true },
     date: { type: Date, default: Date.now }
-}, { timestamps: true });
+}, { 
+    timestamps: true,
+    toJSON: {
+        transform: function(doc, ret: any) {
+            ret.id = ret._id;
+            delete ret._id;
+            delete ret.__v;
+            return ret;
+        }
+    }
+});
 
 export default mongoose.model<ICategory>('Category', CategorySchema);
