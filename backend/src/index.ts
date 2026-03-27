@@ -1,5 +1,6 @@
 import dotenv from 'dotenv';
 dotenv.config();
+import os from 'os';
 
 import './utils/dns-fix.js';
 
@@ -48,7 +49,23 @@ app.get('/', (req, res) => {
 
 // Connect to Database
 connectDB().then(() => {
-    app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}`);
+    app.listen(Number(PORT), '0.0.0.0', () => {
+        const networkInterfaces = os.networkInterfaces();
+        const addresses: string[] = [];
+        
+        Object.values(networkInterfaces).forEach(interfaces => {
+            interfaces?.forEach(iface => {
+                if (iface.family === 'IPv4' && !iface.internal) {
+                    addresses.push(iface.address);
+                }
+            });
+        });
+
+        console.log(`\n🚀 Server is running!`);
+        console.log(`   - Local:    http://localhost:${PORT}`);
+        addresses.forEach(addr => {
+            console.log(`   - Network:  http://${addr}:${PORT}`);
+        });
+        console.log(`\n💡 Use the "Network" address for mobile device access.\n`);
     });
 });

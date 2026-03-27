@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { Plus, Search, PlusCircle, Trash2, Save, X, Calendar, FileText, CreditCard, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { AddProductModal } from "@/components/add-product-modal"
+import AddSupplierModal from "@/components/add-supplier-modal"
 import { type ProductFormData } from "@/components/add-product-modal"
 import { parseFloatSafe } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
@@ -32,6 +33,7 @@ export default function CreatePurchaseOrderPage() {
     const [allPaymentMethods, setAllPaymentMethods] = useState<PaymentMethod[]>([])
 
     const [showAddModal, setShowAddModal] = useState(false)
+    const [showAddSupplierModal, setShowAddSupplierModal] = useState(false)
 
     // Search state
     const [searchQuery, setSearchQuery] = useState("")
@@ -136,6 +138,18 @@ export default function CreatePurchaseOrderPage() {
             registrationNumber: "-",
         }
         setItems(prev => [...prev, newItem])
+    }, [])
+
+    const handleQuickSupplierAdded = useCallback(async (newSupplier: Supplier) => {
+        try {
+            const data = await supplierService.create(newSupplier)
+            setAllSuppliers(prev => [data, ...prev])
+            setSupplierId(data.id)
+            setSupplierName(data.name)
+            toast.success("Đã thêm nhanh nhà cung cấp và tự động chọn!")
+        } catch (error: any) {
+            toast.error(`Lỗi khi thêm nhà cung cấp: ${error.message}`)
+        }
     }, [])
 
     const removeItem = useCallback((id: string) => {
@@ -283,20 +297,30 @@ export default function CreatePurchaseOrderPage() {
                     {/* Supplier Select */}
                     <div className="col-span-2 flex flex-col gap-1.5">
                         <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Nhà cung cấp *</label>
-                        <select
-                            value={supplierId}
-                            onChange={(e) => {
-                                const s = allSuppliers.find(x => x.id === e.target.value)
-                                setSupplierId(e.target.value)
-                                setSupplierName(s?.name || "")
-                            }}
-                            className="w-full bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
-                        >
-                            <option value="">Chọn nhà cung cấp...</option>
-                            {allSuppliers.map(s => (
-                                <option key={s.id} value={s.id}>{s.name}</option>
-                            ))}
-                        </select>
+                        <div className="flex gap-2">
+                            <select
+                                value={supplierId}
+                                onChange={(e) => {
+                                    const s = allSuppliers.find(x => x.id === e.target.value)
+                                    setSupplierId(e.target.value)
+                                    setSupplierName(s?.name || "")
+                                }}
+                                className="w-full bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
+                            >
+                                <option value="">Chọn nhà cung cấp...</option>
+                                {allSuppliers.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                            </select>
+                            <button
+                                type="button"
+                                onClick={() => setShowAddSupplierModal(true)}
+                                className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 p-2 rounded border border-green-200 dark:border-green-800/50 hover:bg-green-100 transition-colors shadow-sm"
+                                title="Thêm nhanh nhà cung cấp"
+                            >
+                                <Plus size={20} />
+                            </button>
+                        </div>
                     </div>
 
                     {/* Order Meta Info */}
@@ -429,6 +453,12 @@ export default function CreatePurchaseOrderPage() {
                 isOpen={showAddModal}
                 onClose={() => setShowAddModal(false)}
                 onSuccess={handleProductSaved}
+            />
+
+            <AddSupplierModal
+                isOpen={showAddSupplierModal}
+                onClose={() => setShowAddSupplierModal(false)}
+                onAdd={handleQuickSupplierAdded}
             />
 
             {/* ── LINE ITEMS DATA GRID ── */}

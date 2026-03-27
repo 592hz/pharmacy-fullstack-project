@@ -4,7 +4,7 @@ import { AddProductModal } from "@/components/add-product-modal"
 import { toast } from "sonner"
 import { type Product } from "@/lib/mock-data"
 import { productService } from "@/services/product.service"
-import { categoryService } from "@/services/category.service"
+import { productCategoryService } from "@/services/product-category.service"
 import { supplierService } from "@/services/supplier.service"
 import { useEffect } from "react"
 
@@ -23,7 +23,7 @@ export default function ProductsPage() {
         try {
             const [productsData, categoriesData, suppliersData] = await Promise.all([
                 productService.getAll(),
-                categoryService.getAll(),
+                productCategoryService.getAll(),
                 supplierService.getAll()
             ])
             setProducts(productsData)
@@ -54,13 +54,27 @@ export default function ProductsPage() {
         // 1. Text Search
         const query = searchQuery.toLowerCase().trim()
 
-        const category = categories.find(c => c.id === product.categoryId)
-        const supplier = suppliers.find(s => s.id === product.supplierId)
+        // Helper to get ID from potentially populated field
+        const getFieldValue = (field: any) => {
+            if (!field) return ""
+            if (typeof field === 'object') return field._id || field.id || ""
+            return field
+        }
+
+        const prodCategoryId = getFieldValue(product.categoryId)
+        const prodSupplierId = getFieldValue(product.supplierId)
+
+        const category = categories.find(c => c.id === prodCategoryId)
+        const supplier = suppliers.find(s => s.id === prodSupplierId)
+
+        const productName = product.name || product.productName || ""
+        const productCode = product.id || product.productCode || ""
 
         const matchesQuery = !query ||
-            product.name.toLowerCase().includes(query) ||
-            product.id.toLowerCase().includes(query) ||
+            productName.toLowerCase().includes(query) ||
+            productCode.toLowerCase().includes(query) ||
             (product.registrationNo && product.registrationNo.toLowerCase().includes(query)) ||
+            (product.manufacturer && product.manufacturer.toLowerCase().includes(query)) ||
             (category && category.name.toLowerCase().includes(query)) ||
             (supplier && supplier.name.toLowerCase().includes(query))
 
@@ -71,16 +85,16 @@ export default function ProductsPage() {
             ? product.batches.reduce((sum, b) => sum + b.quantity, 0)
             : product.baseQuantity
         const stockCount = Math.floor(totalBaseQuantity / (product.conversionRate || 1))
-        
+
         const lowStockThreshold = product.unit === "Viên" ? 25 : 1
         if (stockFilter === "Còn hàng" && stockCount <= 0) return false
         if (stockFilter === "Sắp hết hàng" && (stockCount <= 0 || stockCount > lowStockThreshold)) return false
         if (stockFilter === "Hết hàng" && stockCount > 0) return false
         // 3. Category Filter
-        if (categoryFilter !== "Tất cả" && product.categoryId !== categoryFilter) return false
+        if (categoryFilter !== "Tất cả" && prodCategoryId !== categoryFilter) return false
 
         // 4. Supplier Filter
-        if (supplierFilter !== "Tất cả" && product.supplierId !== supplierFilter) return false
+        if (supplierFilter !== "Tất cả" && prodSupplierId !== supplierFilter) return false
 
         return true
     })
@@ -199,8 +213,6 @@ export default function ProductsPage() {
                             }}
                         >
                             <option>Tất cả sản phẩm</option>
-                            <option>Dược phẩm</option>
-                            <option>Vật tư y tế</option>
                         </select>
                     </div>
 
@@ -275,14 +287,14 @@ export default function ProductsPage() {
                 {/* Tool bar row */}
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-gray-50 dark:bg-neutral-800/50 border-b border-gray-200 dark:border-neutral-800">
                     <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                        <button 
+                        <button
                             onClick={() => setShowFilters(!showFilters)}
                             className="lg:hidden flex items-center gap-2 bg-white dark:bg-neutral-800 border border-gray-300 dark:border-neutral-700 px-3 h-10 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
                         >
                             <List size={18} />
                             <span>Lọc</span>
                         </button>
-                        
+
                         <div className="flex flex-1 sm:hidden">
                             <button
                                 onClick={() => setIsAddModalOpen(true)}
@@ -362,7 +374,7 @@ export default function ProductsPage() {
                                     <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 text-right text-xs font-bold text-[#5c9a38]">
                                         {formatCurrency(product.retailPrice)}
                                     </td>
-                                    
+
                                     <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 text-center text-xs font-semibold text-blue-600 dark:text-blue-400">
                                         {(() => {
                                             const total = product.batches && product.batches.length > 0
@@ -387,7 +399,7 @@ export default function ProductsPage() {
                                                 // Priority 2: First batch with quantity > 0
                                                 // Priority 3: First batch that is NOT "LÔ ĐẦU" (even if 0 qty)
                                                 // Priority 4: First batch available (likely "LÔ ĐẦU")
-                                                
+
                                                 const activeOtherBatches = product.batches.filter(b => b.quantity > 0 && b.batchNumber !== "LÔ ĐẦU")
                                                 if (activeOtherBatches.length > 0) {
                                                     const sorted = [...activeOtherBatches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
@@ -439,10 +451,10 @@ export default function ProductsPage() {
                     {/* Pagination */}
                     <div className="flex flex-col sm:flex-row items-center justify-between p-4 gap-4 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-neutral-800">
                         <div className="order-2 sm:order-1 flex items-center gap-2">
-                             <span>Tổng: <span className="font-bold text-gray-700 dark:text-gray-200">{totalRecords}</span></span>
-                             <span className="text-gray-300">|</span>
-                             <span>Trang <span className="font-medium text-gray-700 dark:text-gray-200">{currentPage}</span>/{totalPages}</span>
-                             {isLoading && <span className="text-[#5c9a38] animate-pulse ml-2">Đang tải...</span>}
+                            <span>Tổng: <span className="font-bold text-gray-700 dark:text-gray-200">{totalRecords}</span></span>
+                            <span className="text-gray-300">|</span>
+                            <span>Trang <span className="font-medium text-gray-700 dark:text-gray-200">{currentPage}</span>/{totalPages}</span>
+                            {isLoading && <span className="text-[#5c9a38] animate-pulse ml-2">Đang tải...</span>}
                         </div>
                         <div className="flex items-center space-x-1 order-1 sm:order-2">
                             <button

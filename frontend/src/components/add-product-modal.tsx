@@ -111,8 +111,8 @@ const generateInitialFormData = (data?: any): ProductFormData => {
         const firstBatch = data.batches?.[0]
         return {
             productName: data.name || "",
-            supplierId: data.supplierId || data.manufacturer || "",
-            categoryId: data.categoryId || "",
+            supplierId: typeof data.supplierId === 'object' ? (data.supplierId._id || data.supplierId.id) : (data.supplierId || data.manufacturer || ""),
+            categoryId: typeof data.categoryId === 'object' ? (data.categoryId._id || data.categoryId.id) : (data.categoryId || ""),
             productCode: data.id || "",
             vatPercent: 10,
             discountPercent: 0,
@@ -273,6 +273,16 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
         }))
     }
 
+    const handleBatchQuantityChange = (batchNumber: string, newQty: number) => {
+        const conversionRate = initialData?.conversionRate || 1
+        setFormData(prev => ({
+            ...prev,
+            batches: prev.batches.map(b => 
+                b.batchNumber === batchNumber ? { ...b, quantity: newQty * conversionRate } : b
+            )
+        }))
+    }
+
     const handleSubmit = async (action: 'save' | 'save_new') => {
         const validation = productSchema.safeParse(formData)
 
@@ -298,7 +308,9 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                 manufacturer: initialData?.manufacturer || ".",
                 categoryId: formData.categoryId,
                 supplierId: formData.supplierId && formData.supplierId.trim() !== "" ? formData.supplierId : undefined,
-                baseQuantity: Number(formData.initialQuantity) * conversionRate,
+                baseQuantity: initialData && formData.batches.length > 0
+                    ? formData.batches.reduce((sum, b) => sum + b.quantity, 0)
+                    : Number(formData.initialQuantity) * conversionRate,
                 baseUnitName: formData.baseUnitName || "",
                 conversionRate: conversionRate,
                 batches: initialData && formData.batches.length > 0 
@@ -475,7 +487,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                             <tr>
                                                 <th className="px-4 py-2 border-r border-gray-200 w-1/3">Số lô</th>
                                                 <th className="px-4 py-2 border-r border-gray-200 w-1/3 text-center">Hạn dùng (Sửa tại đây)</th>
-                                                <th className="px-4 py-2 text-right">Số lượng tồn</th>
+                                                <th className="px-4 py-2 text-right">Số lượng tồn (Sửa tại đây)</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-200 bg-white">
@@ -493,8 +505,12 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                                             placeholder="DD-MM-YYYY"
                                                         />
                                                     </td>
-                                                    <td className="px-4 py-2 text-right font-bold text-blue-600">
-                                                        {(batch.quantity / (initialData.conversionRate || 1)).toLocaleString()}
+                                                    <td className="px-4 py-2 text-right">
+                                                        <NumericInput
+                                                            value={batch.quantity / (initialData.conversionRate || 1)}
+                                                            onChange={(v) => handleBatchQuantityChange(batch.batchNumber, v)}
+                                                            className="w-[100px] ml-auto text-right border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] font-bold text-blue-600 bg-white"
+                                                        />
                                                     </td>
                                                 </tr>
                                             ))}

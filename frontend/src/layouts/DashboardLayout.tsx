@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { ModeToggle } from "@/components/mode-toggle"
+import { MobileNav } from "@/components/MobileNav"
 
 export default function DashboardLayout() {
 
@@ -19,10 +20,11 @@ export default function DashboardLayout() {
                         <ModeToggle />
                     </div>
                 </header>
-                <div className="flex flex-1 flex-col p-3 sm:p-6 lg:p-8">
+                <div className="flex flex-1 flex-col p-3 sm:p-6 lg:p-8 pb-20 sm:pb-8">
                     <Outlet />
                 </div>
             </main>
+            <MobileNav />
         </SidebarProvider>
     )
 }
