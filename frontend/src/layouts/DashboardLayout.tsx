@@ -1,10 +1,19 @@
+import { useState, useEffect } from "react"
 import { Outlet } from "react-router-dom"
 import { AppSidebar } from "@/components/app-sidebar"
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { ModeToggle } from "@/components/mode-toggle"
 import { MobileNav } from "@/components/MobileNav"
+import { SecretMessageModal } from "@/components/SecretMessageModal"
 
 export default function DashboardLayout() {
+    const [isSecretOpen, setIsSecretOpen] = useState(false)
+
+    useEffect(() => {
+        const handleTrigger = () => setIsSecretOpen(true)
+        window.addEventListener('secret-message-triggered', handleTrigger)
+        return () => window.removeEventListener('secret-message-triggered', handleTrigger)
+    }, [])
 
     return (
         <SidebarProvider>
@@ -14,7 +23,7 @@ export default function DashboardLayout() {
                     <div className="flex items-center gap-2">
                         <SidebarTrigger className="hover:bg-gray-100 dark:hover:bg-neutral-800 p-2 rounded-md transition-colors" />
                         <div className="h-6 w-[1px] bg-gray-200 dark:bg-neutral-800 mx-1 hidden sm:block" />
-                        <h1 className="text-sm font-bold text-gray-800 dark:text-gray-100 hidden sm:block">QUẢN LÝ NHÀ THUỐC</h1>
+                        <h1 className="text-sm font-bold text-gray-800 dark:text-gray-100 hidden sm:block"> NHÀ THUỐC NGỌC MỸ</h1>
                     </div>
                     <div className="flex items-center gap-2">
                         <ModeToggle />
@@ -25,6 +34,7 @@ export default function DashboardLayout() {
                 </div>
             </main>
             <MobileNav />
+            <SecretMessageModal isOpen={isSecretOpen} onClose={() => setIsSecretOpen(false)} />
         </SidebarProvider>
     )
 }

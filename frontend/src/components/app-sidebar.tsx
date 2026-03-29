@@ -23,9 +23,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const sidebarData = {
     teams: [
       {
-        name: "Mỹ Mỹ",
+        name: "Ngọc Mỹ",
         logo: (
-          <img src="/ngoc_my_logo.png" alt="Mỹ Mỹ Logo" className="w-full h-full object-cover rounded-md" />
+          <img src="/ngoc_my_logo.png" alt="Ngọc Mỹ Logo" className="w-full h-full object-cover rounded-md" />
         ),
         plan: "Nhà thuốc",
       },
@@ -157,6 +157,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           email: typeof user?.username === 'string' ? user.username : "",
           avatar: "/avata.jpg"
         }} />
+        <div className="px-4 py-2 text-[10px] text-gray-400 dark:text-neutral-500 font-medium text-center border-t border-gray-100 dark:border-neutral-800">
+          Created by Ngọc Thái
+          <br />
+          <span className="text-[#5c9a38] dark:text-[#65a34e]">Chúc bé luôn vui vẻ</span>
+        </div>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
