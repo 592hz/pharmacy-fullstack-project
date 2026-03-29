@@ -124,7 +124,7 @@ export const productCategorySchema = z.object({
     notes: z.string().optional(),
 })
 
-export type ProductCategory = z.infer<typeof productCategorySchema> & { id: string }
+export type ProductCategory = z.infer<typeof productCategorySchema> & { id?: string }
 
 export const categorySchema = z.object({
     id: z.string().optional(),
@@ -135,7 +135,7 @@ export const categorySchema = z.object({
     notes: z.string().optional(),
 })
 
-export type Category = z.infer<typeof categorySchema> & { id: string }
+export type Category = z.infer<typeof categorySchema> & { id?: string }
 
 // ─── PAYMENT METHOD ───
 export const paymentMethodSchema = z.object({
