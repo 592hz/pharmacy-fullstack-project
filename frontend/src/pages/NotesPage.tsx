@@ -1,8 +1,11 @@
 import { useState } from "react"
 import { Plus, Trash2, Search, StickyNote, Calendar, Edit3, X, Save } from "lucide-react"
 import { toast } from "sonner"
-import { mockNotes, type Note, setMockNotes } from "@/lib/mock-data"
+import type { Note } from "@/lib/schemas"
 import { noteSchema } from "@/lib/schemas"
+import { noteService } from "@/services/note.service"
+import { useEffect } from "react"
+import { getErrorMessage } from "@/lib/utils"
 
 const COLORS = [
     "bg-yellow-100 border-yellow-200 text-yellow-800",
@@ -14,7 +17,8 @@ const COLORS = [
 ]
 
 export default function NotesPage() {
-    const [notes, setNotes] = useState<Note[]>(mockNotes)
+    const [notes, setNotes] = useState<Note[]>([])
+    const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
     const [isAdding, setIsAdding] = useState(false)
     const [editingNote, setEditingNote] = useState<Note | null>(null)
@@ -24,12 +28,28 @@ export default function NotesPage() {
     const [newContent, setNewContent] = useState("")
     const [selectedColor, setSelectedColor] = useState(COLORS[0])
 
+    const fetchNotes = async () => {
+        setIsLoading(true)
+        try {
+            const data = await noteService.getAll()
+            setNotes(data)
+        } catch (error: unknown) {
+            toast.error("Không thể tải ghi chú: " + getErrorMessage(error))
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchNotes()
+    }, [])
+
     const filteredNotes = notes.filter(n =>
         n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         n.content.toLowerCase().includes(searchQuery.toLowerCase())
     )
 
-    const handleAddNote = () => {
+    const handleAddNote = async () => {
         const result = noteSchema.safeParse({
             title: newTitle,
             content: newContent,
@@ -40,44 +60,58 @@ export default function NotesPage() {
             return
         }
 
-        const newNote: Note = {
-            id: Date.now().toString(),
-            ...result.data,
-            date: new Date().toISOString(),
-            color: selectedColor
+        try {
+            const date = new Date().toISOString()
+            const newNote = await noteService.create({
+                ...result.data,
+                date: date,
+                color: selectedColor
+            })
+
+            const completeNote: Note = {
+                ...newNote,
+                id: newNote.id || `NOTE${Date.now()}`,
+                date: date
+            }
+
+            setNotes([completeNote, ...notes])
+
+            setNewTitle("")
+            setNewContent("")
+            setIsAdding(false)
+            toast.success("Đã thêm ghi chú mới")
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
-
-        const updated = [newNote, ...notes]
-        setNotes(updated)
-        setMockNotes(updated)
-
-        setNewTitle("")
-        setNewContent("")
-        setIsAdding(false)
-        toast.success("Đã thêm ghi chú mới")
     }
 
-    const handleDeleteNote = (id: string, e: React.MouseEvent) => {
+    const handleDeleteNote = async (id: string, e: React.MouseEvent) => {
         e.stopPropagation()
-        const updated = notes.filter(n => n.id !== id)
-        setNotes(updated)
-        setMockNotes(updated)
-        toast.error("Đã xóa ghi chú")
+        try {
+            await noteService.delete(id)
+            setNotes(notes.filter(n => n.id !== id))
+            toast.error("Đã xóa ghi chú")
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
+        }
     }
 
-    const handleUpdateNote = () => {
-        if (!editingNote) return
+    const handleUpdateNote = async () => {
+        if (!editingNote || !editingNote.id) return
         const result = noteSchema.safeParse(editingNote)
         if (!result.success) {
             toast.error(result.error.issues[0].message)
             return
         }
 
-        const updated = notes.map(n => n.id === editingNote.id ? editingNote : n)
-        setNotes(updated)
-        setMockNotes(updated)
-        setEditingNote(null)
-        toast.success("Đã cập nhật ghi chú")
+        try {
+            const data = await noteService.update(editingNote.id!, editingNote)
+            setNotes(notes.map(n => n.id === data.id ? data : n))
+            setEditingNote(null)
+            toast.success("Đã cập nhật ghi chú")
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
+        }
     }
 
     const fmtDate = (iso: string) => {
@@ -112,6 +146,7 @@ export default function NotesPage() {
                         onClick={() => setIsAdding(true)}
                         className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-green-500/20 active:scale-95 transition-all whitespace-nowrap"
                     >
+                        {isLoading && <span className="text-[#5c9a38] animate-pulse mr-2 text-sm italic">Đang tải...</span>}
                         <Plus size={18} />
                         Tạo mới
                     </button>

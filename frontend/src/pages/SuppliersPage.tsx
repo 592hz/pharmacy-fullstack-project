@@ -1,125 +1,15 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Download, Upload, SlidersHorizontal, FileText, Plus } from "lucide-react"
 import { toast } from "sonner"
 import AddSupplierModal from "@/components/add-supplier-modal"
 import { type Supplier } from "@/lib/schemas"
-
-const initialSuppliers = [
-    {
-        id: "NCC00006",
-        name: "CÔNG TY CP DƯỢC PHẨM MEDX",
-        address: "Tầng 3, số 164 Phan Văn Trị, Phường Bình Thạnh, TP Hồ Chí Minh",
-        phone: "02873008840",
-        debt: -30542,
-        notes: "",
-        isNational: true,
-        isDefaultImport: false,
-    },
-    {
-        id: "NCC00010",
-        name: "CÔNG TY TNHH UMED VIỆT NAM",
-        address: "373/1/171J Lý Thường Kiệt, Phường Tân Hòa, Thành phố Hồ Chí Minh, Việt Nam",
-        phone: "0898850086",
-        debt: 5,
-        notes: "",
-        isNational: true,
-        isDefaultImport: false,
-    },
-    {
-        id: "NCC00014",
-        name: "CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ DƯỢC CHÂU THỊNH PHÁT",
-        address: "27C Đường Nguyễn Hiền, Khu phố Thắng Lợi 2, Phường Dĩ An, Thành Phố Hồ Chí Minh, Việt Nam",
-        phone: "0972288139",
-        debt: 0,
-        notes: "",
-        isNational: true,
-        isDefaultImport: false,
-    },
-    {
-        id: "NCC00015",
-        name: "CÔNG TY CỔ PHẦN THƯƠNG MẠI DƯỢC VƯƠNG",
-        address: "Số 62, ngõ 5, đường Vũ Trọng Phụng, Phường Thanh Xuân, Thành phố Hà Nội, Việt Nam",
-        phone: "",
-        debt: -33114,
-        notes: "",
-        isNational: true,
-        isDefaultImport: false,
-    },
-    {
-        id: "NCC00004",
-        name: "CÔNG TY CỔ PHẦN THƯƠNG MẠI THIẾT BỊ KHÁNH AN",
-        address: "Số C9/5A, Khu phố Bình Thuận II, Phường Thuận Giao, Thành phố Hồ Chí Minh, Việt Nam",
-        phone: "0903964865",
-        debt: 0,
-        notes: "",
-        isNational: true,
-        isDefaultImport: false,
-    },
-    {
-        id: "NCC00008",
-        name: "CÔNG TY CỔ PHẦN DƯỢC PHẨM MEDX",
-        address: "Tầng 3, số 164 Phan Văn Trị, Phường Bình Thạnh, TP Hồ Chí Minh",
-        phone: "02873008840",
-        debt: 0,
-        notes: "",
-        isNational: true,
-        isDefaultImport: false,
-    },
-    {
-        id: "NCC00013",
-        name: "CÔNG TY TNHH DƯỢC AN THÀNH PHÁT",
-        address: "Thửa đất số 1713, Tờ bản đồ số G, Khu phố Tân Hiệp, Phường Tân Đông Hiệp, Thành phố Hồ Chí Minh, Việt Nam",
-        phone: "02746 550 7043",
-        debt: 0,
-        notes: "",
-        isNational: true,
-        isDefaultImport: false,
-    },
-    {
-        id: "NCC00011",
-        name: "CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ THUẬN PHÁT VN",
-        address: "465/1/12 Tân Kỳ Tân Quý, Phường Tân Sơn Nhì, TP Hồ Chí Minh, Việt Nam",
-        phone: "",
-        debt: -19,
-        notes: "",
-        isNational: true,
-        isDefaultImport: false,
-    },
-    {
-        id: "1C25TSH",
-        name: "CÔNG TY TNHH THƯƠNG MẠI DỊCH VỤ TRANG THIẾT BỊ SEN HỒNG",
-        address: "Ô 12, Lô BT04, đường D7, Khu dân cư An Thạnh, khu phố Thạnh Hòa B, Phường An Thạnh, Thành phố Thuận An, Tỉnh Bình Dương, Việt Nam",
-        phone: "0855888893",
-        debt: -249270,
-        notes: "",
-        isNational: true,
-        isDefaultImport: false,
-    },
-    {
-        id: "NCC00009",
-        name: "CÔNG TY TNHH THƯƠNG MẠI VÀ DƯỢC PHẨM BALE PHARMA",
-        address: "Lô A1-16 & A1-17 đường Như Nguyệt, Phường Hải Châu, Thành phố Đà Nẵng, Việt Nam",
-        phone: "",
-        debt: 0,
-        notes: "",
-        isNational: true,
-        isDefaultImport: false,
-    },
-    {
-        id: "NCC00005",
-        name: "CÔNG TY TNHH THƯƠNG MẠI VTYT HUY HOÀNG",
-        address: "10C/KDC 17, Khu phố Bình Phước A, Phường An Phú, Thành phố Hồ Chí Minh, Việt Nam",
-        phone: "0355885339",
-        debt: 0,
-        notes: "",
-        isNational: true,
-        isDefaultImport: false,
-    },
-]
+import { supplierService } from "@/services/supplier.service"
+import { getErrorMessage } from "@/lib/utils"
 
 export default function SuppliersPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-    const [suppliers, setSuppliers] = useState<Supplier[]>(initialSuppliers)
+    const [suppliers, setSuppliers] = useState<Supplier[]>([])
+    const [isLoading, setIsLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
     const [currentPage, setCurrentPage] = useState(1)
     const [itemsPerPage, setItemsPerPage] = useState(10)
@@ -127,9 +17,25 @@ export default function SuppliersPage() {
     const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null)
     const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
 
+    const fetchSuppliers = async () => {
+        setIsLoading(true)
+        try {
+            const data = await supplierService.getAll()
+            setSuppliers(data)
+        } catch (error: unknown) {
+            toast.error("Không thể tải danh sách nhà cung cấp: " + getErrorMessage(error))
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchSuppliers()
+    }, [])
+
     const filteredSuppliers = suppliers.filter(s =>
         s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (s.code && s.code.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (s.phone && s.phone.includes(searchTerm))
     )
 
@@ -142,17 +48,22 @@ export default function SuppliersPage() {
         setDeleteConfirmCount(1)
     }
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (deleteConfirmCount === 1) {
             setDeleteConfirmCount(2)
             return
         }
 
-        if (deleteConfirmCount === 2) {
-            setSuppliers(suppliers.filter(s => s.id !== supplierToDelete?.id))
-            toast.success("Đã xóa nhà cung cấp thành công!")
-            setSupplierToDelete(null)
-            setDeleteConfirmCount(0)
+        if (deleteConfirmCount === 2 && supplierToDelete && supplierToDelete.id) {
+            try {
+                await supplierService.delete(supplierToDelete.id)
+                setSuppliers(suppliers.filter(s => s.id !== supplierToDelete.id))
+                toast.success("Đã xóa nhà cung cấp thành công!")
+                setSupplierToDelete(null)
+                setDeleteConfirmCount(0)
+            } catch (error: unknown) {
+                toast.error(`Lỗi khi xóa: ${getErrorMessage(error)}`)
+            }
         }
     }
 
@@ -161,14 +72,25 @@ export default function SuppliersPage() {
         setDeleteConfirmCount(0)
     }
 
-    const handleAddSupplier = (newSupplier: Supplier) => {
-        setSuppliers([newSupplier, ...suppliers])
-        toast.success("Đã thêm nhà cung cấp mới thành công!")
+    const handleAddSupplier = async (newSupplier: Supplier) => {
+        try {
+            const data = await supplierService.create(newSupplier)
+            setSuppliers([data, ...suppliers])
+            toast.success("Đã thêm nhà cung cấp mới thành công!")
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
+        }
     }
 
-    const handleEditSupplier = (updatedSupplier: Supplier) => {
-        setSuppliers(suppliers.map(s => s.id === updatedSupplier.id ? updatedSupplier : s))
-        toast.success("Cập nhật thông tin nhà cung cấp thành công!")
+    const handleEditSupplier = async (updatedSupplier: Supplier) => {
+        try {
+            if (!updatedSupplier.id) return;
+            const data = await supplierService.update(updatedSupplier.id, updatedSupplier)
+            setSuppliers(suppliers.map(s => s.id === data.id ? data : s))
+            toast.success("Cập nhật thông tin nhà cung cấp thành công!")
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
+        }
     }
 
     return (
@@ -239,7 +161,7 @@ export default function SuppliersPage() {
                                     </tr>
                                 ) : displayedSuppliers.map((supplier) => (
                                     <tr key={supplier.id} className="hover:bg-gray-50 dark:hover:bg-neutral-800/50 text-gray-700 dark:text-gray-300">
-                                        <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 font-medium">{supplier.id}</td>
+                                        <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 font-medium">{supplier.code}</td>
                                         <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 max-w-[250px] text-xs leading-relaxed whitespace-normal break-words">{supplier.name}</td>
                                         <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 text-xs leading-relaxed max-w-[180px] break-words whitespace-normal">{supplier.address}</td>
                                         <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800">{supplier.phone}</td>
@@ -274,6 +196,7 @@ export default function SuppliersPage() {
                     <div className="flex items-center justify-between mt-6 text-sm text-gray-500 dark:text-gray-400">
                         <div>
                             Tổng số bản ghi: {filteredSuppliers.length} - Trang {currentPage}/{totalPages}
+                            {isLoading && <span className="text-[#5c9a38] animate-pulse ml-2">Đang tải...</span>}
                         </div>
                         <div className="flex items-center space-x-1">
                             <button

@@ -1,8 +1,10 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Download, Upload, SlidersHorizontal, FileText, Plus, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
 import { toast } from "sonner"
-import { mockPurchaseOrders, type PurchaseOrder } from "@/lib/mock-data"
+import { type PurchaseOrder } from "@/lib/schemas"
+import { purchaseOrderService } from "@/services/purchase-order.service"
+import { getErrorMessage } from "@/lib/utils"
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50]
 
@@ -24,7 +26,23 @@ const fmtDate = (iso: string) => {
 
 export default function PurchaseOrdersPage() {
     const navigate = useNavigate()
-    const [orders, setOrders] = useState<PurchaseOrder[]>(mockPurchaseOrders)
+    const [orders, setOrders] = useState<PurchaseOrder[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+
+    useEffect(() => {
+        const fetchOrders = async () => {
+            setIsLoading(true)
+            try {
+                const data = await purchaseOrderService.getAll()
+                setOrders(data)
+            } catch {
+                toast.error("Không thể tải danh sách phiếu nhập")
+            } finally {
+                setIsLoading(false)
+            }
+        }
+        fetchOrders()
+    }, [])
 
     // ── Filter state ─────────────────────────────────────────────────────────
     const [dateFilterType, setDateFilterType] = useState<"Ngày" | "Từ ngày" | "Tháng" | "Quý" | "Năm">("Năm")
@@ -74,9 +92,9 @@ export default function PurchaseOrdersPage() {
             const kw = filterKeyword.toLowerCase()
             if (
                 kw &&
-                !o.supplierName.toLowerCase().includes(kw) &&
-                !o.id.toLowerCase().includes(kw) &&
-                !o.invoiceNumber.toLowerCase().includes(kw)
+                !o.supplierName?.toLowerCase().includes(kw) &&
+                !o.id?.toLowerCase().includes(kw) &&
+                !o.invoiceNumber?.toLowerCase().includes(kw)
             )
                 return false
 
@@ -112,20 +130,27 @@ export default function PurchaseOrdersPage() {
         setDeleteStep(1)
     }
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (deleteStep === 1) { setDeleteStep(2); return }
-        if (deleteStep === 2 && orderToDelete) {
-            setOrders((prev) => prev.filter((o) => o.id !== orderToDelete.id))
-            toast.success(`Đã xóa phiếu nhập ${orderToDelete.id}!`)
-            setOrderToDelete(null)
-            setDeleteStep(0)
+        if (deleteStep === 2 && orderToDelete?.id) {
+            try {
+                await purchaseOrderService.delete(orderToDelete.id)
+                setOrders((prev) => prev.filter((o) => o.id !== orderToDelete.id))
+                toast.success(`Đã xóa phiếu nhập ${orderToDelete.id}!`)
+                setOrderToDelete(null)
+                setDeleteStep(0)
+            } catch (error: unknown) {
+                toast.error(`Lỗi: ${getErrorMessage(error)}`)
+            }
         }
     }
 
     const cancelDelete = () => { setOrderToDelete(null); setDeleteStep(0) }
 
     const handleView = (order: PurchaseOrder) => {
-        navigate(`/purchase-orders/${order.id}`)
+        if (order.id) {
+            navigate(`/purchase-orders/${order.id}`)
+        }
     }
 
 
@@ -148,7 +173,10 @@ export default function PurchaseOrdersPage() {
 
                 {/* ── Page Header ─────────────────────────────────────────────── */}
                 <div className="border-b px-6 py-4 flex items-center justify-between">
-                    <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100">Danh sách phiếu nhập</h1>
+                    <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                        Danh sách phiếu nhập
+                        {isLoading && <span className="text-xs font-normal text-gray-400">(Đang tải...)</span>}
+                    </h1>
                 </div>
 
                 <div className="flex">

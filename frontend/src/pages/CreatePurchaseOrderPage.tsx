@@ -1,17 +1,24 @@
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Plus, Search, PlusCircle, Trash2, Save, X, Calendar, FileText, CreditCard, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
-import { mockProducts, type PurchaseOrderItem, addMockPurchaseOrder, type PurchaseOrder, mockSuppliersList } from "@/lib/mock-data"
-import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
-import { parseFloatSafe } from "@/lib/utils"
+import { AddProductModal } from "@/components/add-product-modal"
+import AddSupplierModal from "@/components/add-supplier-modal"
+import { type ProductFormData } from "@/components/add-product-modal"
+import { parseFloatSafe, getErrorMessage } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { purchaseOrderSchema } from "@/lib/schemas"
+import { productService } from "@/services/product.service"
+import { supplierService } from "@/services/supplier.service"
+import { purchaseOrderService } from "@/services/purchase-order.service"
+import { paymentMethodService } from "@/services/payment-method.service"
+import { type Product, type PurchaseOrderItem, type PurchaseOrder, type Supplier, type PaymentMethod } from "@/lib/schemas"
 
 export default function CreatePurchaseOrderPage() {
     const navigate = useNavigate()
 
     // Form state
+    const [supplierId, setSupplierId] = useState("")
     const [supplierName, setSupplierName] = useState("")
     const [invoiceNumber, setInvoiceNumber] = useState("")
     const [notes, setNotes] = useState("")
@@ -22,23 +29,55 @@ export default function CreatePurchaseOrderPage() {
     const [importDate] = useState(() => new Date().toISOString())
     const createdBy = "Quản trị viên"
     const [paymentMethod, setPaymentMethod] = useState("Chuyển khoản")
+    const [allPaymentMethods, setAllPaymentMethods] = useState<PaymentMethod[]>([])
 
     const [showAddModal, setShowAddModal] = useState(false)
+    const [showAddSupplierModal, setShowAddSupplierModal] = useState(false)
 
     // Search state
     const [searchQuery, setSearchQuery] = useState("")
     const [showResults, setShowResults] = useState(false)
+    const [selectedIndex, setSelectedIndex] = useState(-1)
+    const [allProducts, setAllProducts] = useState<Product[]>([])
+    const [allSuppliers, setAllSuppliers] = useState<Supplier[]>([])
+
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [products, suppliers, paymentMethods] = await Promise.all([
+                    productService.getAll(),
+                    supplierService.getAll(),
+                    paymentMethodService.getAll()
+                ]);
+                setAllProducts(products);
+                setAllSuppliers(suppliers);
+                setAllPaymentMethods(paymentMethods);
+
+                // Set default payment method
+                const defaultMethod = paymentMethods.find((m: PaymentMethod) => m.isDefault);
+                if (defaultMethod) {
+                    setPaymentMethod(defaultMethod.name);
+                } else if (paymentMethods.length > 0) {
+                    setPaymentMethod(paymentMethods[0].name);
+                }
+            } catch (error: unknown) {
+                console.error("Error fetching data:", getErrorMessage(error));
+                toast.error("Không thể tải dữ liệu: " + getErrorMessage(error));
+            }
+        };
+        fetchData();
+    }, []);
 
     const filteredSuggestions = useMemo(() => {
         if (!searchQuery.trim()) return []
         const query = searchQuery.toLowerCase()
-        return mockProducts.filter(p =>
-            p.name.toLowerCase().includes(query) ||
-            p.id.toLowerCase().includes(query)
+        return allProducts.filter(p =>
+            (p.name && p.name.toLowerCase().includes(query)) ||
+            (p.id && p.id.toLowerCase().includes(query))
         ).slice(0, 10)
-    }, [searchQuery])
+    }, [searchQuery, allProducts])
 
-    const handleQuickAdd = useCallback((product: typeof mockProducts[0]) => {
+    const handleQuickAdd = useCallback((product: Product) => {
         const qty = 1
         const importPrice = product.importPrice || 0
         const total = qty * importPrice
@@ -47,9 +86,9 @@ export default function CreatePurchaseOrderPage() {
 
         const newItem: PurchaseOrderItem = {
             id: `new-${Date.now()}-${Math.random()}`,
-            code: product.id,
-            name: product.name,
-            unit: product.unit,
+            code: product.id || "",
+            name: product.name || "",
+            unit: product.unit || product.baseUnitName || "",
             batchNumber: "",
             expiryDate: "",
             quantity: qty,
@@ -67,10 +106,35 @@ export default function CreatePurchaseOrderPage() {
         setItems(prev => [...prev, newItem])
         setSearchQuery("")
         setShowResults(false)
+        setSelectedIndex(-1)
         toast.success(`Đã thêm nhanh: ${product.name}`)
     }, [])
 
-    const handleProductSaved = useCallback((formData: ProductFormData) => {
+    const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+        if (!showResults || filteredSuggestions.length === 0) return
+
+        if (e.key === "ArrowDown") {
+            e.preventDefault()
+            setSelectedIndex(prev => (prev < filteredSuggestions.length - 1 ? prev + 1 : prev))
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault()
+            setSelectedIndex(prev => (prev > 0 ? prev - 1 : prev))
+        } else if (e.key === "Enter") {
+            e.preventDefault()
+            const selected = selectedIndex >= 0 ? filteredSuggestions[selectedIndex] : filteredSuggestions[0]
+            if (selected) {
+                handleQuickAdd(selected)
+            }
+        } else if (e.key === "Escape") {
+            setShowResults(false)
+            setSelectedIndex(-1)
+        }
+    }
+
+    const handleProductSaved = useCallback((savedProduct: Product, formData: ProductFormData) => {
+        // Add to the search list immediately
+        setAllProducts(prev => [savedProduct, ...prev])
+
         const firstUnit = formData.units?.[0]
         const qty = 1
         const importPrice = firstUnit?.importPrice || 0
@@ -80,10 +144,11 @@ export default function CreatePurchaseOrderPage() {
         const total = qty * importPrice
         const discountAmt = Math.round(total * discountPct / 100)
         const vatAmt = Math.round((total - discountAmt) * vatPct / 100)
+        
         const newItem: PurchaseOrderItem = {
             id: `new-${Date.now()}-${Math.random()}`,
-            code: formData.productCode || "",
-            name: formData.productName,
+            code: savedProduct.id || formData.productCode || "",
+            name: savedProduct.name || formData.productName,
             unit: firstUnit?.unitName || "",
             batchNumber: "",
             expiryDate: "",
@@ -99,7 +164,18 @@ export default function CreatePurchaseOrderPage() {
             registrationNumber: "-",
         }
         setItems(prev => [...prev, newItem])
-        toast.success(`Đã thêm: ${newItem.name}`)
+    }, [])
+
+    const handleQuickSupplierAdded = useCallback(async (newSupplier: Supplier) => {
+        try {
+            const data = await supplierService.create(newSupplier)
+            setAllSuppliers(prev => [data, ...prev])
+            setSupplierId(data.id)
+            setSupplierName(data.name)
+            toast.success("Đã thêm nhanh nhà cung cấp và tự động chọn!")
+        } catch (error: unknown) {
+            toast.error(`Lỗi khi thêm nhà cung cấp: ${getErrorMessage(error)}`)
+        }
     }, [])
 
     const removeItem = useCallback((id: string) => {
@@ -149,12 +225,12 @@ export default function CreatePurchaseOrderPage() {
     const totalVat = roundTo3(items.reduce((sum, item) => sum + item.vatAmount, 0))
     const amountToPay = roundTo3(totalAmount - totalDiscount + totalVat)
 
-    const handleSaveOrder = useCallback(() => {
+    const handleSaveOrder = useCallback(async () => {
         // Prepare data for validation
         const orderData = {
             id: orderId,
             importDate,
-            supplierId: "NEW_ID", // Temporary 
+            supplierId,
             supplierName,
             totalAmount,
             discount: totalDiscount,
@@ -193,7 +269,7 @@ export default function CreatePurchaseOrderPage() {
         const newOrder: PurchaseOrder = {
             id: orderId,
             importDate,
-            supplierId: "NEW_ID",
+            supplierId,
             supplierName,
             totalAmount,
             discount: totalDiscount,
@@ -208,10 +284,14 @@ export default function CreatePurchaseOrderPage() {
 
         console.log("Saving Purchase Order:", newOrder);
 
-        addMockPurchaseOrder(newOrder)
-        toast.success("Đã tạo phiếu nhập mới thành công")
-        navigate("/purchase-orders")
-    }, [amountToPay, createdBy, importDate, invoiceNumber, items, navigate, notes, orderId, paymentMethod, supplierName, totalAmount, totalDiscount, totalVat])
+        try {
+            await purchaseOrderService.create(newOrder)
+            toast.success("Đã tạo phiếu nhập mới thành công")
+            navigate("/purchase-orders")
+        } catch (error: unknown) {
+            toast.error("Lỗi khi lưu đơn hàng: " + getErrorMessage(error))
+        }
+    }, [items, supplierId, invoiceNumber, notes, importDate, createdBy, paymentMethod, navigate, orderId, supplierName, totalAmount, totalDiscount, totalVat, amountToPay])
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-neutral-900 overflow-hidden">
@@ -242,16 +322,30 @@ export default function CreatePurchaseOrderPage() {
                     {/* Supplier Select */}
                     <div className="col-span-2 flex flex-col gap-1.5">
                         <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Nhà cung cấp *</label>
-                        <select
-                            value={supplierName}
-                            onChange={(e) => setSupplierName(e.target.value)}
-                            className="w-full bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
-                        >
-                            <option value="">Chọn nhà cung cấp...</option>
-                            {mockSuppliersList.map(s => (
-                                <option key={s.id} value={s.name}>{s.name}</option>
-                            ))}
-                        </select>
+                        <div className="flex gap-2">
+                            <select
+                                value={supplierId}
+                                onChange={(e) => {
+                                    const s = allSuppliers.find(x => x.id === e.target.value)
+                                    setSupplierId(e.target.value)
+                                    setSupplierName(s?.name || "")
+                                }}
+                                className="w-full bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
+                            >
+                                <option value="">Chọn nhà cung cấp...</option>
+                                {allSuppliers.map(s => (
+                                    <option key={s.id} value={s.id}>{s.name}</option>
+                                ))}
+                            </select>
+                            <button
+                                type="button"
+                                onClick={() => setShowAddSupplierModal(true)}
+                                className="bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 p-2 rounded border border-green-200 dark:border-green-800/50 hover:bg-green-100 transition-colors shadow-sm"
+                                title="Thêm nhanh nhà cung cấp"
+                            >
+                                <Plus size={20} />
+                            </button>
+                        </div>
                     </div>
 
                     {/* Order Meta Info */}
@@ -290,9 +384,9 @@ export default function CreatePurchaseOrderPage() {
                             onChange={(e) => setPaymentMethod(e.target.value)}
                             className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
                         >
-                            <option value="Chuyển khoản">Chuyển khoản</option>
-                            <option value="Tiền mặt">Tiền mặt</option>
-                            <option value="Nợ">Ghi nợ</option>
+                            {allPaymentMethods.map(m => (
+                                <option key={m.id || m.name} value={m.name}>{m.name}</option>
+                            ))}
                         </select>
                     </div>
                     <div className="flex flex-col gap-1.5">
@@ -320,9 +414,11 @@ export default function CreatePurchaseOrderPage() {
                             onChange={(e) => {
                                 setSearchQuery(e.target.value)
                                 setShowResults(true)
+                                setSelectedIndex(-1)
                             }}
                             onFocus={() => setShowResults(true)}
                             onBlur={() => setTimeout(() => setShowResults(false), 200)}
+                            onKeyDown={handleSearchKeyDown}
                         />
                         <button
                             onClick={() => setShowAddModal(true)}
@@ -338,11 +434,16 @@ export default function CreatePurchaseOrderPage() {
                         <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-2xl shadow-2xl z-50 overflow-hidden">
                             {filteredSuggestions.length > 0 ? (
                                 <div className="max-h-[400px] overflow-y-auto p-2">
-                                    {filteredSuggestions.map((product) => (
+                                    {filteredSuggestions.map((product, index) => (
                                         <button
                                             key={product.id}
-                                            onClick={() => handleQuickAdd(product)}
-                                            className="w-full flex items-center justify-between p-3.5 rounded-xl hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors text-left group"
+                                            onMouseDown={(e) => {
+                                                e.preventDefault()
+                                                handleQuickAdd(product)
+                                            }}
+                                            className={`w-full flex items-center justify-between p-3.5 rounded-xl transition-colors text-left group ${
+                                                selectedIndex === index ? "bg-green-100 dark:bg-green-900/40 border-l-4 border-green-500" : "hover:bg-green-50 dark:hover:bg-green-900/20"
+                                            }`}
                                         >
                                             <div className="flex flex-col gap-0.5">
                                                 <div className="text-base font-bold text-gray-800 dark:text-gray-100 group-hover:text-green-600 transition-colors">
@@ -351,9 +452,9 @@ export default function CreatePurchaseOrderPage() {
                                                 <div className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-3 mt-1">
                                                     <span className="bg-gray-100 dark:bg-neutral-700 px-2 py-0.5 rounded-md font-mono text-[10px]">{product.id}</span>
                                                     <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                                    <span>ĐVT: <b className="text-gray-700 dark:text-gray-300">{product.unit}</b></span>
+                                                    <span>ĐVT: <b className="text-gray-700 dark:text-gray-300">{product.baseUnitName}</b></span>
                                                     <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                                    <span className="text-green-600 dark:text-green-400 font-bold">Giá: {vnd(product.importPrice)}</span>
+                                                    <span className="text-green-600 dark:text-green-400 font-bold">Giá: {vnd(product.importPrice || 0)}</span>
                                                 </div>
                                             </div>
                                             <div className="bg-green-600 text-white px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wider opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all shadow-lg">
@@ -384,6 +485,12 @@ export default function CreatePurchaseOrderPage() {
                 isOpen={showAddModal}
                 onClose={() => setShowAddModal(false)}
                 onSuccess={handleProductSaved}
+            />
+
+            <AddSupplierModal
+                isOpen={showAddSupplierModal}
+                onClose={() => setShowAddSupplierModal(false)}
+                onAdd={handleQuickSupplierAdded}
             />
 
             {/* ── LINE ITEMS DATA GRID ── */}
@@ -432,39 +539,39 @@ export default function CreatePurchaseOrderPage() {
                                             <input
                                                 type="text"
                                                 className="w-full bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-center outline-none focus:ring-1 focus:ring-blue-500"
-                                                value={item.batchNumber}
+                                                value={item.batchNumber || ""}
                                                 placeholder="Lô..."
-                                                onChange={(e) => updateItemField(item.id, 'batchNumber', e.target.value)}
+                                                onChange={(e) => updateItemField(item.id!, 'batchNumber', e.target.value)}
                                             />
                                         </td>
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800">
                                             <input
                                                 type="text"
                                                 className="w-full bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-center outline-none focus:ring-1 focus:ring-blue-500"
-                                                value={item.expiryDate}
+                                                value={item.expiryDate || ""}
                                                 placeholder="HH-DD-YYYY"
-                                                onChange={(e) => updateItemField(item.id, 'expiryDate', e.target.value)}
+                                                onChange={(e) => updateItemField(item.id!, 'expiryDate', e.target.value)}
                                             />
                                         </td>
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right">
                                             <NumericInput
                                                 className="w-16 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none focus:ring-1 focus:ring-blue-500 font-bold"
                                                 value={Number(item.quantity)}
-                                                onChange={(v) => updateItemField(item.id, 'quantity', v)}
+                                                onChange={(v) => updateItemField(item.id!, 'quantity', v)}
                                             />
                                         </td>
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right">
                                             <NumericInput
                                                 className="w-24 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none focus:ring-1 focus:ring-blue-500 font-bold text-red-600 dark:text-red-400"
                                                 value={Number(item.importPrice)}
-                                                onChange={(v) => updateItemField(item.id, 'importPrice', v)}
+                                                onChange={(v) => updateItemField(item.id!, 'importPrice', v)}
                                             />
                                         </td>
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right">
                                             <NumericInput
                                                 className="w-24 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none focus:ring-1 focus:ring-blue-500 font-bold"
                                                 value={Number(item.retailPrice)}
-                                                onChange={(v) => updateItemField(item.id, 'retailPrice', v)}
+                                                onChange={(v) => updateItemField(item.id!, 'retailPrice', v)}
                                             />
                                         </td>
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right font-medium">{vnd(item.totalAmount)}</td>
@@ -472,7 +579,7 @@ export default function CreatePurchaseOrderPage() {
                                             <NumericInput
                                                 className="w-12 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none"
                                                 value={Number(item.discountPercent)}
-                                                onChange={(v) => updateItemField(item.id, 'discountPercent', v)}
+                                                onChange={(v) => updateItemField(item.id!, 'discountPercent', v)}
                                             />
                                         </td>
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right text-gray-500">{vnd(item.discountAmount)}</td>
@@ -480,7 +587,7 @@ export default function CreatePurchaseOrderPage() {
                                             <NumericInput
                                                 className="w-12 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none"
                                                 value={Number(item.vatPercent)}
-                                                onChange={(v) => updateItemField(item.id, 'vatPercent', v)}
+                                                onChange={(v) => updateItemField(item.id!, 'vatPercent', v)}
                                             />
                                         </td>
                                         <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right text-gray-500">{vnd(item.vatAmount)}</td>
@@ -489,14 +596,14 @@ export default function CreatePurchaseOrderPage() {
                                             <input
                                                 type="text"
                                                 className="w-16 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-center outline-none focus:ring-1 focus:ring-blue-500"
-                                                value={item.registrationNumber}
+                                                value={item.registrationNumber || ""}
                                                 placeholder="SĐK..."
-                                                onChange={(e) => updateItemField(item.id, 'registrationNumber', e.target.value)}
+                                                onChange={(e) => updateItemField(item.id!, 'registrationNumber', e.target.value)}
                                             />
                                         </td>
                                         <td className="px-2 py-3 text-center">
                                             <button
-                                                onClick={() => removeItem(item.id)}
+                                                onClick={() => removeItem(item.id!)}
                                                 className="text-red-400 hover:text-red-600 p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
                                             >
                                                 <Trash2 size={16} />

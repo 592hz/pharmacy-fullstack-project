@@ -1,31 +1,59 @@
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { Plus, AlertCircle, Search, PlusCircle, Trash2, Save, X } from "lucide-react"
 import { toast } from "sonner"
-import { mockPurchaseOrders, mockProducts, type PurchaseOrderItem } from "@/lib/mock-data"
+import { type PurchaseOrder, type PurchaseOrderItem, type Product, purchaseOrderSchema } from "@/lib/schemas"
+import { purchaseOrderService } from "@/services/purchase-order.service"
+import { productService } from "@/services/product.service"
+import { paymentMethodService } from "@/services/payment-method.service"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
-import { parseFloatSafe } from "@/lib/utils"
+import { parseFloatSafe, getErrorMessage } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
+import { type PaymentMethod } from "@/lib/schemas"
 
 export default function PurchaseOrderDetailPage() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
 
-    // Find the order
-    const originalOrder = useMemo(() => mockPurchaseOrders.find(o => o.id === id) || null, [id])
+    const roundTo3 = (num: number) => Math.round((num + Number.EPSILON) * 1000) / 1000
 
-    const order = originalOrder
-    const [items, setItems] = useState<PurchaseOrderItem[]>(originalOrder?.items || [])
+    // Find the order
+    const [order, setOrder] = useState<PurchaseOrder | null>(null)
+    const [items, setItems] = useState<PurchaseOrderItem[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+    const [allProducts, setAllProducts] = useState<Product[]>([])
     const [showAddModal, setShowAddModal] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
+    const [invoiceNumber, setInvoiceNumber] = useState("")
+    const [notes, setNotes] = useState("")
+    const [paymentMethod, setPaymentMethod] = useState("")
+    const [allPaymentMethods, setAllPaymentMethods] = useState<PaymentMethod[]>([])
 
-    // Reset items when order changes (e.g. navigation between orders)
-    const [prevId, setPrevId] = useState(id)
-    if (id !== prevId) {
-        setPrevId(id)
-        setItems(originalOrder?.items || [])
-        setIsEditing(false)
-    }
+    useEffect(() => {
+        const fetchData = async () => {
+            if (!id) return
+            setIsLoading(true)
+            try {
+                const [orderData, productsData, paymentMethodsData] = await Promise.all([
+                    purchaseOrderService.getById(id),
+                    productService.getAll(),
+                    paymentMethodService.getAll()
+                ])
+                setOrder(orderData)
+                setItems(orderData.items || [])
+                setInvoiceNumber(orderData.invoiceNumber || "")
+                setNotes(orderData.notes || "")
+                setPaymentMethod(orderData.paymentMethod || "")
+                setAllProducts(productsData)
+                setAllPaymentMethods(paymentMethodsData)
+            } catch (error: unknown) {
+                toast.error("Không thể tải thông tin phiếu nhập: " + getErrorMessage(error))
+            } finally {
+                setIsLoading(false)
+            }
+        }
+        fetchData()
+    }, [id])
 
     // Search state
     const [searchQuery, setSearchQuery] = useState("")
@@ -34,13 +62,13 @@ export default function PurchaseOrderDetailPage() {
     const filteredSuggestions = useMemo(() => {
         if (!searchQuery.trim()) return []
         const query = searchQuery.toLowerCase()
-        return mockProducts.filter(p =>
-            p.name.toLowerCase().includes(query) ||
-            p.id.toLowerCase().includes(query)
+        return allProducts.filter(p =>
+            (p.name && p.name.toLowerCase().includes(query)) ||
+            (p.id && p.id.toLowerCase().includes(query))
         ).slice(0, 10)
-    }, [searchQuery])
+    }, [searchQuery, allProducts])
 
-    const handleQuickAdd = useCallback((product: typeof mockProducts[0]) => {
+    const handleQuickAdd = useCallback((product: Product) => {
         const qty = 1
         const importPrice = product.importPrice || 0
         const total = qty * importPrice
@@ -49,9 +77,9 @@ export default function PurchaseOrderDetailPage() {
 
         const newItem: PurchaseOrderItem = {
             id: `new-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            code: product.id,
-            name: product.name,
-            unit: product.unit,
+            code: product.id || "",
+            name: product.name || "",
+            unit: product.baseUnitName || "",
             batchNumber: "",
             expiryDate: "",
             quantity: qty,
@@ -63,7 +91,6 @@ export default function PurchaseOrderDetailPage() {
             vatPercent: vatPct,
             vatAmount: vatAmt,
             remainingAmount: total + vatAmt,
-            registrationNumber: "-",
         }
 
         setItems(prev => [...prev, newItem])
@@ -73,7 +100,7 @@ export default function PurchaseOrderDetailPage() {
     }, [])
 
     // Handler when AddProductModal saves a new product → convert to PurchaseOrderItem
-    const handleProductSaved = useCallback((formData: ProductFormData) => {
+    const handleProductSaved = useCallback((savedProduct: Product, formData: ProductFormData) => {
         const firstUnit = formData.units?.[0]
         const qty = 1
         const importPrice = firstUnit?.importPrice || 0
@@ -85,8 +112,8 @@ export default function PurchaseOrderDetailPage() {
         const vatAmt = Math.round((total - discountAmt) * vatPct / 100)
         const newItem: PurchaseOrderItem = {
             id: `new-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            code: formData.productCode || "",
-            name: formData.productName,
+            code: savedProduct.id || formData.productCode || "",
+            name: savedProduct.name || formData.productName,
             unit: firstUnit?.unitName || "",
             batchNumber: "",
             expiryDate: "",
@@ -102,11 +129,15 @@ export default function PurchaseOrderDetailPage() {
             registrationNumber: "-",
         }
         setItems(prev => [...prev, newItem])
-        toast.success(`Đã thêm: ${newItem.name}`)
     }, [])
 
     const handleCancelEdit = () => {
-        setItems(originalOrder?.items || [])
+        if (order) {
+            setItems(order.items || [])
+            setInvoiceNumber(order.invoiceNumber || "")
+            setNotes(order.notes || "")
+            setPaymentMethod(order.paymentMethod || "")
+        }
         setIsEditing(false)
         toast.info("Đã hủy thay đổi")
     }
@@ -150,9 +181,66 @@ export default function PurchaseOrderDetailPage() {
         }))
     }, [])
 
-    const handleSaveOrder = () => {
-        setIsEditing(false)
-        toast.success("Đã lưu thay đổi phiếu nhập")
+    const handleSaveOrder = async () => {
+        if (!order || !id) return
+
+        // Basic validation
+        if (items.length === 0) {
+            toast.error("Phiếu nhập phải có ít nhất một sản phẩm")
+            return
+        }
+
+        for (const item of items) {
+            if (!item.name) {
+                toast.error("Sản phẩm không được để trống tên")
+                return
+            }
+            if (item.quantity <= 0) {
+                toast.error(`Sản phẩm ${item.name} có số lượng không hợp lệ (>0)`)
+                return
+            }
+            if (item.importPrice < 0) {
+                toast.error(`Sản phẩm ${item.name} có giá nhập không hợp lệ (>=0)`)
+                return
+            }
+        }
+
+        try {
+            const updatedOrder = { 
+                ...order, 
+                invoiceNumber,
+                notes,
+                paymentMethod,
+                items,
+                totalAmount: roundTo3(totalAmount),
+                discount: roundTo3(totalDiscount),
+                vat: roundTo3(totalVat),
+                grandTotal: roundTo3(amountToPay)
+            }
+
+            // Validate with Zod schema
+            const validation = purchaseOrderSchema.safeParse(updatedOrder)
+            if (!validation.success) {
+                toast.error(validation.error.issues[0].message)
+                return
+            }
+
+            await purchaseOrderService.update(id, updatedOrder)
+            setOrder(updatedOrder)
+            setIsEditing(false)
+            toast.success("Đã lưu thay đổi phiếu nhập")
+        } catch (error: unknown) {
+            toast.error("Lỗi khi lưu phiếu nhập: " + getErrorMessage(error))
+        }
+    }
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full space-y-4">
+                <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-gray-500">Đang tải thông tin phiếu nhập...</p>
+            </div>
+        )
     }
 
     if (!order) {
@@ -238,9 +326,10 @@ export default function PurchaseOrderDetailPage() {
                         <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">Số hóa đơn</label>
                         <input
                             type="text"
-                            value={order.invoiceNumber}
-                            disabled
-                            className="bg-gray-50 dark:bg-neutral-800/50 border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-500"
+                            value={invoiceNumber}
+                            onChange={(e) => setInvoiceNumber(e.target.value)}
+                            disabled={!isEditing}
+                            className={`${isEditing ? 'bg-white' : 'bg-gray-50/50 text-gray-500'} dark:bg-neutral-800 border border-gray-300 dark:border-neutral-700 px-3 py-1.5 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500`}
                         />
                     </div>
                     <div className="flex flex-col gap-1">
@@ -254,12 +343,25 @@ export default function PurchaseOrderDetailPage() {
                     </div>
                     <div className="flex flex-col gap-1">
                         <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">HTTT</label>
-                        <input
-                            type="text"
-                            value={order.paymentMethod || "Chuyển khoản"}
-                            disabled
-                            className="bg-gray-50 dark:bg-neutral-800/50 border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-500"
-                        />
+                        {isEditing ? (
+                            <select
+                                value={paymentMethod}
+                                onChange={(e) => setPaymentMethod(e.target.value)}
+                                className="bg-white dark:bg-neutral-800 border border-gray-300 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-800 dark:text-gray-300 outline-none focus:ring-1 focus:ring-blue-500"
+                            >
+                                <option value="">Chọn...</option>
+                                {allPaymentMethods.map(m => (
+                                    <option key={m.id || m.name} value={m.name}>{m.name}</option>
+                                ))}
+                            </select>
+                        ) : (
+                            <input
+                                type="text"
+                                value={paymentMethod || "Chuyển khoản"}
+                                disabled
+                                className="bg-gray-50 dark:bg-neutral-800/50 border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-500"
+                            />
+                        )}
                     </div>
                     <div className="flex flex-col gap-1 col-span-1">
                         <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">Người nhập</label>
@@ -331,7 +433,7 @@ export default function PurchaseOrderDetailPage() {
                                                     <span>&bull;</span>
                                                     <span>ĐVT: {product.unit}</span>
                                                     <span>&bull;</span>
-                                                    <span className="text-green-600 dark:text-green-400 font-medium">Giá: {vnd(product.importPrice)}</span>
+                                                    <span className="text-green-600 dark:text-green-400 font-medium">Giá: {vnd(product.importPrice || 0)}</span>
                                                 </div>
                                             </div>
                                             <div className="opacity-0 group-hover:opacity-100 transition-opacity bg-blue-600 text-white px-2 py-1 rounded text-[10px] font-bold">
@@ -420,7 +522,7 @@ export default function PurchaseOrderDetailPage() {
                                                 type="text"
                                                 className="w-full bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-1 rounded outline-none text-center"
                                                 value={item.batchNumber}
-                                                onChange={(e) => updateItemField(item.id, 'batchNumber', e.target.value)}
+                                                onChange={(e) => updateItemField(item.id || "", 'batchNumber', e.target.value)}
                                             />
                                         ) : item.batchNumber}
                                     </td>
@@ -430,7 +532,7 @@ export default function PurchaseOrderDetailPage() {
                                                 type="text"
                                                 className="w-full bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-1 rounded outline-none text-center"
                                                 value={item.expiryDate}
-                                                onChange={(e) => updateItemField(item.id, 'expiryDate', e.target.value)}
+                                                onChange={(e) => updateItemField(item.id || "", 'expiryDate', e.target.value)}
                                             />
                                         ) : item.expiryDate}
                                     </td>
@@ -439,7 +541,7 @@ export default function PurchaseOrderDetailPage() {
                                             <NumericInput
                                                 className="w-16 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-1 rounded outline-none text-right"
                                                 value={Number(item.quantity)}
-                                                onChange={(v) => updateItemField(item.id, 'quantity', v)}
+                                                onChange={(v) => updateItemField(item.id || "", 'quantity', v)}
                                             />
                                         ) : item.quantity}
                                     </td>
@@ -448,7 +550,7 @@ export default function PurchaseOrderDetailPage() {
                                             <NumericInput
                                                 className="w-24 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-1 rounded outline-none text-right"
                                                 value={Number(item.importPrice)}
-                                                onChange={(v) => updateItemField(item.id, 'importPrice', v)}
+                                                onChange={(v) => updateItemField(item.id || "", 'importPrice', v)}
                                             />
                                         ) : vnd(item.importPrice)}
                                     </td>
@@ -457,7 +559,7 @@ export default function PurchaseOrderDetailPage() {
                                             <NumericInput
                                                 className="w-24 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-1 rounded outline-none text-right"
                                                 value={Number(item.retailPrice)}
-                                                onChange={(v) => updateItemField(item.id, 'retailPrice', v)}
+                                                onChange={(v) => updateItemField(item.id || "", 'retailPrice', v)}
                                             />
                                         ) : vnd(item.retailPrice)}
                                     </td>
@@ -467,7 +569,7 @@ export default function PurchaseOrderDetailPage() {
                                             <NumericInput
                                                 className="w-12 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-1 rounded outline-none text-right"
                                                 value={Number(item.discountPercent)}
-                                                onChange={(v) => updateItemField(item.id, 'discountPercent', v)}
+                                                onChange={(v) => updateItemField(item.id || "", 'discountPercent', v)}
                                             />
                                         ) : Number(item.discountPercent ?? 0).toFixed(2).replace('.', ',')}
                                     </td>
@@ -477,7 +579,7 @@ export default function PurchaseOrderDetailPage() {
                                             <NumericInput
                                                 className="w-12 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-1 rounded outline-none text-right"
                                                 value={Number(item.vatPercent)}
-                                                onChange={(v) => updateItemField(item.id, 'vatPercent', v)}
+                                                onChange={(v) => updateItemField(item.id || "", 'vatPercent', v)}
                                             />
                                         ) : Number(item.vatPercent ?? 0)}
                                     </td>
@@ -489,14 +591,14 @@ export default function PurchaseOrderDetailPage() {
                                                 type="text"
                                                 className="w-full bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-1 rounded outline-none text-center"
                                                 value={item.registrationNumber}
-                                                onChange={(e) => updateItemField(item.id, 'registrationNumber', e.target.value)}
+                                                onChange={(e) => updateItemField(item.id || "", 'registrationNumber', e.target.value)}
                                             />
                                         ) : item.registrationNumber}
                                     </td>
                                     {isEditing && (
                                         <td className="px-3 py-2 text-center">
                                             <button
-                                                onClick={() => removeItem(item.id)}
+                                                onClick={() => removeItem(item.id || "")}
                                                 className="text-red-500 hover:text-red-700 transition"
                                             >
                                                 <Trash2 size={16} />
@@ -518,9 +620,10 @@ export default function PurchaseOrderDetailPage() {
                         <input
                             type="text"
                             placeholder="Ghi chú"
-                            value={order.notes}
-                            readOnly
-                            className="w-full bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-500"
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            readOnly={!isEditing}
+                            className={`w-full ${isEditing ? 'bg-white' : 'bg-gray-50 dark:bg-neutral-800 text-gray-500'} border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded text-sm outline-none focus:ring-1 focus:ring-blue-500`}
                         />
                     </div>
                     <div className="flex gap-4">

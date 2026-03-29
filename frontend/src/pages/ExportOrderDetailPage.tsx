@@ -1,31 +1,57 @@
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { AlertCircle, Search, PlusCircle, Trash2, Save, X, Printer } from "lucide-react"
 import { toast } from "sonner"
-import { mockExportSlips, mockProducts, type ExportSlipItem, type Product } from "@/lib/mock-data"
+import { type ExportOrder, type ExportOrderItem, type Product, exportOrderSchema } from "@/lib/schemas"
+import { exportSlipService } from "@/services/export-slip.service"
+import { productService } from "@/services/product.service"
+import { paymentMethodService } from "@/services/payment-method.service"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
-import { parseFloatSafe } from "@/lib/utils"
+import { parseFloatSafe, getErrorMessage } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
+import { type PaymentMethod } from "@/lib/schemas"
 
 export default function ExportOrderDetailPage() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNavigate()
 
-    // Find the slip
-    const originalSlip = useMemo(() => mockExportSlips.find(s => s.id === id) || null, [id])
+    const roundTo3 = (num: number) => Math.round((num + Number.EPSILON) * 1000) / 1000
 
-    const slip = originalSlip
-    const [items, setItems] = useState<ExportSlipItem[]>(originalSlip?.items || [])
+    const [slip, setSlip] = useState<ExportOrder | null>(null)
+    const [items, setItems] = useState<ExportOrderItem[]>([])
+    const [isLoading, setIsLoading] = useState(true)
     const [showAddModal, setShowAddModal] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
+    const [allProducts, setAllProducts] = useState<Product[]>([])
+    const [notes, setNotes] = useState("")
+    const [paymentMethod, setPaymentMethod] = useState("")
+    const [allPaymentMethods, setAllPaymentMethods] = useState<PaymentMethod[]>([])
 
-    // Reset items when order changes (e.g. navigation between orders)
-    const [prevId, setPrevId] = useState(id)
-    if (id !== prevId) {
-        setPrevId(id)
-        setItems(originalSlip?.items || [])
-        setIsEditing(false)
-    }
+    const fetchData = useCallback(async () => {
+        if (!id) return
+        setIsLoading(true)
+        try {
+            const [slipData, productsData, paymentMethodsData] = await Promise.all([
+                exportSlipService.getById(id),
+                productService.getAll(),
+                paymentMethodService.getAll()
+            ])
+            setSlip(slipData)
+            setItems(slipData.items || [])
+            setNotes(slipData.notes || "")
+            setPaymentMethod(slipData.paymentMethod || "")
+            setAllProducts(productsData)
+            setAllPaymentMethods(paymentMethodsData)
+        } catch (error: unknown) {
+            toast.error("Không thể tải thông tin phiếu xuất: " + getErrorMessage(error))
+        } finally {
+            setIsLoading(false)
+        }
+    }, [id])
+
+    useEffect(() => {
+        fetchData()
+    }, [fetchData])
 
     // Search state
     const [searchQuery, setSearchQuery] = useState("")
@@ -34,11 +60,11 @@ export default function ExportOrderDetailPage() {
     const filteredSuggestions = useMemo(() => {
         if (!searchQuery.trim()) return []
         const query = searchQuery.toLowerCase()
-        return mockProducts.filter(p =>
-            p.name.toLowerCase().includes(query) ||
-            p.id.toLowerCase().includes(query)
+        return allProducts.filter(p =>
+            (p.productName || p.name || "").toLowerCase().includes(query) ||
+            ((p.id || p.productCode || "")).toLowerCase().includes(query)
         ).slice(0, 10)
-    }, [searchQuery])
+    }, [allProducts, searchQuery])
 
     const handleQuickAdd = useCallback((product: Product) => {
         const qty = 1
@@ -51,11 +77,11 @@ export default function ExportOrderDetailPage() {
             ? [...product.batches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))[0]
             : null
 
-        const newItem: ExportSlipItem = {
+        const newItem: ExportOrderItem = {
             id: `new-${Date.now()}-${Math.random()}`,
-            code: product.id,
-            name: product.name,
-            unit: product.unit,
+            code: product.productCode || product.id || "",
+            name: product.productName || product.name || "",
+            unit: product.baseUnitName || product.unit || "",
             batchNumber: firstBatch?.batchNumber || "",
             expiryDate: firstBatch?.expiryDate || product.expiryDate || "",
             quantity: qty,
@@ -82,17 +108,17 @@ export default function ExportOrderDetailPage() {
         }
     }, [slip])
 
-    const handleProductSaved = useCallback((formData: ProductFormData) => {
+    const handleProductSaved = useCallback((savedProduct: Product, formData: ProductFormData) => {
         const firstUnit = formData.units?.[0]
         const qty = 1
         const retailPrice = firstUnit?.retailPrice || 0
         const importPrice = firstUnit?.importPrice || 0
         const total = qty * retailPrice
 
-        const newItem: ExportSlipItem = {
+        const newItem: ExportOrderItem = {
             id: `new-${Date.now()}-${Math.random()}`,
-            code: formData.productCode || "",
-            name: formData.productName,
+            code: savedProduct.id || formData.productCode || "",
+            name: savedProduct.name || formData.productName,
             unit: firstUnit?.unitName || "",
             batchNumber: formData.batchNumber || "",
             expiryDate: formData.expiryDate || "",
@@ -105,11 +131,14 @@ export default function ExportOrderDetailPage() {
             remainingAmount: total,
         }
         setItems(prev => [...prev, newItem])
-        toast.success(`Đã thêm: ${newItem.name}`)
     }, [])
 
     const handleCancelEdit = () => {
-        setItems(originalSlip?.items || [])
+        if (slip) {
+            setItems(slip.items || [])
+            setNotes(slip.notes || "")
+            setPaymentMethod(slip.paymentMethod || "")
+        }
         setIsEditing(false)
         toast.info("Đã hủy thay đổi")
     }
@@ -129,7 +158,7 @@ export default function ExportOrderDetailPage() {
         toast.error("Đã xóa sản phẩm khỏi phiếu")
     }
 
-    const updateItemField = useCallback((id: string, field: keyof ExportSlipItem, value: string | number | boolean) => {
+    const updateItemField = useCallback((id: string, field: keyof ExportOrderItem, value: string | number | boolean) => {
         setItems(prev => prev.map(item => {
             if (item.id !== id) return item
 
@@ -149,9 +178,52 @@ export default function ExportOrderDetailPage() {
         }))
     }, [])
 
-    const handleSaveOrder = () => {
-        setIsEditing(false)
-        toast.success("Đã lưu thay đổi phiếu xuất")
+    const handleSaveOrder = async () => {
+        if (!slip || !id) return
+        
+        const updatedSlip: ExportOrder = {
+            ...slip,
+            notes,
+            paymentMethod,
+            items: items.map(item => ({
+                ...item,
+                id: item.id || `ITEM-${Date.now()}-${Math.random()}`,
+                quantity: Number(item.quantity),
+                retailPrice: Number(item.retailPrice),
+                importPrice: Number(item.importPrice),
+                totalAmount: Number(item.totalAmount),
+                discountPercent: Number(item.discountPercent),
+                discountAmount: Number(item.discountAmount),
+                remainingAmount: Number(item.remainingAmount)
+            })),
+            totalAmount: roundTo3(totalAmount),
+            grandTotal: roundTo3(amountToPay)
+        }
+
+        // Validate using schema
+        const validation = exportOrderSchema.safeParse(updatedSlip)
+        if (!validation.success) {
+            toast.error(validation.error.issues[0].message)
+            return
+        }
+
+        try {
+            await exportSlipService.update(id, updatedSlip)
+            setSlip(updatedSlip)
+            setIsEditing(false)
+            toast.success("Đã lưu thay đổi phiếu xuất")
+        } catch (error: unknown) {
+            toast.error("Lỗi khi lưu phiếu xuất: " + getErrorMessage(error))
+        }
+    }
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full space-y-4">
+                <div className="w-12 h-12 border-4 border-[#5c9a38] border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-gray-500">Đang tải thông tin phiếu xuất...</p>
+            </div>
+        )
     }
 
     if (!slip) {
@@ -252,12 +324,25 @@ export default function ExportOrderDetailPage() {
                     </div>
                     <div className="flex flex-col gap-1">
                         <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">HTTT</label>
-                        <input
-                            type="text"
-                            value={slip.paymentMethod || "Tiền mặt"}
-                            disabled
-                            className="bg-gray-50 dark:bg-neutral-800/50 border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-500"
-                        />
+                        {isEditing ? (
+                            <select
+                                value={paymentMethod}
+                                onChange={(e) => setPaymentMethod(e.target.value)}
+                                className="bg-white dark:bg-neutral-800 border border-gray-300 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-800 dark:text-gray-300 outline-none focus:ring-1 focus:ring-[#5c9a38]"
+                            >
+                                <option value="">Chọn...</option>
+                                {allPaymentMethods.map(m => (
+                                    <option key={m.id || m.name} value={m.name}>{m.name}</option>
+                                ))}
+                            </select>
+                        ) : (
+                            <input
+                                type="text"
+                                value={paymentMethod || "Tiền mặt"}
+                                disabled
+                                className="bg-gray-50 dark:bg-neutral-800/50 border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-500"
+                            />
+                        )}
                     </div>
                     <div className="flex flex-col gap-1">
                         <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">Trạng thái TT</label>
@@ -376,27 +461,27 @@ export default function ExportOrderDetailPage() {
                                     <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700">{item.unit}</td>
                                     <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700">
                                         {isEditing ? (
-                                            <input type="text" className="w-full border rounded px-1" value={item.batchNumber} onChange={(e) => updateItemField(item.id, 'batchNumber', e.target.value)} />
+                                            <input type="text" className="w-full border rounded px-1" value={item.batchNumber || ""} onChange={(e) => updateItemField(item.id!, 'batchNumber', e.target.value)} />
                                         ) : item.batchNumber}
                                     </td>
                                     <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700">
                                         {isEditing ? (
-                                            <input type="text" className="w-full border rounded px-1" value={item.expiryDate} onChange={(e) => updateItemField(item.id, 'expiryDate', e.target.value)} />
+                                            <input type="text" className="w-full border rounded px-1" value={item.expiryDate || ""} onChange={(e) => updateItemField(item.id!, 'expiryDate', e.target.value)} />
                                         ) : item.expiryDate}
                                     </td>
                                     <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700 text-right font-medium">
                                         {isEditing ? (
-                                            <NumericInput className="w-16 border rounded px-1 text-right" value={Number(item.quantity)} onChange={(v) => updateItemField(item.id, 'quantity', v)} />
+                                            <NumericInput className="w-16 border rounded px-1 text-right" value={Number(item.quantity)} onChange={(v) => updateItemField(item.id!, 'quantity', v)} />
                                         ) : item.quantity}
                                     </td>
                                     <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700 text-right text-gray-500">
                                         {isEditing ? (
-                                            <NumericInput className="w-24 border rounded px-1 text-right text-[11px]" value={Number(item.importPrice)} onChange={(v) => updateItemField(item.id, 'importPrice', v)} />
+                                            <NumericInput className="w-24 border rounded px-1 text-right text-[11px]" value={Number(item.importPrice)} onChange={(v) => updateItemField(item.id!, 'importPrice', v)} />
                                         ) : vnd(item.importPrice)}
                                     </td>
                                     <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700 text-right font-medium">
                                         {isEditing ? (
-                                            <NumericInput className="w-24 border rounded px-1 text-right" value={Number(item.retailPrice)} onChange={(v) => updateItemField(item.id, 'retailPrice', v)} />
+                                            <NumericInput className="w-24 border rounded px-1 text-right" value={Number(item.retailPrice)} onChange={(v) => updateItemField(item.id!, 'retailPrice', v)} />
                                         ) : vnd(item.retailPrice)}
                                     </td>
                                     <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700 text-right font-bold">{vnd(item.remainingAmount)}</td>
@@ -405,7 +490,7 @@ export default function ExportOrderDetailPage() {
                                     </td>
                                     {isEditing && (
                                         <td className="px-3 py-2 text-center">
-                                            <button onClick={() => removeItem(item.id)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
+                                            <button onClick={() => removeItem(item.id!)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
                                         </td>
                                     )}
                                 </tr>
@@ -417,18 +502,32 @@ export default function ExportOrderDetailPage() {
 
             {/* ── FOOTER TOTALS ── */}
             <div className="flex-none p-4 border-t-2 border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900/80">
+                <div className="flex gap-4 mb-4">
+                    <div className="flex-1 flex flex-col gap-1">
+                        <label className="text-[11px] font-semibold text-gray-800 dark:text-gray-200 uppercase tracking-wider">Ghi chú</label>
+                        <textarea
+                            rows={1}
+                            placeholder="Nhập ghi chú phiếu xuất..."
+                            value={notes}
+                            onChange={(e) => setNotes(e.target.value)}
+                            readOnly={!isEditing}
+                            className={`w-full ${isEditing ? 'bg-white' : 'bg-transparent text-gray-500'} border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded text-sm outline-none focus:ring-1 focus:ring-[#5c9a38] transition-all resize-none`}
+                        />
+                    </div>
+                </div>
+
                 <div className="flex justify-end gap-10 text-sm font-semibold">
                     <div className="flex flex-col items-end">
-                        <span className="text-gray-500 uppercase text-[10px]">Tổng giá nhập</span>
+                        <span className="text-gray-500 uppercase text-[10px] tracking-wider mb-1">Tổng giá nhập</span>
                         <span className="text-xl text-gray-700 dark:text-gray-300 font-bold">{vnd(totalImport)}</span>
                     </div>
                     <div className="flex flex-col items-end">
-                        <span className="text-[#5c9a38] uppercase text-[10px]">Tổng lợi nhuận</span>
+                        <span className="text-[#5c9a38] uppercase text-[10px] tracking-wider mb-1">Tổng lợi nhuận</span>
                         <span className="text-xl text-[#5c9a38] font-bold">{vnd(totalProfit)}</span>
                     </div>
                     <div className="flex flex-col items-end">
-                        <span className="text-gray-500 uppercase text-[10px]">Tổng tiền bán</span>
-                        <span className="text-2xl text-green-600 font-bold">{vnd(amountToPay)}</span>
+                        <span className="text-gray-500 uppercase text-[10px] tracking-wider mb-1">Tổng tiền bán</span>
+                        <span className="text-2xl text-green-600 font-extrabold">{vnd(amountToPay)}</span>
                     </div>
                 </div>
 

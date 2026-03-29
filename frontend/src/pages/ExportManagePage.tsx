@@ -1,8 +1,10 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Download, Upload, Plus, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, FileText } from "lucide-react"
 import { toast } from "sonner"
-import { mockExportSlips, type ExportSlip } from "@/lib/mock-data"
+import { type ExportOrder } from "@/lib/schemas"
+import { exportSlipService } from "@/services/export-slip.service"
+import { getErrorMessage } from "@/lib/utils"
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50]
 
@@ -22,7 +24,24 @@ const fmtDate = (iso: string) => {
 
 export default function ExportManagePage() {
     const navigate = useNavigate()
-    const [slips, setSlips] = useState<ExportSlip[]>(mockExportSlips)
+    const [slips, setSlips] = useState<ExportOrder[]>([])
+    const [isLoading, setIsLoading] = useState(true)
+
+    const fetchSlips = async () => {
+        setIsLoading(true)
+        try {
+            const data = await exportSlipService.getAll()
+            setSlips(data)
+        } catch (error: unknown) {
+            toast.error("Không thể tải danh sách phiếu xuất: " + getErrorMessage(error))
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchSlips()
+    }, [])
 
     // ── Filter state ─────────────────────────────────────────────────────────
     const [dateFilterType, setDateFilterType] = useState<"Ngày" | "Từ ngày" | "Tháng" | "Quý" | "Năm">("Năm")
@@ -40,8 +59,9 @@ export default function ExportManagePage() {
     const [pageSize, setPageSize] = useState(10)
 
     // ── Delete confirm state ─────────────────────────────────────────────────
-    const [slipToDelete, setSlipToDelete] = useState<ExportSlip | null>(null)
+    const [slipToDelete, setSlipToDelete] = useState<ExportOrder | null>(null)
     const [deleteStep, setDeleteStep] = useState(0)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     // ── Derived filtered + paginated data ────────────────────────────────────
     const filtered = useMemo(() => {
@@ -72,8 +92,8 @@ export default function ExportManagePage() {
             if (
                 kw &&
                 !s.customerName.toLowerCase().includes(kw) &&
-                !s.id.toLowerCase().includes(kw) &&
-                !s.customerPhone.toLowerCase().includes(kw)
+                !(s.id || "").toLowerCase().includes(kw) &&
+                !(s.customerPhone || "").toLowerCase().includes(kw)
             )
                 return false
 
@@ -95,21 +115,29 @@ export default function ExportManagePage() {
         navigate(`/export-manage/${id}`)
     }
 
-    const handleDeleteClick = (slip: ExportSlip) => {
+    const handleDeleteClick = (slip: ExportOrder) => {
         setSlipToDelete(slip)
         setDeleteStep(1)
     }
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (deleteStep === 1) {
             setDeleteStep(2)
             return
         }
-        if (deleteStep === 2 && slipToDelete) {
-            setSlips(prev => prev.filter(s => s.id !== slipToDelete.id))
-            toast.success(`Đã xóa phiếu xuất ${slipToDelete.id}`)
-            setSlipToDelete(null)
-            setDeleteStep(0)
+        if (deleteStep === 2 && slipToDelete && slipToDelete.id) {
+            setIsDeleting(true)
+            try {
+                await exportSlipService.delete(slipToDelete.id)
+                toast.success(`Đã xóa phiếu xuất ${slipToDelete.id}`)
+                setSlipToDelete(null)
+                setDeleteStep(0)
+                fetchSlips()
+            } catch (error: unknown) {
+                toast.error("Không thể xóa phiếu xuất: " + getErrorMessage(error))
+            } finally {
+                setIsDeleting(false)
+            }
         }
     }
 
@@ -129,6 +157,15 @@ export default function ExportManagePage() {
         }
         return pages
     }, [page, totalPages])
+
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen bg-[#f4f4f4] dark:bg-neutral-900">
+                <div className="w-12 h-12 border-4 border-[#5c9a38] border-t-transparent rounded-full animate-spin"></div>
+                <p className="mt-4 text-gray-500">Đang tải danh sách phiếu xuất...</p>
+            </div>
+        )
+    }
 
     return (
         <div className="p-4 bg-[#f4f4f4] dark:bg-neutral-900 min-h-screen">
@@ -305,10 +342,10 @@ export default function ExportManagePage() {
                                 </thead>
                                 <tbody>
                                     {paged.map((slip, idx) => (
-                                        <tr key={slip.id} className="hover:bg-gray-50 dark:hover:bg-neutral-800/20 items-center border-b border-gray-100 dark:border-neutral-800">
+                                        <tr key={slip.id || idx} className="hover:bg-gray-50 dark:hover:bg-neutral-800/20 items-center border-b border-gray-100 dark:border-neutral-800">
                                             <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 flex items-center justify-center gap-1">
                                                 <button
-                                                    onClick={() => handleView(slip.id)}
+                                                    onClick={() => handleView(slip.id!)}
                                                     className="bg-[#5c9a38] text-white px-2 py-0.5 rounded text-[10px] font-bold hover:bg-[#4d822f]"
                                                 >
                                                     Xem
@@ -323,7 +360,7 @@ export default function ExportManagePage() {
                                             <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-center">
                                                 {(page - 1) * pageSize + idx + 1}
                                             </td>
-                                            <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 text-blue-600 font-medium hover:underline cursor-pointer" onClick={() => handleView(slip.id)}>
+                                            <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 text-blue-600 font-medium hover:underline cursor-pointer" onClick={() => handleView(slip.id!)}>
                                                 {slip.id}
                                             </td>
                                             <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 text-gray-600">
@@ -418,9 +455,10 @@ export default function ExportManagePage() {
                             </button>
                             <button
                                 onClick={confirmDelete}
-                                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 shadow-sm"
+                                disabled={isDeleting}
+                                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 shadow-sm disabled:opacity-50"
                             >
-                                {deleteStep === 1 ? "Xóa bỏ" : "Xác nhận xóa"}
+                                {isDeleting ? "Đang xóa..." : (deleteStep === 1 ? "Xóa bỏ" : "Xác nhận xóa")}
                             </button>
                         </div>
                     </div>

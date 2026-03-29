@@ -2,11 +2,13 @@ import { useState, useEffect } from "react"
 import { Download, Upload, Plus, Bell, FileText, X } from "lucide-react"
 import { toast } from "sonner"
 import AddCustomerModal from "@/components/add-customer-modal"
-import { mockCustomers, setMockCustomers, type Customer } from "@/lib/mock-data"
+import { type Customer } from "@/lib/schemas"
+import { customerService } from "@/services/customer.service"
+import { getErrorMessage } from "@/lib/utils"
 
 
 export default function CustomersPage() {
-    const [customers, setCustomers] = useState<Customer[]>(mockCustomers)
+    const [customers, setCustomers] = useState<Customer[]>([])
     const [searchTerm, setSearchTerm] = useState('')
     const [currentPage, setCurrentPage] = useState(1)
     const [itemsPerPage, setItemsPerPage] = useState(10)
@@ -14,10 +16,23 @@ export default function CustomersPage() {
     const [editingCustomer, setEditingCustomer] = useState<Customer | null>(null)
     const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null)
     const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
+    const [isLoading, setIsLoading] = useState(true)
+
+    const fetchCustomers = async () => {
+        setIsLoading(true)
+        try {
+            const data = await customerService.getAll()
+            setCustomers(data)
+        } catch (error: unknown) {
+            toast.error("Không thể tải danh sách khách hàng: " + getErrorMessage(error))
+        } finally {
+            setIsLoading(false)
+        }
+    }
 
     useEffect(() => {
-        setMockCustomers(customers)
-    }, [customers])
+        fetchCustomers()
+    }, [])
 
     const handleDeleteClick = (customer: Customer) => {
         setCustomerToDelete(customer)
@@ -32,10 +47,16 @@ export default function CustomersPage() {
         }
 
         if (deleteConfirmCount === 2) {
-            setCustomers(customers.filter(c => c.id !== customerToDelete.id))
-            toast.success("Đã xóa khách hàng thành công!")
-            setCustomerToDelete(null)
-            setDeleteConfirmCount(0)
+            customerService.delete(customerToDelete.id!)
+                .then(() => {
+                    setCustomers(customers.filter(c => c.id !== customerToDelete.id))
+                    toast.success("Đã xóa khách hàng thành công!")
+                    setCustomerToDelete(null)
+                    setDeleteConfirmCount(0)
+                })
+                .catch((error: unknown) => {
+                    toast.error(`Lỗi khi xóa: ${getErrorMessage(error)}`)
+                })
         }
     }
 
@@ -44,22 +65,32 @@ export default function CustomersPage() {
         setDeleteConfirmCount(0)
     }
 
-    const handleAddCustomer = (newCustomer: Customer) => {
-        setCustomers([newCustomer, ...customers])
-        toast.success("Đã thêm khách hàng mới thành công!")
-        setIsAddModalOpen(false)
+    const handleAddCustomer = async (newCustomer: Customer) => {
+        try {
+            const data = await customerService.create(newCustomer)
+            setCustomers([data, ...customers])
+            toast.success("Đã thêm khách hàng mới thành công!")
+            setIsAddModalOpen(false)
+        } catch (error: unknown) {
+            toast.error(`Lỗi khi thêm: ${getErrorMessage(error)}`)
+        }
     }
 
-    const handleEditCustomer = (updatedCustomer: Customer) => {
-        setCustomers(customers.map(c => c.id === updatedCustomer.id ? updatedCustomer : c))
-        toast.success("Cập nhật thông tin khách hàng thành công!")
-        setIsAddModalOpen(false)
-        setEditingCustomer(null)
+    const handleEditCustomer = async (updatedCustomer: Customer) => {
+        try {
+            const data = await customerService.update(updatedCustomer.id!, updatedCustomer)
+            setCustomers(customers.map(c => c.id === data.id ? data : c))
+            toast.success("Cập nhật thông tin khách hàng thành công!")
+            setIsAddModalOpen(false)
+            setEditingCustomer(null)
+        } catch (error: unknown) {
+            toast.error(`Lỗi khi cập nhật: ${getErrorMessage(error)}`)
+        }
     }
 
     const filteredCustomers = customers.filter(c =>
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (c.id && c.id.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (c.phone && c.phone.includes(searchTerm))
     )
 
@@ -175,14 +206,15 @@ export default function CustomersPage() {
                     </div>
 
                     {/* Pagination */}
-                    <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4 text-sm text-gray-500 dark:text-gray-400">
-                        <div className="order-2 sm:order-1 flex items-center gap-2">
+                    <div className="flex items-center justify-between mt-6 text-sm text-gray-500 dark:text-gray-400">
+                        <div>
                             <span>Tổng cộng: <span className="font-bold text-gray-700 dark:text-gray-200">{filteredCustomers.length}</span></span>
                             <span className="text-gray-300 dark:text-gray-700">|</span>
                             <span>Trang <span className="font-medium text-gray-700 dark:text-gray-200">{currentPage}</span> / {totalPages}</span>
+                            {isLoading && <span className="text-[#5c9a38] animate-pulse ml-2 text-xs italic">Đang tải...</span>}
                         </div>
                         
-                        <div className="flex items-center space-x-1 order-1 sm:order-2">
+                        <div className="flex items-center space-x-1">
                             <button
                                 onClick={() => setCurrentPage(1)}
                                 disabled={currentPage === 1}

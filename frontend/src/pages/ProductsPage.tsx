@@ -1,19 +1,44 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Search, List, Download, RefreshCw, Plus, FileText } from "lucide-react"
 import { AddProductModal } from "@/components/add-product-modal"
 import { toast } from "sonner"
-import { mockProducts, mockProductCategories, mockSuppliersList, type Product } from "@/lib/mock-data"
-import { type ProductFormData } from "@/components/add-product-modal"
-
-// Use common mock data
-const initialProducts = mockProducts
+import { type Product, type ProductCategory, type Supplier } from "@/lib/schemas"
+import { productService } from "@/services/product.service"
+import { productCategoryService } from "@/services/product-category.service"
+import { supplierService } from "@/services/supplier.service"
+import { getErrorMessage } from "@/lib/utils"
 
 export default function ProductsPage() {
-    const [products, setProducts] = useState<Product[]>(initialProducts)
+    const [products, setProducts] = useState<Product[]>([])
+    const [categories, setCategories] = useState<ProductCategory[]>([])
+    const [suppliers, setSuppliers] = useState<Supplier[]>([])
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
     const [productToDelete, setProductToDelete] = useState<Product | null>(null)
     const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
+    const [isLoading, setIsLoading] = useState(true)
+
+    const fetchData = async () => {
+        setIsLoading(true)
+        try {
+            const [productsData, categoriesData, suppliersData] = await Promise.all([
+                productService.getAll(),
+                productCategoryService.getAll(),
+                supplierService.getAll()
+            ])
+            setProducts(productsData)
+            setCategories(categoriesData)
+            setSuppliers(suppliersData)
+        } catch (error: unknown) {
+            toast.error("Không thể tải dữ liệu sản phẩm: " + getErrorMessage(error))
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchData()
+    }, [])
 
     // Search and Pagination State
     const [searchQuery, setSearchQuery] = useState("")
@@ -29,13 +54,27 @@ export default function ProductsPage() {
         // 1. Text Search
         const query = searchQuery.toLowerCase().trim()
 
-        const category = mockProductCategories.find(c => c.id === product.categoryId)
-        const supplier = mockSuppliersList.find(s => s.id === product.supplierId)
+        // Helper to get ID from potentially populated field
+        const getFieldValue = (field: string | { id: string; _id?: string } | undefined | null) => {
+            if (!field) return ""
+            if (typeof field === 'object') return field._id || field.id || ""
+            return field
+        }
+
+        const prodCategoryId = getFieldValue(product.categoryId)
+        const prodSupplierId = getFieldValue(product.supplierId)
+
+        const category = categories.find(c => c.id === prodCategoryId)
+        const supplier = suppliers.find(s => s.id === prodSupplierId)
+
+        const productName = product.name || product.productName || ""
+        const productCode = product.id || product.productCode || ""
 
         const matchesQuery = !query ||
-            product.name.toLowerCase().includes(query) ||
-            product.id.toLowerCase().includes(query) ||
+            productName.toLowerCase().includes(query) ||
+            productCode.toLowerCase().includes(query) ||
             (product.registrationNo && product.registrationNo.toLowerCase().includes(query)) ||
+            (product.manufacturer && product.manufacturer.toLowerCase().includes(query)) ||
             (category && category.name.toLowerCase().includes(query)) ||
             (supplier && supplier.name.toLowerCase().includes(query))
 
@@ -46,16 +85,16 @@ export default function ProductsPage() {
             ? product.batches.reduce((sum, b) => sum + b.quantity, 0)
             : product.baseQuantity
         const stockCount = Math.floor(totalBaseQuantity / (product.conversionRate || 1))
-        
+
         const lowStockThreshold = product.unit === "Viên" ? 25 : 1
         if (stockFilter === "Còn hàng" && stockCount <= 0) return false
         if (stockFilter === "Sắp hết hàng" && (stockCount <= 0 || stockCount > lowStockThreshold)) return false
         if (stockFilter === "Hết hàng" && stockCount > 0) return false
         // 3. Category Filter
-        if (categoryFilter !== "Tất cả" && product.categoryId !== categoryFilter) return false
+        if (categoryFilter !== "Tất cả" && prodCategoryId !== categoryFilter) return false
 
         // 4. Supplier Filter
-        if (supplierFilter !== "Tất cả" && product.supplierId !== supplierFilter) return false
+        if (supplierFilter !== "Tất cả" && prodSupplierId !== supplierFilter) return false
 
         return true
     })
@@ -97,11 +136,17 @@ export default function ProductsPage() {
             return
         }
 
-        if (deleteConfirmCount === 2) {
-            setProducts(products.filter(p => p.id !== productToDelete?.id))
-            toast.success("Đã xóa sản phẩm thành công!")
-            setProductToDelete(null)
-            setDeleteConfirmCount(0)
+        if (deleteConfirmCount === 2 && productToDelete) {
+            productService.delete(productToDelete.id)
+                .then(() => {
+                    setProducts(products.filter(p => p.id !== productToDelete.id))
+                    toast.success("Đã xóa sản phẩm thành công!")
+                    setProductToDelete(null)
+                    setDeleteConfirmCount(0)
+                })
+                .catch((error: unknown) => {
+                    toast.error(`Lỗi khi xóa: ${getErrorMessage(error)}`)
+                })
         }
     }
 
@@ -110,59 +155,18 @@ export default function ProductsPage() {
         setDeleteConfirmCount(0)
     }
 
-    const handleSaveProduct = (formData: ProductFormData) => {
-        if (editingProduct) {
-            // Update existing product
-            setProducts(products.map(p =>
-                p.id === editingProduct.id
-                    ? {
-                        ...p,
-                        name: formData.productName,
-                        unit: formData.units[0]?.unitName || p.unit,
-                        importPrice: formData.units[0]?.importPrice || p.importPrice,
-                        retailPrice: formData.units[0]?.retailPrice || p.retailPrice,
-                        wholesalePrice: formData.units[0]?.wholesalePrice || p.wholesalePrice,
-                        baseQuantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1),
-                        baseUnitName: formData.baseUnitName || p.baseUnitName,
-                        conversionRate: formData.units[0]?.conversionRate || 1,
-                        categoryId: formData.categoryId,
-                        supplierId: formData.supplierId,
-                        batches: p.batches && p.batches.length > 0 
-                            ? p.batches.map((b, i) => i === 0 ? { ...b, batchNumber: formData.batchNumber, expiryDate: formData.expiryDate, quantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1) } : b)
-                            : [{ batchNumber: formData.batchNumber, expiryDate: formData.expiryDate, quantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1) }]
-                    }
-                    : p
-            ))
-            setEditingProduct(null)
-        } else {
-            // Add new product
-            const newProduct: Product = {
-                id: formData.productCode,
-                name: formData.productName,
-                isDQG: false,
-                unit: formData.units[0]?.unitName || "",
-                manufacturer: ".",
-                importPrice: formData.units[0]?.importPrice || 0,
-                retailPrice: formData.units[0]?.retailPrice || 0,
-                wholesalePrice: formData.units[0]?.wholesalePrice || 0,
-                expiryDate: formData.expiryDate,
-                registrationNo: ".",
-                baseQuantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1),
-                baseUnitName: formData.baseUnitName || "",
-                conversionRate: formData.units[0]?.conversionRate || 1,
-                categoryId: formData.categoryId,
-                supplierId: formData.supplierId,
-                batches: [
-                    { 
-                        batchNumber: formData.batchNumber || "MỚI", 
-                        expiryDate: formData.expiryDate || ".", 
-                        quantity: formData.initialQuantity * (formData.units[0]?.conversionRate || 1) 
-                    }
-                ]
+    const handleSaveProduct = async (savedProduct: Product) => {
+        try {
+            if (editingProduct) {
+                setProducts(products.map(p => p.id === savedProduct.id ? savedProduct : p))
+                setEditingProduct(null)
+            } else {
+                setProducts([savedProduct, ...products])
             }
-            setProducts([newProduct, ...products])
+            setIsAddModalOpen(false)
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
-        setIsAddModalOpen(false)
     }
 
     const formatCurrency = (value: number) => {
@@ -209,8 +213,6 @@ export default function ProductsPage() {
                             }}
                         >
                             <option>Tất cả sản phẩm</option>
-                            <option>Dược phẩm</option>
-                            <option>Vật tư y tế</option>
                         </select>
                     </div>
 
@@ -224,7 +226,7 @@ export default function ProductsPage() {
                             }}
                         >
                             <option value="Tất cả">Nhóm sản phẩm</option>
-                            {mockProductCategories.map(cat => (
+                            {categories.map(cat => (
                                 <option key={cat.id} value={cat.id}>{cat.name}</option>
                             ))}
                         </select>
@@ -240,7 +242,7 @@ export default function ProductsPage() {
                             }}
                         >
                             <option value="Tất cả">Nhà cung cấp</option>
-                            {mockSuppliersList.map(sup => (
+                            {suppliers.map(sup => (
                                 <option key={sup.id} value={sup.id}>{sup.name}</option>
                             ))}
                         </select>
@@ -285,14 +287,14 @@ export default function ProductsPage() {
                 {/* Tool bar row */}
                 <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-gray-50 dark:bg-neutral-800/50 border-b border-gray-200 dark:border-neutral-800">
                     <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
-                        <button 
+                        <button
                             onClick={() => setShowFilters(!showFilters)}
                             className="lg:hidden flex items-center gap-2 bg-white dark:bg-neutral-800 border border-gray-300 dark:border-neutral-700 px-3 h-10 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors"
                         >
                             <List size={18} />
                             <span>Lọc</span>
                         </button>
-                        
+
                         <div className="flex flex-1 sm:hidden">
                             <button
                                 onClick={() => setIsAddModalOpen(true)}
@@ -372,7 +374,7 @@ export default function ProductsPage() {
                                     <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 text-right text-xs font-bold text-[#5c9a38]">
                                         {formatCurrency(product.retailPrice)}
                                     </td>
-                                    
+
                                     <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 text-center text-xs font-semibold text-blue-600 dark:text-blue-400">
                                         {(() => {
                                             const total = product.batches && product.batches.length > 0
@@ -393,6 +395,29 @@ export default function ProductsPage() {
                                     <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 text-center text-xs text-gray-500 hidden sm:table-cell">
                                         {(() => {
                                             if (product.batches && product.batches.length > 0) {
+                                                // Priority 1: First batch with quantity > 0 that is NOT "LÔ ĐẦU"
+                                                // Priority 2: First batch with quantity > 0
+                                                // Priority 3: First batch that is NOT "LÔ ĐẦU" (even if 0 qty)
+                                                // Priority 4: First batch available (likely "LÔ ĐẦU")
+
+                                                const activeOtherBatches = product.batches.filter(b => b.quantity > 0 && b.batchNumber !== "LÔ ĐẦU")
+                                                if (activeOtherBatches.length > 0) {
+                                                    const sorted = [...activeOtherBatches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
+                                                    return sorted[0].expiryDate
+                                                }
+
+                                                const activeBatches = product.batches.filter(b => b.quantity > 0)
+                                                if (activeBatches.length > 0) {
+                                                    const sorted = [...activeBatches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
+                                                    return sorted[0].expiryDate
+                                                }
+
+                                                const otherBatches = product.batches.filter(b => b.batchNumber !== "LÔ ĐẦU")
+                                                if (otherBatches.length > 0) {
+                                                    const sorted = [...otherBatches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
+                                                    return sorted[0].expiryDate
+                                                }
+
                                                 const sorted = [...product.batches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
                                                 return sorted[0].expiryDate
                                             }
@@ -426,9 +451,10 @@ export default function ProductsPage() {
                     {/* Pagination */}
                     <div className="flex flex-col sm:flex-row items-center justify-between p-4 gap-4 text-xs text-gray-500 dark:text-gray-400 border-t border-gray-100 dark:border-neutral-800">
                         <div className="order-2 sm:order-1 flex items-center gap-2">
-                             <span>Tổng: <span className="font-bold text-gray-700 dark:text-gray-200">{totalRecords}</span></span>
-                             <span className="text-gray-300">|</span>
-                             <span>Trang <span className="font-medium text-gray-700 dark:text-gray-200">{currentPage}</span>/{totalPages}</span>
+                            <span>Tổng: <span className="font-bold text-gray-700 dark:text-gray-200">{totalRecords}</span></span>
+                            <span className="text-gray-300">|</span>
+                            <span>Trang <span className="font-medium text-gray-700 dark:text-gray-200">{currentPage}</span>/{totalPages}</span>
+                            {isLoading && <span className="text-[#5c9a38] animate-pulse ml-2">Đang tải...</span>}
                         </div>
                         <div className="flex items-center space-x-1 order-1 sm:order-2">
                             <button

@@ -19,15 +19,28 @@ import ExportManagePage from "@/pages/ExportManagePage"
 import ExportOrderDetailPage from "@/pages/ExportOrderDetailPage"
 import CreateExportOrderPage from "@/pages/CreateExportOrderPage"
 import NotesPage from "@/pages/NotesPage"
+import { AuthProvider } from "@/context/AuthContext"
+import ProtectedRoute from "@/components/ProtectedRoute"
 
 export function App() {
   return (
-    <>
+    <AuthProvider>
       <Toaster position="top-right" richColors />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<DashboardLayout />}>
-            <Route index element={<DashboardPage />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <DashboardLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={
+              <ProtectedRoute requiredRole="admin">
+                <DashboardPage />
+              </ProtectedRoute>
+            } />
             <Route path="suppliers" element={<SuppliersPage />} />
             <Route path="customers" element={<CustomersPage />} />
             <Route path="income-expense-categories" element={<IncomeExpenseCategoriesPage />} />
@@ -50,7 +63,7 @@ export function App() {
           </Route>
         </Routes>
       </BrowserRouter>
-    </>
+    </AuthProvider>
   )
 }
 

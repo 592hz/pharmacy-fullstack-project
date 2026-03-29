@@ -1,6 +1,6 @@
 import { useState } from "react"
 import { X } from "lucide-react"
-import { type Category } from "@/lib/mock-data"
+import { type Category } from "@/lib/schemas"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { parseFloatSafe } from "@/lib/utils"
 
@@ -49,7 +49,7 @@ export default function AddCategoryModal({
         }
 
         const categoryData: Category = {
-            id: initialData?.id || `cat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            id: initialData?.id,
             name: name,
             type: type as "Thu" | "Chi",
             amount: amount,

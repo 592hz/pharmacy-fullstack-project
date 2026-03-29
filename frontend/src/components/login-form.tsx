@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils"
+import { cn, getErrorMessage } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -20,19 +20,24 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
 import { loginSchema } from "@/lib/schemas"
-
-
-type LoginFormValues = z.infer<typeof loginSchema>
+import { useAuth } from "@/hooks/use-auth"
+import { useNavigate } from "react-router-dom"
+import { useState } from "react"
+import { Loader2 } from "lucide-react"
 
 export function LoginForm({
   className,
   ...props
 }: React.ComponentProps<"div">) {
+  const { login } = useAuth()
+  const navigate = useNavigate()
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
   const {
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginFormValues>({
+  } = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       username: "",
@@ -40,12 +45,19 @@ export function LoginForm({
     },
   })
 
-  const onSubmit = (data: LoginFormValues) => {
-    // Xử lý logic đăng nhập
-    console.log("Đăng nhập với:", data)
-    toast.success("Đăng nhập thành công!", {
-      description: "Chào mừng bạn quay trở lại.",
-    })
+  const onSubmit = async (data: z.infer<typeof loginSchema>) => {
+    setIsSubmitting(true)
+    try {
+      await login(data)
+      toast.success("Đăng nhập thành công!", {
+        description: "Chào mừng bạn quay trở lại.",
+      })
+      navigate("/")
+    } catch (error: unknown) {
+      toast.error(`Đăng nhập thất bại: ${getErrorMessage(error)}`)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -89,7 +101,7 @@ export function LoginForm({
                 <Input
                   id="username"
                   type="text"
-                  placeholder="Nguyễn Văn A"
+                  placeholder="Tên tài khoản"
                   error={!!errors.username}
                   errorMessage={errors.username?.message as React.ReactNode}
                   {...register("username")}
@@ -114,7 +126,14 @@ export function LoginForm({
                 />
               </Field>
               <Field>
-                <Button type="submit" className="bg-[#5c9a38] hover:bg -[#5c9a38]/90 text-white  dark:bg-[#5c9a38]  dark:text-white dark:hover:bg-[#5c9a38]/90">Đăng nhập</Button>
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white dark:bg-[#5c9a38] dark:text-white dark:hover:bg-[#5c9a38]/90 w-full"
+                >
+                  {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Đăng nhập
+                </Button>
                 <FieldDescription className="text-center">
                   Bạn chưa có tài khoản? <a href="/signup">Đăng ký</a>
                 </FieldDescription>
