@@ -39,6 +39,8 @@ export const setMockCategories = (newCategories: Category[]) => {
     mockCategories = newCategories
 }
 
+import { type Supplier } from "./schemas"
+
 export interface ProductCategory {
     id: string
     name: string
@@ -47,7 +49,7 @@ export interface ProductCategory {
 
 export const mockProductCategories: ProductCategory[] = []
 
-export const mockSuppliersList: any[] = []
+export const mockSuppliersList: Supplier[] = []
 
 // ─── DANH MỤC SẢN PHẨM ──────────────────────────────────────────────────────
 export interface ProductBatch {

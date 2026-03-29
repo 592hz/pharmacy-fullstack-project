@@ -25,3 +25,12 @@ export function formatNumberVN(val: number): string {
   parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ".")
   return parts.join(",")
 }
+
+export function getErrorMessage(error: unknown): string {
+    if (error instanceof Error) return error.message
+    if (typeof error === "string") return error
+    if (error && typeof error === "object" && "message" in error) {
+        return String(error.message)
+    }
+    return "Đã xảy ra lỗi không xác định"
+}

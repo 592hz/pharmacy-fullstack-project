@@ -38,7 +38,7 @@ export const deleteSupplier = async (req: Request, res: Response) => {
         const id = req.params.id as string;
 
         // Check for linked products
-        const linkedProductsCount = await Product.countDocuments({ supplierId: id });
+        const linkedProductsCount = await Product.countDocuments({ supplierId: id } as any);
         if (linkedProductsCount > 0) {
             return res.status(400).json({ 
                 message: `Không thể xóa nhà cung cấp này vì đang có ${linkedProductsCount} sản phẩm liên kết. Vui lòng chuyển các sản phẩm này sang nhà cung cấp khác trước.` 
@@ -46,7 +46,7 @@ export const deleteSupplier = async (req: Request, res: Response) => {
         }
 
         // Check for linked purchase orders
-        const linkedOrdersCount = await PurchaseOrder.countDocuments({ supplierId: id });
+        const linkedOrdersCount = await PurchaseOrder.countDocuments({ supplierId: id } as any);
         if (linkedOrdersCount > 0) {
             return res.status(400).json({ 
                 message: `Không thể xóa nhà cung cấp này vì đã có ${linkedOrdersCount} phiếu nhập hàng liên kết. Để bảo toàn lịch sử nhập hàng, bạn nên giữ lại thông tin nhà cung cấp này.` 

@@ -1,10 +1,11 @@
 import { useState } from "react"
 import { Plus, Trash2, Search, StickyNote, Calendar, Edit3, X, Save } from "lucide-react"
 import { toast } from "sonner"
-import type { Note } from "@/lib/mock-data"
+import type { Note } from "@/lib/schemas"
 import { noteSchema } from "@/lib/schemas"
 import { noteService } from "@/services/note.service"
 import { useEffect } from "react"
+import { getErrorMessage } from "@/lib/utils"
 
 const COLORS = [
     "bg-yellow-100 border-yellow-200 text-yellow-800",
@@ -32,8 +33,8 @@ export default function NotesPage() {
         try {
             const data = await noteService.getAll()
             setNotes(data)
-        } catch (error) {
-            toast.error("Không thể tải ghi chú")
+        } catch (error: unknown) {
+            toast.error("Không thể tải ghi chú: " + getErrorMessage(error))
         } finally {
             setIsLoading(false)
         }
@@ -60,20 +61,27 @@ export default function NotesPage() {
         }
 
         try {
+            const date = new Date().toISOString()
             const newNote = await noteService.create({
                 ...result.data,
-                date: new Date().toISOString(),
+                date: date,
                 color: selectedColor
             })
 
-            setNotes([newNote, ...notes])
+            const completeNote: Note = {
+                ...newNote,
+                id: newNote.id || `NOTE${Date.now()}`,
+                date: date
+            }
+
+            setNotes([completeNote, ...notes])
 
             setNewTitle("")
             setNewContent("")
             setIsAdding(false)
             toast.success("Đã thêm ghi chú mới")
-        } catch (error: any) {
-            toast.error(`Lỗi: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
     }
 
@@ -83,8 +91,8 @@ export default function NotesPage() {
             await noteService.delete(id)
             setNotes(notes.filter(n => n.id !== id))
             toast.error("Đã xóa ghi chú")
-        } catch (error: any) {
-            toast.error(`Lỗi: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
     }
 
@@ -97,12 +105,12 @@ export default function NotesPage() {
         }
 
         try {
-            const data = await noteService.update(editingNote.id, editingNote)
+            const data = await noteService.update(editingNote.id!, editingNote)
             setNotes(notes.map(n => n.id === data.id ? data : n))
             setEditingNote(null)
             toast.success("Đã cập nhật ghi chú")
-        } catch (error: any) {
-            toast.error(`Lỗi: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
     }
 

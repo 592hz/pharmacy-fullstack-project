@@ -1,18 +1,17 @@
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Plus, Search, PlusCircle, Trash2, Save, X, Calendar, FileText, CreditCard, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { AddProductModal } from "@/components/add-product-modal"
 import AddSupplierModal from "@/components/add-supplier-modal"
 import { type ProductFormData } from "@/components/add-product-modal"
-import { parseFloatSafe } from "@/lib/utils"
+import { parseFloatSafe, getErrorMessage } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { purchaseOrderSchema } from "@/lib/schemas"
 import { productService } from "@/services/product.service"
 import { supplierService } from "@/services/supplier.service"
 import { purchaseOrderService } from "@/services/purchase-order.service"
 import { paymentMethodService } from "@/services/payment-method.service"
-import { useEffect } from "react"
 import { type Product, type PurchaseOrderItem, type PurchaseOrder, type Supplier, type PaymentMethod } from "@/lib/schemas"
 
 export default function CreatePurchaseOrderPage() {
@@ -61,8 +60,9 @@ export default function CreatePurchaseOrderPage() {
                 } else if (paymentMethods.length > 0) {
                     setPaymentMethod(paymentMethods[0].name);
                 }
-            } catch (error) {
-                console.error("Error fetching data:", error);
+            } catch (error: unknown) {
+                console.error("Error fetching data:", getErrorMessage(error));
+                toast.error("Không thể tải dữ liệu: " + getErrorMessage(error));
             }
         };
         fetchData();
@@ -131,7 +131,7 @@ export default function CreatePurchaseOrderPage() {
         }
     }
 
-    const handleProductSaved = useCallback((savedProduct: any, formData: ProductFormData) => {
+    const handleProductSaved = useCallback((savedProduct: Product, formData: ProductFormData) => {
         // Add to the search list immediately
         setAllProducts(prev => [savedProduct, ...prev])
 
@@ -173,8 +173,8 @@ export default function CreatePurchaseOrderPage() {
             setSupplierId(data.id)
             setSupplierName(data.name)
             toast.success("Đã thêm nhanh nhà cung cấp và tự động chọn!")
-        } catch (error: any) {
-            toast.error(`Lỗi khi thêm nhà cung cấp: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error(`Lỗi khi thêm nhà cung cấp: ${getErrorMessage(error)}`)
         }
     }, [])
 
@@ -225,7 +225,7 @@ export default function CreatePurchaseOrderPage() {
     const totalVat = roundTo3(items.reduce((sum, item) => sum + item.vatAmount, 0))
     const amountToPay = roundTo3(totalAmount - totalDiscount + totalVat)
 
-    const handleSaveOrder = useCallback(() => {
+    const handleSaveOrder = useCallback(async () => {
         // Prepare data for validation
         const orderData = {
             id: orderId,
@@ -284,15 +284,14 @@ export default function CreatePurchaseOrderPage() {
 
         console.log("Saving Purchase Order:", newOrder);
 
-        purchaseOrderService.create(newOrder)
-            .then(() => {
-                toast.success("Đã tạo phiếu nhập mới thành công")
-                navigate("/purchase-orders")
-            })
-            .catch(err => {
-                toast.error(`Lỗi khi lưu phiếu: ${err.message}`)
-            })
-    }, [amountToPay, createdBy, importDate, invoiceNumber, items, navigate, notes, orderId, paymentMethod, supplierName, totalAmount, totalDiscount, totalVat])
+        try {
+            await purchaseOrderService.create(newOrder)
+            toast.success("Đã tạo phiếu nhập mới thành công")
+            navigate("/purchase-orders")
+        } catch (error: unknown) {
+            toast.error("Lỗi khi lưu đơn hàng: " + getErrorMessage(error))
+        }
+    }, [items, supplierId, invoiceNumber, notes, importDate, createdBy, paymentMethod, navigate, orderId, supplierName, totalAmount, totalDiscount, totalVat, amountToPay])
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-neutral-900 overflow-hidden">

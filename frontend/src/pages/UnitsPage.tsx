@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import AddUnitModal from "@/components/add-unit-modal"
 import { type Unit } from "@/lib/schemas"
 import { unitService } from "@/services/unit.service"
+import { getErrorMessage } from "@/lib/utils"
 
 export default function UnitsPage() {
     const [units, setUnits] = useState<Unit[]>([])
@@ -18,8 +19,8 @@ export default function UnitsPage() {
         try {
             const data = await unitService.getAll()
             setUnits(data)
-        } catch (error) {
-            toast.error("Không thể tải danh sách đơn vị tính")
+        } catch (error: unknown) {
+            toast.error("Không thể tải danh sách đơn vị tính: " + getErrorMessage(error))
         } finally {
             setIsLoading(false)
         }
@@ -40,8 +41,8 @@ export default function UnitsPage() {
             setUnits(units.filter(u => u.id !== unitToDelete.id))
             toast.success("Đã xóa đơn vị tính thành công!")
             setUnitToDelete(null)
-        } catch (error: any) {
-            toast.error(`Lỗi khi xóa: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error(`Lỗi khi xóa: ${getErrorMessage(error)}`)
         }
     }
 
@@ -55,8 +56,8 @@ export default function UnitsPage() {
             setUnits([data, ...units])
             toast.success("Đã thêm đơn vị tính mới thành công!")
             setIsAddModalOpen(false)
-        } catch (error: any) {
-            toast.error(`Lỗi: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
     }
 
@@ -68,8 +69,8 @@ export default function UnitsPage() {
             toast.success("Cập nhật thông tin đơn vị tính thành công!")
             setIsAddModalOpen(false)
             setEditingUnit(null)
-        } catch (error: any) {
-            toast.error(`Lỗi: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
     }
 

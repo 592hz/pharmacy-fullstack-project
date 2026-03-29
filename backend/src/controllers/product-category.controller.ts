@@ -14,7 +14,7 @@ export const getProductCategories = async (req: Request, res: Response) => {
 export const createProductCategory = async (req: Request, res: Response) => {
     try {
         const { name, notes, code } = req.body;
-        
+
         // Auto-generate code if not provided
         let finalCode = code;
         if (!finalCode) {
@@ -53,10 +53,14 @@ export const updateProductCategory = async (req: Request, res: Response) => {
 
 export const deleteProductCategory = async (req: Request, res: Response) => {
     try {
-        const categoryId = req.params.id;
+        const { id: categoryId } = req.params;
+
+        if (!categoryId) {
+            return res.status(400).json({ message: 'Category ID is required' });
+        }
 
         // Check if there are products in this category
-        const productCount = await Product.countDocuments({ categoryId });
+        const productCount = await Product.countDocuments({ categoryId } as any);
         if (productCount > 0) {
             return res.status(400).json({ 
                 message: 'Không thể xóa nhóm sản phẩm vì đang có sản phẩm thuộc nhóm này. Vui lòng chuyển hoặc xóa các sản phẩm trước khi xóa nhóm.' 

@@ -14,7 +14,7 @@ export const getPurchaseOrders = async (req: Request, res: Response) => {
 export const getPurchaseOrderById = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
-        const order = await PurchaseOrder.findOne({ id });
+        const order = await PurchaseOrder.findOne({ id } as any);
         if (!order) return res.status(404).json({ message: 'Purchase order not found' });
         res.status(200).json(order);
     } catch (error) {
@@ -29,7 +29,7 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
         
         // Update product stock and batches
         for (const item of savedOrder.items) {
-            const product = await Product.findOne({ id: item.code });
+            const product = await Product.findOne({ id: item.code } as any);
             if (product) {
                 // Initialize batches if undefined
                 if (!product.batches) product.batches = [];
@@ -66,7 +66,7 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
 export const updatePurchaseOrder = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
-        const updatedOrder = await PurchaseOrder.findOneAndUpdate({ id }, req.body, { new: true });
+        const updatedOrder = await PurchaseOrder.findOneAndUpdate({ id } as any, req.body, { new: true });
         if (!updatedOrder) return res.status(404).json({ message: 'Purchase order not found' });
         res.status(200).json(updatedOrder);
     } catch (error) {
@@ -77,7 +77,7 @@ export const updatePurchaseOrder = async (req: Request, res: Response) => {
 export const deletePurchaseOrder = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
-        const deletedOrder = await PurchaseOrder.findOneAndDelete({ id });
+        const deletedOrder = await PurchaseOrder.findOneAndDelete({ id } as any);
         if (!deletedOrder) return res.status(404).json({ message: 'Order not found' });
         res.status(200).json({ message: 'Order deleted successfully' });
     } catch (error) {

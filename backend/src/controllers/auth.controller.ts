@@ -25,12 +25,14 @@ export const register = async (req: Request, res: Response) => {
 
         if (user) {
             res.status(201).json({
-                _id: user._id,
-                username: user.username,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                token: generateToken(user._id.toString())
+                token: generateToken(user._id.toString()),
+                user: {
+                    id: user._id.toString(),
+                    username: user.username,
+                    name: user.name,
+                    email: user.email,
+                    role: user.role
+                }
             });
         } else {
             res.status(400).json({ message: 'Dữ liệu không hợp lệ' });
@@ -52,11 +54,13 @@ export const login = async (req: Request, res: Response) => {
 
         if (user && (await user.matchPassword(password))) {
             res.json({
-                _id: user._id,
-                username: user.username,
-                name: user.name,
-                role: user.role,
-                token: generateToken(user._id.toString())
+                token: generateToken(user._id.toString()),
+                user: {
+                    id: user._id.toString(),
+                    username: user.username,
+                    name: user.name,
+                    role: user.role
+                }
             });
         } else {
             res.status(401).json({ message: 'Tên đăng nhập hoặc mật khẩu không đúng' });
@@ -75,7 +79,7 @@ export const getMe = async (req: any, res: Response) => {
 
         if (user) {
             res.json({
-                _id: user._id,
+                id: user._id.toString(),
                 username: user.username,
                 name: user.name,
                 role: user.role

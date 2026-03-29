@@ -1,10 +1,10 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Plus } from "lucide-react"
 import { toast } from "sonner"
 import AddProductCategoryModal from "@/components/add-product-category-modal"
 import { type ProductCategory } from "@/lib/schemas"
 import { productCategoryService } from "@/services/product-category.service"
-import { useEffect } from "react"
+import { getErrorMessage } from "@/lib/utils"
 
 export default function ProductCategoriesPage() {
     const [categories, setCategories] = useState<ProductCategory[]>([])
@@ -19,8 +19,8 @@ export default function ProductCategoriesPage() {
         try {
             const data = await productCategoryService.getAll()
             setCategories(data)
-        } catch (error) {
-            toast.error("Không thể tải danh sách nhóm sản phẩm")
+        } catch (error: unknown) {
+            toast.error("Không thể tải danh sách nhóm sản phẩm: " + getErrorMessage(error))
         } finally {
             setIsLoading(false)
         }
@@ -41,8 +41,8 @@ export default function ProductCategoriesPage() {
             setCategories(categories.filter(c => c.id !== categoryToDelete.id))
             toast.success("Đã xóa nhóm hàng hóa thành công!")
             setCategoryToDelete(null)
-        } catch (error: any) {
-            toast.error(`Lỗi khi xóa: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error(`Lỗi khi xóa: ${getErrorMessage(error)}`)
         }
     }
 
@@ -56,8 +56,8 @@ export default function ProductCategoriesPage() {
             setCategories([data, ...categories])
             toast.success("Đã thêm nhóm hàng hóa mới thành công!")
             setIsAddModalOpen(false)
-        } catch (error: any) {
-            toast.error(`Lỗi: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
     }
 
@@ -69,8 +69,8 @@ export default function ProductCategoriesPage() {
             toast.success("Cập nhật thông tin nhóm hàng hóa thành công!")
             setIsAddModalOpen(false)
             setEditingCategory(null)
-        } catch (error: any) {
-            toast.error(`Lỗi: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
     }
 

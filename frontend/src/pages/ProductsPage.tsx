@@ -1,17 +1,17 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Search, List, Download, RefreshCw, Plus, FileText } from "lucide-react"
 import { AddProductModal } from "@/components/add-product-modal"
 import { toast } from "sonner"
-import { type Product } from "@/lib/mock-data"
+import { type Product, type ProductCategory, type Supplier } from "@/lib/schemas"
 import { productService } from "@/services/product.service"
 import { productCategoryService } from "@/services/product-category.service"
 import { supplierService } from "@/services/supplier.service"
-import { useEffect } from "react"
+import { getErrorMessage } from "@/lib/utils"
 
 export default function ProductsPage() {
     const [products, setProducts] = useState<Product[]>([])
-    const [categories, setCategories] = useState<any[]>([])
-    const [suppliers, setSuppliers] = useState<any[]>([])
+    const [categories, setCategories] = useState<ProductCategory[]>([])
+    const [suppliers, setSuppliers] = useState<Supplier[]>([])
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
     const [productToDelete, setProductToDelete] = useState<Product | null>(null)
@@ -29,8 +29,8 @@ export default function ProductsPage() {
             setProducts(productsData)
             setCategories(categoriesData)
             setSuppliers(suppliersData)
-        } catch (error) {
-            toast.error("Không thể tải dữ liệu sản phẩm")
+        } catch (error: unknown) {
+            toast.error("Không thể tải dữ liệu sản phẩm: " + getErrorMessage(error))
         } finally {
             setIsLoading(false)
         }
@@ -55,7 +55,7 @@ export default function ProductsPage() {
         const query = searchQuery.toLowerCase().trim()
 
         // Helper to get ID from potentially populated field
-        const getFieldValue = (field: any) => {
+        const getFieldValue = (field: string | { id: string; _id?: string } | undefined | null) => {
             if (!field) return ""
             if (typeof field === 'object') return field._id || field.id || ""
             return field
@@ -144,8 +144,8 @@ export default function ProductsPage() {
                     setProductToDelete(null)
                     setDeleteConfirmCount(0)
                 })
-                .catch(err => {
-                    toast.error(`Lỗi khi xóa: ${err.message}`)
+                .catch((error: unknown) => {
+                    toast.error(`Lỗi khi xóa: ${getErrorMessage(error)}`)
                 })
         }
     }
@@ -155,7 +155,7 @@ export default function ProductsPage() {
         setDeleteConfirmCount(0)
     }
 
-    const handleSaveProduct = async (savedProduct: any) => {
+    const handleSaveProduct = async (savedProduct: Product) => {
         try {
             if (editingProduct) {
                 setProducts(products.map(p => p.id === savedProduct.id ? savedProduct : p))
@@ -164,8 +164,8 @@ export default function ProductsPage() {
                 setProducts([savedProduct, ...products])
             }
             setIsAddModalOpen(false)
-        } catch (error: any) {
-            toast.error(`Lỗi: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
     }
 

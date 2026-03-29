@@ -1,10 +1,10 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { Download, Upload, SlidersHorizontal, FileText, Plus, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
 import { toast } from "sonner"
 import { type PurchaseOrder } from "@/lib/schemas"
 import { purchaseOrderService } from "@/services/purchase-order.service"
-import { useEffect } from "react"
+import { getErrorMessage } from "@/lib/utils"
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50]
 
@@ -139,8 +139,8 @@ export default function PurchaseOrdersPage() {
                 toast.success(`Đã xóa phiếu nhập ${orderToDelete.id}!`)
                 setOrderToDelete(null)
                 setDeleteStep(0)
-            } catch (error) {
-                toast.error(`Lỗi: ${error instanceof Error ? error.message : String(error)}`)
+            } catch (error: unknown) {
+                toast.error(`Lỗi: ${getErrorMessage(error)}`)
             }
         }
     }

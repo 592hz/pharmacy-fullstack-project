@@ -66,7 +66,10 @@ export default function AddSupplierModal({ isOpen, onClose, onAdd, onEdit, initi
             return
         }
 
-        const supplierData = result.data
+        const supplierData: Supplier = {
+            ...result.data,
+            id: initialData?.id || `NCC${Date.now()}`
+        }
 
         if (initialData && onEdit) {
             onEdit(supplierData)

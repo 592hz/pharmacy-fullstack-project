@@ -6,7 +6,7 @@ import { NavMain } from "@/components/nav-main"
 import { NavProjects } from "@/components/nav-projects"
 import { NavUser } from "@/components/nav-user"
 import { TeamSwitcher } from "@/components/team-switcher"
-import { useAuth } from "@/context/AuthContext"
+import { useAuth } from "@/hooks/use-auth"
 import {
   Sidebar,
   SidebarContent,
@@ -153,8 +153,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
       <SidebarFooter>
         <NavUser user={{
-          name: user?.name || "User",
-          email: user?.username || "",
+          name: typeof user?.name === 'string' ? user.name : "User",
+          email: typeof user?.username === 'string' ? user.username : "",
           avatar: "/avata.jpg"
         }} />
       </SidebarFooter>

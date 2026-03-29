@@ -45,7 +45,7 @@ export const deleteUnit = async (req: Request, res: Response) => {
                 { unit: unit.name },
                 { baseUnitName: unit.name }
             ]
-        });
+        } as any);
 
         if (productCount > 0) {
             return res.status(400).json({ 

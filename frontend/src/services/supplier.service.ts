@@ -1,10 +1,10 @@
 import { api } from './api';
-import { type Supplier } from '@/lib/schemas';
+import type { Supplier } from '@/lib/schemas';
 
 export const supplierService = {
-    getAll: () => api.get('/suppliers'),
-    getById: (id: string) => api.get(`/suppliers/${id}`),
-    create: (data: Partial<Supplier>) => api.post('/suppliers', data),
-    update: (id: string, data: Partial<Supplier>) => api.put(`/suppliers/${id}`, data),
-    delete: (id: string) => api.delete(`/suppliers/${id}`)
+    getAll: () => api.get<Supplier[]>('/suppliers'),
+    getById: (id: string) => api.get<Supplier>(`/suppliers/${id}`),
+    create: (data: Partial<Supplier>) => api.post<Supplier>('/suppliers', data),
+    update: (id: string, data: Partial<Supplier>) => api.put<Supplier>(`/suppliers/${id}`, data),
+    delete: (id: string) => api.delete<void>(`/suppliers/${id}`)
 };

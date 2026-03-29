@@ -14,7 +14,7 @@ export const getExportSlips = async (req: Request, res: Response) => {
 export const getExportSlipById = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
-        const slip = await ExportSlip.findOne({ id });
+        const slip = await ExportSlip.findOne({ id } as any);
         if (!slip) return res.status(404).json({ message: 'Export slip not found' });
         res.status(200).json(slip);
     } catch (error) {
@@ -27,35 +27,69 @@ export const createExportSlip = async (req: Request, res: Response) => {
         const newSlip = new ExportSlip(req.body);
         const savedSlip = await newSlip.save();
         
+        console.log(`[ExportSlip] Created slip with ${savedSlip.items.length} items. Updating stock...`);
+
         // Update product stock and batches (reduction)
         for (const item of savedSlip.items) {
-            const product = await Product.findOne({ id: item.code });
-            if (product && product.batches) {
-                // Find matching batch
-                const existingBatch = product.batches.find(b => 
+            const product = await Product.findOne({ id: item.code } as any);
+            if (product && product.batches && product.batches.length > 0) {
+                let remainingToSubtract = Number(item.quantity) || 0;
+                console.log(`[ExportSlip] Reducing stock for Product: ${product.id} (${product.name}), Quantity: ${remainingToSubtract}`);
+
+                // 1. Try exact batch match first
+                const exactBatch = product.batches.find(b => 
                     b.batchNumber === item.batchNumber && 
                     b.expiryDate === item.expiryDate
                 );
-                
-                if (existingBatch) {
-                    existingBatch.quantity -= item.quantity;
-                } else {
-                    // Fallback: if batch not matched exactly, try finding any batch with enough quantity
-                    const availableBatch = product.batches.find(b => b.quantity >= item.quantity);
-                    if (availableBatch) {
-                        availableBatch.quantity -= item.quantity;
+
+                if (exactBatch && exactBatch.quantity > 0) {
+                    const subtractAmount = Math.min(exactBatch.quantity, remainingToSubtract);
+                    exactBatch.quantity -= subtractAmount;
+                    remainingToSubtract -= subtractAmount;
+                    console.log(`  - Subtracted ${subtractAmount} from EXACT batch ${exactBatch.batchNumber}`);
+                }
+
+                // 2. Greedy approach if still remaining or if no exact match found
+                if (remainingToSubtract > 0) {
+                    // Sort batches by expiry date (earliest first - FEFO)
+                    product.batches.sort((a, b) => {
+                        if (!a.expiryDate) return 1;
+                        if (!b.expiryDate) return -1;
+                        return a.expiryDate.localeCompare(b.expiryDate);
+                    });
+
+                    for (const batch of product.batches) {
+                        if (remainingToSubtract <= 0) break;
+                        if (batch.quantity <= 0) continue;
+
+                        const subtractAmount = Math.min(batch.quantity, remainingToSubtract);
+                        batch.quantity -= subtractAmount;
+                        remainingToSubtract -= subtractAmount;
+                        console.log(`  - Subtracted ${subtractAmount} from batch ${batch.batchNumber} (Greedy)`);
                     }
+                }
+
+                if (remainingToSubtract > 0) {
+                    console.warn(`[ExportSlip] Warning: Product ${product.id} still has ${remainingToSubtract} to subtract but no more batches with stock!`);
+                    // Optionally: could even go to Negative stock if your business rules allow, 
+                    // or just leave it at 0. Here we'll just log it.
                 }
                 
                 // Recalculate total quantity
                 product.baseQuantity = product.batches.reduce((sum, b) => sum + b.quantity, 0);
                 
+                // CRITICAL: Mark batches as modified so Mongoose detects changes in subdocuments
+                product.markModified('batches');
                 await product.save();
+                console.log(`[ExportSlip] Updated Product: ${product.id}, New baseQuantity: ${product.baseQuantity}`);
+            } else {
+                console.warn(`[ExportSlip] Product not found or has no batches: ${item.code}`);
             }
         }
         
         res.status(201).json(savedSlip);
     } catch (error) {
+        console.error(`[ExportSlip] Error in createExportSlip:`, error);
         res.status(400).json({ message: (error as Error).message });
     }
 };
@@ -63,7 +97,7 @@ export const createExportSlip = async (req: Request, res: Response) => {
 export const updateExportSlip = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
-        const updatedSlip = await ExportSlip.findOneAndUpdate({ id }, req.body, { new: true });
+        const updatedSlip = await ExportSlip.findOneAndUpdate({ id } as any, req.body, { new: true });
         if (!updatedSlip) return res.status(404).json({ message: 'Export slip not found' });
         res.status(200).json(updatedSlip);
     } catch (error) {
@@ -74,7 +108,7 @@ export const updateExportSlip = async (req: Request, res: Response) => {
 export const deleteExportSlip = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
-        const deletedSlip = await ExportSlip.findOneAndDelete({ id });
+        const deletedSlip = await ExportSlip.findOneAndDelete({ id } as any);
         if (!deletedSlip) return res.status(404).json({ message: 'Export slip not found' });
         res.status(200).json({ message: 'Export slip deleted successfully' });
     } catch (error) {

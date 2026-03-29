@@ -3,7 +3,8 @@ import { X } from "lucide-react"
 import { toast } from "sonner"
 import { parseFloatSafe } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
-import { productSchema } from "@/lib/schemas"
+import { type Product, type ProductCategory, type Supplier, type Unit, productSchema } from "@/lib/schemas"
+import { getErrorMessage } from "@/lib/utils"
 import { supplierService } from "@/services/supplier.service"
 import { productCategoryService } from "@/services/product-category.service"
 import { productService } from "@/services/product.service"
@@ -57,14 +58,11 @@ export interface ProductFormData {
     batches: Batch[]
 }
 
-
-
-
 export interface AddProductModalProps {
     isOpen: boolean
     onClose: () => void
-    onSuccess: (savedProduct: any, formData: ProductFormData) => void
-    initialData?: any | null // Changed to any to avoid strict type issues during transition
+    onSuccess: (savedProduct: Product, formData: ProductFormData) => void
+    initialData?: Product | null
 }
 
 interface InputFieldProps {
@@ -106,13 +104,22 @@ const InputField = ({ label, required, value, onChange, placeholder = "", type =
     )
 }
 
-const generateInitialFormData = (data?: any): ProductFormData => {
+interface PopulatedEntity {
+    _id?: string;
+    id?: string;
+}
+
+const generateInitialFormData = (data?: Product | null): ProductFormData => {
     if (data) {
         const firstBatch = data.batches?.[0]
         return {
             productName: data.name || "",
-            supplierId: typeof data.supplierId === 'object' ? (data.supplierId._id || data.supplierId.id) : (data.supplierId || data.manufacturer || ""),
-            categoryId: typeof data.categoryId === 'object' ? (data.categoryId._id || data.categoryId.id) : (data.categoryId || ""),
+            supplierId: typeof data.supplierId === 'object' 
+                ? ((data.supplierId as unknown as PopulatedEntity)._id || (data.supplierId as unknown as PopulatedEntity).id || "") 
+                : (data.supplierId || data.manufacturer || ""),
+            categoryId: typeof data.categoryId === 'object' 
+                ? ((data.categoryId as unknown as PopulatedEntity)._id || (data.categoryId as unknown as PopulatedEntity).id || "") 
+                : (data.categoryId || ""),
             productCode: data.id || "",
             vatPercent: 0,
             discountPercent: 0,
@@ -161,16 +168,9 @@ const generateInitialFormData = (data?: any): ProductFormData => {
 export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: AddProductModalProps) {
     const [formData, setFormData] = useState<ProductFormData>(() => generateInitialFormData(initialData))
 
-    // Sync formData if initialData changes (e.g. when opening modal for different products)
-    useEffect(() => {
-        if (isOpen) {
-            setFormData(generateInitialFormData(initialData))
-        }
-    }, [isOpen, initialData])
-
-    const [categories, setCategories] = useState<any[]>([])
-    const [suppliers, setSuppliers] = useState<any[]>([])
-    const [availableUnits, setAvailableUnits] = useState<any[]>([])
+    const [categories, setCategories] = useState<ProductCategory[]>([])
+    const [suppliers, setSuppliers] = useState<Supplier[]>([])
+    const [availableUnits, setAvailableUnits] = useState<Unit[]>([])
 
     useEffect(() => {
         if (isOpen) {
@@ -184,8 +184,8 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                     setCategories(cats)
                     setSuppliers(sups)
                     setAvailableUnits(unts)
-                } catch (error) {
-                    console.error("Error fetching data:", error)
+                } catch {
+                    console.error("Error fetching data")
                     toast.error("Không thể tải dữ liệu danh mục/nhà cung cấp")
                 }
             }
@@ -296,9 +296,11 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
             const firstUnit = formData.units[0]
             const conversionRate = firstUnit?.conversionRate || 1
 
-            const productData: any = {
+            const productData: Omit<Product, "id"> & { id?: string } = {
                 id: formData.productCode,
                 name: formData.productName,
+                productCode: formData.productCode, // Add required field
+                productName: formData.productName, // Add required field
                 unit: firstUnit?.unitName || "",
                 importPrice: Number(firstUnit?.importPrice) || 0,
                 retailPrice: Number(firstUnit?.retailPrice) || 0,
@@ -313,23 +315,35 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                     : Number(formData.initialQuantity) * conversionRate,
                 baseUnitName: formData.baseUnitName || "",
                 conversionRate: conversionRate,
+                vatPercent: formData.vatPercent,
+                discountPercent: formData.discountPercent,
+                initialQuantity: formData.initialQuantity,
+                units: formData.units.map(u => ({
+                    id: u.id,
+                    unitName: u.unitName,
+                    conversionRate: u.conversionRate,
+                    importPrice: u.importPrice,
+                    retailPrice: u.retailPrice,
+                    wholesalePrice: u.wholesalePrice,
+                    isDefault: u.isDefault
+                })),
                 batches: initialData && formData.batches.length > 0
                     ? formData.batches
                     : [
                         {
                             batchNumber: formData.batchNumber || (initialData ? "MỚI" : "LÔ ĐẦU"),
-                            expiryDate: (formData.expiryDate && formData.expiryDate !== ".") ? formData.expiryDate : "01-01-2099",
+                            expiryDate: (formData.expiryDate && formData.expiryDate !== ".") ? formData.expiryDate : "2099-01-01",
                             quantity: Number(formData.initialQuantity) * conversionRate
                         }
                     ]
             }
 
-            let savedProduct: any
+            let savedProduct: Product
             if (initialData) {
-                savedProduct = await productService.update(initialData.id, productData)
+                savedProduct = await productService.update(initialData.id, productData as Product)
                 toast.success("Cập nhật sản phẩm thành công!")
             } else {
-                savedProduct = await productService.create(productData)
+                savedProduct = await productService.create(productData as Product)
                 toast.success("Thêm mới sản phẩm thành công!")
             }
 
@@ -341,8 +355,8 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                 // Use the helper to generate a completely fresh state with a new ID
                 setFormData(generateInitialFormData())
             }
-        } catch (error: any) {
-            toast.error(`Lỗi: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
     }
 

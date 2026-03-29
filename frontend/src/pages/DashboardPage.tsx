@@ -1,7 +1,9 @@
 import { useState, useMemo, useEffect } from "react"
 import { DollarSign, Calendar, TrendingUp, Activity, ShoppingCart, Flag, Loader2 } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts"
+import { type DashboardSummary, type NearExpiryProduct, type LowStockProduct } from "@/lib/schemas"
 import { dashboardService } from "@/services/dashboard.service"
+import { getErrorMessage } from "@/lib/utils"
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value)
@@ -9,7 +11,7 @@ const formatCurrency = (value: number) => {
 
 export default function DashboardPage() {
     const [isLoading, setIsLoading] = useState(true)
-    const [summary, setSummary] = useState<any>(null)
+    const [summary, setSummary] = useState<DashboardSummary | null>(null)
 
     const currentMonthNum = useMemo(() => new Date().getMonth() + 1, [])
     const currentYearNum = useMemo(() => new Date().getFullYear(), [])
@@ -20,8 +22,8 @@ export default function DashboardPage() {
             try {
                 const data = await dashboardService.getSummary()
                 setSummary(data)
-            } catch (error) {
-                console.error("Dashboard data fetch error:", error)
+            } catch (error: unknown) {
+                console.error("Dashboard data fetch error:", getErrorMessage(error))
             } finally {
                 setIsLoading(false)
             }
@@ -162,7 +164,7 @@ export default function DashboardPage() {
                             <RechartsTooltip
                                 cursor={{ fill: 'transparent' }}
                                 contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                formatter={(value: any, name: any) => [formatCurrency(Number(value) || 0), name]}
+                                formatter={(value: unknown, name: string | number | undefined) => [formatCurrency(Number(value) || 0), String(name || "")]}
                                 labelStyle={{ fontWeight: 'bold', color: '#111827', marginBottom: '8px' }}
                             />
                             <Legend
@@ -257,7 +259,7 @@ export default function DashboardPage() {
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
                                     {statsData.nearExpiryProducts && statsData.nearExpiryProducts.length > 0 ? (
-                                        statsData.nearExpiryProducts.slice(0, 10).map((p: any, i: number) => (
+                                        statsData.nearExpiryProducts.slice(0, 10).map((p: NearExpiryProduct, i: number) => (
                                             <tr key={i} className="hover:bg-red-50/30 dark:hover:bg-red-900/5 transition-colors">
                                                 <td className="px-4 py-4 font-bold text-gray-800 dark:text-gray-200">{p.name}</td>
                                                 <td className="px-2 py-4 text-center text-gray-500 font-mono text-[10px]">{p.batchNumber}</td>
@@ -301,7 +303,7 @@ export default function DashboardPage() {
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
                                     {statsData.lowStockProducts && statsData.lowStockProducts.length > 0 ? (
-                                        statsData.lowStockProducts.slice(0, 10).map((p: any, i: number) => (
+                                        statsData.lowStockProducts.slice(0, 10).map((p: LowStockProduct, i: number) => (
                                             <tr key={i} className="hover:bg-orange-50/30 dark:hover:bg-orange-900/5 transition-colors">
                                                 <td className="px-4 py-4 font-bold text-gray-800 dark:text-gray-200">{p.name}</td>
                                                 <td className="px-4 py-4 text-right">

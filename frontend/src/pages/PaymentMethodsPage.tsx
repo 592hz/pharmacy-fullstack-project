@@ -5,6 +5,7 @@ import AddPaymentMethodModal from "@/components/add-payment-method-modal"
 import { type PaymentMethod } from "@/lib/schemas"
 import { paymentMethodService } from "@/services/payment-method.service"
 import { useEffect } from "react"
+import { getErrorMessage } from "@/lib/utils"
 
 
 
@@ -21,8 +22,8 @@ export default function PaymentMethodsPage() {
         try {
             const data = await paymentMethodService.getAll()
             setPaymentMethods(data)
-        } catch (error) {
-            toast.error("Không thể tải phương thức thanh toán")
+        } catch (error: unknown) {
+            toast.error("Không thể tải phương thức thanh toán: " + getErrorMessage(error))
         } finally {
             setIsLoading(false)
         }
@@ -37,23 +38,22 @@ export default function PaymentMethodsPage() {
         setDeleteConfirmCount(1)
     }
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (deleteConfirmCount === 1) {
             setDeleteConfirmCount(2)
             return
         }
 
         if (deleteConfirmCount === 2 && paymentMethodToDelete && paymentMethodToDelete.id) {
-            paymentMethodService.delete(paymentMethodToDelete.id)
-                .then(() => {
-                    setPaymentMethods(paymentMethods.filter(s => s.id !== paymentMethodToDelete.id))
-                    toast.success("Đã xóa phương thức thanh toán thành công!")
-                    setPaymentMethodToDelete(null)
-                    setDeleteConfirmCount(0)
-                })
-                .catch(err => {
-                    toast.error(`Lỗi khi xóa: ${err.message}`)
-                })
+            try {
+                await paymentMethodService.delete(paymentMethodToDelete.id)
+                setPaymentMethods(paymentMethods.filter(s => s.id !== paymentMethodToDelete.id))
+                toast.success("Đã xóa phương thức thanh toán thành công!")
+                setPaymentMethodToDelete(null)
+                setDeleteConfirmCount(0)
+            } catch (error: unknown) {
+                toast.error(`Lỗi khi xóa: ${getErrorMessage(error)}`)
+            }
         }
     }
 
@@ -67,8 +67,8 @@ export default function PaymentMethodsPage() {
             const data = await paymentMethodService.create(newPaymentMethod)
             setPaymentMethods([data, ...paymentMethods])
             toast.success("Đã thêm phương thức thanh toán mới thành công!")
-        } catch (error: any) {
-            toast.error(`Lỗi: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
     }
 
@@ -78,8 +78,8 @@ export default function PaymentMethodsPage() {
             const data = await paymentMethodService.update(updatedPaymentMethod.id, updatedPaymentMethod)
             setPaymentMethods(paymentMethods.map(s => s.id === data.id ? data : s))
             toast.success("Cập nhật thông tin phương thức thanh toán thành công!")
-        } catch (error: any) {
-            toast.error(`Lỗi: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
     }
 

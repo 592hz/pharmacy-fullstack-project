@@ -1,8 +1,7 @@
 import { useState } from "react"
 import { X, Plus } from "lucide-react"
 import { toast } from "sonner"
-import { customerSchema } from "@/lib/schemas"
-import { type Customer } from "@/lib/mock-data"
+import { type Customer, customerSchema } from "@/lib/schemas"
 
 interface AddCustomerModalProps {
     isOpen: boolean
@@ -49,6 +48,7 @@ export default function AddCustomerModal({ isOpen, onClose, onAdd, onEdit, initi
         const customerData: Customer = {
             ...result.data,
             id: id,
+            gender: result.data.gender || "Nam",
             phone: result.data.phone || "",
             dob: result.data.dob || "",
             address: result.data.address || "",

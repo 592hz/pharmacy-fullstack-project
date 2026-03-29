@@ -2,8 +2,9 @@ import { useState, useEffect } from "react"
 import { Download, Upload, Plus, Bell, FileText, X } from "lucide-react"
 import { toast } from "sonner"
 import AddCustomerModal from "@/components/add-customer-modal"
-import { type Customer } from "@/lib/mock-data"
+import { type Customer } from "@/lib/schemas"
 import { customerService } from "@/services/customer.service"
+import { getErrorMessage } from "@/lib/utils"
 
 
 export default function CustomersPage() {
@@ -22,8 +23,8 @@ export default function CustomersPage() {
         try {
             const data = await customerService.getAll()
             setCustomers(data)
-        } catch (error) {
-            toast.error("Không thể tải danh sách khách hàng")
+        } catch (error: unknown) {
+            toast.error("Không thể tải danh sách khách hàng: " + getErrorMessage(error))
         } finally {
             setIsLoading(false)
         }
@@ -46,15 +47,15 @@ export default function CustomersPage() {
         }
 
         if (deleteConfirmCount === 2) {
-            customerService.delete(customerToDelete.id)
+            customerService.delete(customerToDelete.id!)
                 .then(() => {
                     setCustomers(customers.filter(c => c.id !== customerToDelete.id))
                     toast.success("Đã xóa khách hàng thành công!")
                     setCustomerToDelete(null)
                     setDeleteConfirmCount(0)
                 })
-                .catch(err => {
-                    toast.error(`Lỗi khi xóa: ${err.message}`)
+                .catch((error: unknown) => {
+                    toast.error(`Lỗi khi xóa: ${getErrorMessage(error)}`)
                 })
         }
     }
@@ -64,34 +65,32 @@ export default function CustomersPage() {
         setDeleteConfirmCount(0)
     }
 
-    const handleAddCustomer = (newCustomer: Customer) => {
-        customerService.create(newCustomer)
-            .then((data) => {
-                setCustomers([data, ...customers])
-                toast.success("Đã thêm khách hàng mới thành công!")
-                setIsAddModalOpen(false)
-            })
-            .catch(err => {
-                toast.error(`Lỗi khi thêm: ${err.message}`)
-            })
+    const handleAddCustomer = async (newCustomer: Customer) => {
+        try {
+            const data = await customerService.create(newCustomer)
+            setCustomers([data, ...customers])
+            toast.success("Đã thêm khách hàng mới thành công!")
+            setIsAddModalOpen(false)
+        } catch (error: unknown) {
+            toast.error(`Lỗi khi thêm: ${getErrorMessage(error)}`)
+        }
     }
 
-    const handleEditCustomer = (updatedCustomer: Customer) => {
-        customerService.update(updatedCustomer.id, updatedCustomer)
-            .then((data) => {
-                setCustomers(customers.map(c => c.id === data.id ? data : c))
-                toast.success("Cập nhật thông tin khách hàng thành công!")
-                setIsAddModalOpen(false)
-                setEditingCustomer(null)
-            })
-            .catch(err => {
-                toast.error(`Lỗi khi cập nhật: ${err.message}`)
-            })
+    const handleEditCustomer = async (updatedCustomer: Customer) => {
+        try {
+            const data = await customerService.update(updatedCustomer.id!, updatedCustomer)
+            setCustomers(customers.map(c => c.id === data.id ? data : c))
+            toast.success("Cập nhật thông tin khách hàng thành công!")
+            setIsAddModalOpen(false)
+            setEditingCustomer(null)
+        } catch (error: unknown) {
+            toast.error(`Lỗi khi cập nhật: ${getErrorMessage(error)}`)
+        }
     }
 
     const filteredCustomers = customers.filter(c =>
         c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        c.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (c.id && c.id.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (c.phone && c.phone.includes(searchTerm))
     )
 

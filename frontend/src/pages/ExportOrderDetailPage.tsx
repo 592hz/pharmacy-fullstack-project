@@ -7,7 +7,7 @@ import { exportSlipService } from "@/services/export-slip.service"
 import { productService } from "@/services/product.service"
 import { paymentMethodService } from "@/services/payment-method.service"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
-import { parseFloatSafe } from "@/lib/utils"
+import { parseFloatSafe, getErrorMessage } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { type PaymentMethod } from "@/lib/schemas"
 
@@ -42,8 +42,8 @@ export default function ExportOrderDetailPage() {
             setPaymentMethod(slipData.paymentMethod || "")
             setAllProducts(productsData)
             setAllPaymentMethods(paymentMethodsData)
-        } catch (error) {
-            toast.error("Không thể tải thông tin phiếu xuất")
+        } catch (error: unknown) {
+            toast.error("Không thể tải thông tin phiếu xuất: " + getErrorMessage(error))
         } finally {
             setIsLoading(false)
         }
@@ -108,7 +108,7 @@ export default function ExportOrderDetailPage() {
         }
     }, [slip])
 
-    const handleProductSaved = useCallback((savedProduct: any, formData: ProductFormData) => {
+    const handleProductSaved = useCallback((savedProduct: Product, formData: ProductFormData) => {
         const firstUnit = formData.units?.[0]
         const qty = 1
         const retailPrice = firstUnit?.retailPrice || 0
@@ -187,6 +187,7 @@ export default function ExportOrderDetailPage() {
             paymentMethod,
             items: items.map(item => ({
                 ...item,
+                id: item.id || `ITEM-${Date.now()}-${Math.random()}`,
                 quantity: Number(item.quantity),
                 retailPrice: Number(item.retailPrice),
                 importPrice: Number(item.importPrice),
@@ -211,8 +212,8 @@ export default function ExportOrderDetailPage() {
             setSlip(updatedSlip)
             setIsEditing(false)
             toast.success("Đã lưu thay đổi phiếu xuất")
-        } catch (error: any) {
-            toast.error(`Lỗi: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error("Lỗi khi lưu phiếu xuất: " + getErrorMessage(error))
         }
     }
 

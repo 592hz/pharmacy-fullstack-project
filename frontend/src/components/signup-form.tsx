@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils"
+import { cn, getErrorMessage } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -19,7 +19,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import * as z from "zod"
 import { toast } from "sonner"
 import { signupSchema } from "@/lib/schemas"
-import { useAuth } from "@/context/AuthContext"
+import { useAuth } from "@/hooks/use-auth"
 import { useNavigate } from "react-router-dom"
 import { useState } from "react"
 import { Loader2 } from "lucide-react"
@@ -51,18 +51,13 @@ export function SignupForm({
   const onSubmit = async (data: SignupFormValues) => {
     setIsSubmitting(true)
     try {
-      await authRegister({ 
-        username: data.username, 
-        name: data.name, 
-        email: data.email,
-        password: data.password 
-      })
+      await authRegister(data)
       toast.success("Đăng ký thành công!", {
         description: "Tài khoản của bạn đã được tạo.",
       })
       navigate("/")
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || error.message || "Đăng ký thất bại")
+    } catch (error: unknown) {
+      toast.error(`Đăng ký thất bại: ${getErrorMessage(error)}`)
     } finally {
       setIsSubmitting(false)
     }

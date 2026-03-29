@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils"
+import { cn, getErrorMessage } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -20,12 +20,10 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
 import { loginSchema } from "@/lib/schemas"
-import { useAuth } from "@/context/AuthContext"
-import { Loader2 } from "lucide-react"
+import { useAuth } from "@/hooks/use-auth"
 import { useNavigate } from "react-router-dom"
 import { useState } from "react"
-
-type LoginFormValues = z.infer<typeof loginSchema>
+import { Loader2 } from "lucide-react"
 
 export function LoginForm({
   className,
@@ -39,7 +37,7 @@ export function LoginForm({
     register,
     handleSubmit,
     formState: { errors },
-  } = useForm<LoginFormValues>({
+  } = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
       username: "",
@@ -47,16 +45,16 @@ export function LoginForm({
     },
   })
 
-  const onSubmit = async (data: LoginFormValues) => {
+  const onSubmit = async (data: z.infer<typeof loginSchema>) => {
     setIsSubmitting(true)
     try {
-      await login({ username: data.username, password: data.password })
+      await login(data)
       toast.success("Đăng nhập thành công!", {
         description: "Chào mừng bạn quay trở lại.",
       })
       navigate("/")
-    } catch (error: any) {
-      toast.error(error.response?.data?.message || error.message || "Đăng nhập thất bại")
+    } catch (error: unknown) {
+      toast.error(`Đăng nhập thất bại: ${getErrorMessage(error)}`)
     } finally {
       setIsSubmitting(false)
     }

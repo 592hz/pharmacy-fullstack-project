@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from "react-router-dom"
 import { LayoutDashboard, Package, PlusCircle, ShoppingCart, Menu } from "lucide-react"
-import { useSidebar } from "@/components/ui/sidebar"
+import { useSidebar } from "./ui/sidebar-context"
 import { cn } from "@/lib/utils"
 
 export function MobileNav() {

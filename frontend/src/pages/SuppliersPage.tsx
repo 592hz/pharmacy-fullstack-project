@@ -1,10 +1,10 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Download, Upload, SlidersHorizontal, FileText, Plus } from "lucide-react"
 import { toast } from "sonner"
 import AddSupplierModal from "@/components/add-supplier-modal"
 import { type Supplier } from "@/lib/schemas"
 import { supplierService } from "@/services/supplier.service"
-import { useEffect } from "react"
+import { getErrorMessage } from "@/lib/utils"
 
 export default function SuppliersPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -22,8 +22,8 @@ export default function SuppliersPage() {
         try {
             const data = await supplierService.getAll()
             setSuppliers(data)
-        } catch (error) {
-            toast.error("Không thể tải danh sách nhà cung cấp")
+        } catch (error: unknown) {
+            toast.error("Không thể tải danh sách nhà cung cấp: " + getErrorMessage(error))
         } finally {
             setIsLoading(false)
         }
@@ -48,23 +48,22 @@ export default function SuppliersPage() {
         setDeleteConfirmCount(1)
     }
 
-    const confirmDelete = () => {
+    const confirmDelete = async () => {
         if (deleteConfirmCount === 1) {
             setDeleteConfirmCount(2)
             return
         }
 
         if (deleteConfirmCount === 2 && supplierToDelete && supplierToDelete.id) {
-            supplierService.delete(supplierToDelete.id)
-                .then(() => {
-                    setSuppliers(suppliers.filter(s => s.id !== supplierToDelete.id))
-                    toast.success("Đã xóa nhà cung cấp thành công!")
-                    setSupplierToDelete(null)
-                    setDeleteConfirmCount(0)
-                })
-                .catch(err => {
-                    toast.error(`Lỗi khi xóa: ${err.message}`)
-                })
+            try {
+                await supplierService.delete(supplierToDelete.id)
+                setSuppliers(suppliers.filter(s => s.id !== supplierToDelete.id))
+                toast.success("Đã xóa nhà cung cấp thành công!")
+                setSupplierToDelete(null)
+                setDeleteConfirmCount(0)
+            } catch (error: unknown) {
+                toast.error(`Lỗi khi xóa: ${getErrorMessage(error)}`)
+            }
         }
     }
 
@@ -78,8 +77,8 @@ export default function SuppliersPage() {
             const data = await supplierService.create(newSupplier)
             setSuppliers([data, ...suppliers])
             toast.success("Đã thêm nhà cung cấp mới thành công!")
-        } catch (error: any) {
-            toast.error(`Lỗi: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
     }
 
@@ -89,8 +88,8 @@ export default function SuppliersPage() {
             const data = await supplierService.update(updatedSupplier.id, updatedSupplier)
             setSuppliers(suppliers.map(s => s.id === data.id ? data : s))
             toast.success("Cập nhật thông tin nhà cung cấp thành công!")
-        } catch (error: any) {
-            toast.error(`Lỗi: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
     }
 

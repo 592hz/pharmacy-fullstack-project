@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import AddCategoryModal from "@/components/add-category-modal"
 import { type Category } from "@/lib/schemas"
 import { categoryService } from "@/services/category.service"
+import { getErrorMessage } from "@/lib/utils"
 
 export default function IncomeExpenseCategoriesPage() {
     const [categories, setCategories] = useState<Category[]>([])
@@ -25,8 +26,8 @@ export default function IncomeExpenseCategoriesPage() {
         try {
             const data = await categoryService.getAll()
             setCategories(data)
-        } catch (error) {
-            toast.error("Không thể tải danh sách thu chi")
+        } catch (error: unknown) {
+            toast.error("Không thể tải danh sách thu chi: " + getErrorMessage(error))
         } finally {
             setIsLoading(false)
         }
@@ -92,8 +93,8 @@ export default function IncomeExpenseCategoriesPage() {
                 toast.success("Đã xóa nhóm thu chi thành công!")
                 setCategoryToDelete(null)
                 setDeleteConfirmCount(0)
-            } catch (error: any) {
-                toast.error(`Lỗi: ${error.message}`)
+            } catch (error: unknown) {
+                toast.error(`Lỗi: ${getErrorMessage(error)}`)
             }
         }
     }
@@ -109,8 +110,8 @@ export default function IncomeExpenseCategoriesPage() {
             setCategories([data, ...categories])
             toast.success("Đã thêm mới thành công!")
             setIsAddModalOpen(false)
-        } catch (error: any) {
-            toast.error(`Lỗi: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
     }
 
@@ -122,8 +123,8 @@ export default function IncomeExpenseCategoriesPage() {
             toast.success("Cập nhật thành công!")
             setIsAddModalOpen(false)
             setEditingCategory(null)
-        } catch (error: any) {
-            toast.error(`Lỗi: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
     }
 

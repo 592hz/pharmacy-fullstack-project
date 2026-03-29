@@ -1,6 +1,6 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-async function handleResponse(response: Response) {
+async function handleResponse<T>(response: Response): Promise<T> {
     if (!response.ok) {
         if (response.status === 401) {
             localStorage.removeItem('token');
@@ -21,21 +21,26 @@ const getHeaders = () => {
 };
 
 export const api = {
-    get: (url: string) => fetch(`${API_BASE_URL}${url}`, {
+    get: <T>(url: string) => fetch(`${API_BASE_URL}${url}`, {
         headers: getHeaders()
-    }).then(handleResponse),
-    post: (url: string, data: any) => fetch(`${API_BASE_URL}${url}`, {
+    }).then((res) => handleResponse<T>(res)),
+    post: <T>(url: string, data: unknown) => fetch(`${API_BASE_URL}${url}`, {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify(data)
-    }).then(handleResponse),
-    put: (url: string, data: any) => fetch(`${API_BASE_URL}${url}`, {
+        body: JSON.stringify(data),
+    }).then(handleResponse<T>),
+    put: <T>(url: string, data: unknown) => fetch(`${API_BASE_URL}${url}`, {
         method: 'PUT',
         headers: getHeaders(),
-        body: JSON.stringify(data)
-    }).then(handleResponse),
-    delete: (url: string) => fetch(`${API_BASE_URL}${url}`, {
+        body: JSON.stringify(data),
+    }).then(handleResponse<T>),
+    patch: <T>(url: string, data: unknown) => fetch(`${API_BASE_URL}${url}`, {
+        method: 'PATCH',
+        headers: getHeaders(),
+        body: JSON.stringify(data),
+    }).then(handleResponse<T>),
+    delete: <T>(url: string) => fetch(`${API_BASE_URL}${url}`, {
         method: 'DELETE',
         headers: getHeaders()
-    }).then(handleResponse)
+    }).then((res) => handleResponse<T>(res))
 };

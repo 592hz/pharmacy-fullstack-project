@@ -13,7 +13,7 @@ export const getProducts = async (req: Request, res: Response) => {
 export const getProductById = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
-        const product = await Product.findOne({ id }).populate('categoryId').populate('supplierId');
+        const product = await Product.findOne({ id } as any).populate('categoryId').populate('supplierId');
         if (!product) return res.status(404).json({ message: 'Product not found' });
         res.status(200).json(product);
     } catch (error) {
@@ -34,7 +34,7 @@ export const createProduct = async (req: Request, res: Response) => {
 export const updateProduct = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
-        const updatedProduct = await Product.findOneAndUpdate({ id }, req.body, { new: true });
+        const updatedProduct = await Product.findOneAndUpdate({ id } as any, req.body, { new: true });
         if (!updatedProduct) return res.status(404).json({ message: 'Product not found' });
         res.status(200).json(updatedProduct);
     } catch (error) {
@@ -45,7 +45,7 @@ export const updateProduct = async (req: Request, res: Response) => {
 export const deleteProduct = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
-        const deletedProduct = await Product.findOneAndDelete({ id });
+        const deletedProduct = await Product.findOneAndDelete({ id } as any);
         if (!deletedProduct) return res.status(404).json({ message: 'Product not found' });
         res.status(200).json({ message: 'Product deleted successfully' });
     } catch (error) {

@@ -18,7 +18,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { useSidebar } from "@/components/ui/sidebar-context"
-import { useAuth } from "@/context/AuthContext"
+import { useAuth } from "@/hooks/use-auth"
 import { ChevronsUpDownIcon, LogOutIcon } from "lucide-react"
 
 export function NavUser({

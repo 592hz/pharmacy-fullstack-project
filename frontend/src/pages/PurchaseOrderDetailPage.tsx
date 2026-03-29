@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { Plus, AlertCircle, Search, PlusCircle, Trash2, Save, X } from "lucide-react"
 import { toast } from "sonner"
@@ -6,9 +6,8 @@ import { type PurchaseOrder, type PurchaseOrderItem, type Product, purchaseOrder
 import { purchaseOrderService } from "@/services/purchase-order.service"
 import { productService } from "@/services/product.service"
 import { paymentMethodService } from "@/services/payment-method.service"
-import { useEffect } from "react"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
-import { parseFloatSafe } from "@/lib/utils"
+import { parseFloatSafe, getErrorMessage } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { type PaymentMethod } from "@/lib/schemas"
 
@@ -47,8 +46,8 @@ export default function PurchaseOrderDetailPage() {
                 setPaymentMethod(orderData.paymentMethod || "")
                 setAllProducts(productsData)
                 setAllPaymentMethods(paymentMethodsData)
-            } catch (error) {
-                toast.error("Không thể tải thông tin phiếu nhập")
+            } catch (error: unknown) {
+                toast.error("Không thể tải thông tin phiếu nhập: " + getErrorMessage(error))
             } finally {
                 setIsLoading(false)
             }
@@ -101,7 +100,7 @@ export default function PurchaseOrderDetailPage() {
     }, [])
 
     // Handler when AddProductModal saves a new product → convert to PurchaseOrderItem
-    const handleProductSaved = useCallback((savedProduct: any, formData: ProductFormData) => {
+    const handleProductSaved = useCallback((savedProduct: Product, formData: ProductFormData) => {
         const firstUnit = formData.units?.[0]
         const qty = 1
         const importPrice = firstUnit?.importPrice || 0
@@ -130,7 +129,7 @@ export default function PurchaseOrderDetailPage() {
             registrationNumber: "-",
         }
         setItems(prev => [...prev, newItem])
-    }, [invoiceNumber, notes]) // Added dependencies just in case
+    }, [])
 
     const handleCancelEdit = () => {
         if (order) {
@@ -230,8 +229,8 @@ export default function PurchaseOrderDetailPage() {
             setOrder(updatedOrder)
             setIsEditing(false)
             toast.success("Đã lưu thay đổi phiếu nhập")
-        } catch (error: any) {
-            toast.error(`Lỗi: ${error.message}`)
+        } catch (error: unknown) {
+            toast.error("Lỗi khi lưu phiếu nhập: " + getErrorMessage(error))
         }
     }
 

@@ -4,6 +4,7 @@ import { Download, Upload, Plus, ChevronLeft, ChevronRight, ChevronsLeft, Chevro
 import { toast } from "sonner"
 import { type ExportOrder } from "@/lib/schemas"
 import { exportSlipService } from "@/services/export-slip.service"
+import { getErrorMessage } from "@/lib/utils"
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50]
 
@@ -31,8 +32,8 @@ export default function ExportManagePage() {
         try {
             const data = await exportSlipService.getAll()
             setSlips(data)
-        } catch (error) {
-            toast.error("Không thể tải danh sách phiếu xuất")
+        } catch (error: unknown) {
+            toast.error("Không thể tải danh sách phiếu xuất: " + getErrorMessage(error))
         } finally {
             setIsLoading(false)
         }
@@ -132,8 +133,8 @@ export default function ExportManagePage() {
                 setSlipToDelete(null)
                 setDeleteStep(0)
                 fetchSlips()
-            } catch (error) {
-                toast.error("Không thể xóa phiếu xuất")
+            } catch (error: unknown) {
+                toast.error("Không thể xóa phiếu xuất: " + getErrorMessage(error))
             } finally {
                 setIsDeleting(false)
             }

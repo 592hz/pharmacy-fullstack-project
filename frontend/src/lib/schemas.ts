@@ -15,6 +15,8 @@ export const loginSchema = z.object({
     password: z.string().min(1, "Vui lòng nhập mật khẩu"),
 })
 
+export type Login = z.infer<typeof loginSchema>
+
 export const signupSchema = z.object({
     name: z.string().min(1, "Vui lòng nhập họ tên"),
     username: z.string().min(3, "Tên đăng nhập phải có ít nhất 3 ký tự"),
@@ -25,6 +27,8 @@ export const signupSchema = z.object({
     message: "Mật khẩu xác nhận không khớp",
     path: ["confirmPassword"],
 })
+
+export type Signup = z.infer<typeof signupSchema>
 
 // ─── CUSTOMER ───
 export const customerSchema = z.object({
@@ -39,7 +43,7 @@ export const customerSchema = z.object({
     notes: z.string().optional(),
 })
 
-export type Customer = z.infer<typeof customerSchema>
+export type Customer = z.infer<typeof customerSchema> & { id: string }
 
 // ─── SUPPLIER ───
 export const supplierSchema = z.object({
@@ -58,7 +62,7 @@ export const supplierSchema = z.object({
     debt: z.number().default(0),
 })
 
-export type Supplier = z.infer<typeof supplierSchema>
+export type Supplier = z.infer<typeof supplierSchema> & { id: string }
 
 // ─── PRODUCT ───
 export const productUnitSchema = z.object({
@@ -100,7 +104,18 @@ export const productSchema = z.object({
     baseQuantity: z.number().optional(),
 })
 
-export type Product = z.infer<typeof productSchema>
+export type Product = z.infer<typeof productSchema> & { 
+    id: string; 
+    name: string; 
+    unit: string; 
+    importPrice: number; 
+    retailPrice: number; 
+    wholesalePrice: number;
+    baseQuantity: number;
+    registrationNo?: string;
+    manufacturer?: string;
+    isDQG?: boolean;
+}
 
 export const productCategorySchema = z.object({
     id: z.string().optional(),
@@ -109,7 +124,7 @@ export const productCategorySchema = z.object({
     notes: z.string().optional(),
 })
 
-export type ProductCategory = z.infer<typeof productCategorySchema>
+export type ProductCategory = z.infer<typeof productCategorySchema> & { id: string }
 
 export const categorySchema = z.object({
     id: z.string().optional(),
@@ -120,7 +135,7 @@ export const categorySchema = z.object({
     notes: z.string().optional(),
 })
 
-export type Category = z.infer<typeof categorySchema>
+export type Category = z.infer<typeof categorySchema> & { id: string }
 
 // ─── PAYMENT METHOD ───
 export const paymentMethodSchema = z.object({
@@ -130,7 +145,7 @@ export const paymentMethodSchema = z.object({
     isDefault: z.boolean().default(false),
 })
 
-export type PaymentMethod = z.infer<typeof paymentMethodSchema>
+export type PaymentMethod = z.infer<typeof paymentMethodSchema> & { id: string }
 
 // ─── UNIT ───
 export const unitSchema = z.object({
@@ -138,16 +153,18 @@ export const unitSchema = z.object({
     name: z.string().min(1, "Vui lòng nhập tên đơn vị"),
 })
 
-export type Unit = z.infer<typeof unitSchema>
+export type Unit = z.infer<typeof unitSchema> & { id: string }
 
 // ─── NOTE ───
 export const noteSchema = z.object({
     id: z.string().optional(),
-    title: z.string().min(1, "Tiêu đề không được để trống"),
-    content: z.string().min(1, "Nội dung không được để trống"),
+    title: z.string().min(1, "Vui lòng nhập tiêu đề ghi chú"),
+    content: z.string().min(1, "Vui lòng nhập nội dung ghi chú"),
     date: z.string().optional(),
     color: z.string().optional(),
 })
+
+export type Note = z.infer<typeof noteSchema> & { id: string; date: string }
 
 // ─── EXPORT ORDER ───
 export const exportOrderItemSchema = z.object({
@@ -169,8 +186,8 @@ export const exportOrderItemSchema = z.object({
 export const exportOrderSchema = z.object({
     id: z.string().optional(),
     exportDate: z.string(),
-    customerId: z.string(),
-    customerName: z.string().min(1, "Vui lòng chọn khách hàng"),
+    customerId: z.string().min(1, "Vui lòng chọn khách hàng"),
+    customerName: z.string().min(1, "Vui lòng nhập tên khách hàng"),
     customerPhone: z.string().optional(),
     totalAmount: z.number(),
     grandTotal: z.number(),
@@ -224,3 +241,46 @@ export const purchaseOrderSchema = z.object({
 
 export type PurchaseOrder = z.infer<typeof purchaseOrderSchema>
 export type PurchaseOrderItem = z.infer<typeof purchaseOrderItemSchema>
+
+// ─── DASHBOARD ───
+export const lowStockProductSchema = z.object({
+    name: z.string(),
+    quantity: z.number(),
+    unit: z.string(),
+})
+
+export type LowStockProduct = z.infer<typeof lowStockProductSchema>
+
+export const nearExpiryProductSchema = z.object({
+    name: z.string(),
+    batchNumber: z.string(),
+    expiryDate: z.string(),
+    quantity: z.number(),
+    unit: z.string(),
+})
+
+export type NearExpiryProduct = z.infer<typeof nearExpiryProductSchema>
+
+export const dashboardSummarySchema = z.object({
+    stats: z.object({
+        today: z.object({ revenue: z.number(), profit: z.number() }),
+        month: z.object({ revenue: z.number(), profit: z.number() }),
+        year: z.object({ revenue: z.number(), profit: z.number() }),
+        totalIncome: z.number(),
+        totalExpense: z.number(),
+        lowStockCount: z.number(),
+        nearExpiryCount: z.number(),
+        billCountToday: z.number(),
+        lowStockProducts: z.array(lowStockProductSchema),
+        nearExpiryProducts: z.array(nearExpiryProductSchema),
+    }),
+    chartData: z.object({
+        month: z.array(z.object({
+            name: z.string(),
+            DoanhThu: z.number(),
+            LoiNhuan: z.number(),
+        }))
+    })
+})
+
+export type DashboardSummary = z.infer<typeof dashboardSummarySchema>
