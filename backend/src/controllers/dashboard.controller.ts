@@ -4,6 +4,9 @@ import PurchaseOrder from '../models/purchase-order.model.js';
 import Product from '../models/product.model.js';
 import Category from '../models/category.model.js';
 import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat.js';
+
+dayjs.extend(customParseFormat);
 
 export const getSummary = async (req: Request, res: Response) => {
     try {
@@ -49,24 +52,49 @@ export const getSummary = async (req: Request, res: Response) => {
         const allProducts = await Product.find();
         let lowStockCount = 0;
         let nearExpiryCount = 0;
+        const lowStockProducts: any[] = [];
+        const nearExpiryProducts: any[] = [];
 
-        const threeMonthsFromNow = now.add(3, 'month');
+        const sixMonthsFromNow = now.add(6, 'month');
 
         allProducts.forEach(p => {
-            // Low stock
+            // Low stock check
             const totalQty = p.batches?.reduce((sum: number, b: any) => sum + b.quantity, 0) || p.baseQuantity || 0;
-            if (totalQty <= 10) lowStockCount++;
+            const normalizedQty = Math.floor(totalQty / (p.conversionRate || 1));
 
-            // Near expiry
+            if (normalizedQty <= 1) {
+                lowStockCount++;
+                lowStockProducts.push({
+                    id: p.id,
+                    name: p.name,
+                    quantity: normalizedQty,
+                    unit: p.unit || p.baseUnitName
+                });
+            }
+
+            // Near expiry check
             p.batches?.forEach((b: any) => {
                 if (b.expiryDate) {
-                    const expiry = dayjs(b.expiryDate, ['DD-MM-YYYY', 'YYYY-MM-DD']);
-                    if (expiry.isValid() && expiry.isBefore(threeMonthsFromNow)) {
+                    // Cải thiện việc parse ngày tháng: hỗ trợ cả gạch chéo và gạch ngang, 1 hoặc 2 chữ số cho ngày/tháng
+                    const expiry = dayjs(b.expiryDate, ['DD-MM-YYYY', 'D-M-YYYY', 'DD/MM/YYYY', 'D/M/YYYY', 'YYYY-MM-DD']);
+                    if (expiry.isValid() && expiry.isBefore(sixMonthsFromNow) && b.quantity > 0) {
                         nearExpiryCount++;
+                        nearExpiryProducts.push({
+                            id: p.id,
+                            name: p.name,
+                            batchNumber: b.batchNumber,
+                            expiryDate: b.expiryDate,
+                            quantity: Math.floor(b.quantity / (p.conversionRate || 1)),
+                            unit: p.unit || p.baseUnitName
+                        });
                     }
                 }
             });
         });
+
+        // Sort by priority
+        lowStockProducts.sort((a, b) => a.quantity - b.quantity);
+        nearExpiryProducts.sort((a, b) => dayjs(a.expiryDate, 'DD-MM-YYYY').unix() - dayjs(b.expiryDate, 'DD-MM-YYYY').unix());
 
         // 4. Dữ liệu biểu đồ (Tháng hiện tại - theo ngày)
         const chartDataMonth: any[] = [];
@@ -91,6 +119,8 @@ export const getSummary = async (req: Request, res: Response) => {
                 totalExpense,
                 lowStockCount,
                 nearExpiryCount,
+                lowStockProducts: lowStockProducts.slice(0, 10),
+                nearExpiryProducts: nearExpiryProducts.slice(0, 10),
                 billCountToday: todaySlips.length
             },
             chartData: {

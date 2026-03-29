@@ -38,6 +38,7 @@ export default function CreatePurchaseOrderPage() {
     // Search state
     const [searchQuery, setSearchQuery] = useState("")
     const [showResults, setShowResults] = useState(false)
+    const [selectedIndex, setSelectedIndex] = useState(-1)
     const [allProducts, setAllProducts] = useState<Product[]>([])
     const [allSuppliers, setAllSuppliers] = useState<Supplier[]>([])
 
@@ -87,7 +88,7 @@ export default function CreatePurchaseOrderPage() {
             id: `new-${Date.now()}-${Math.random()}`,
             code: product.id || "",
             name: product.name || "",
-            unit: product.baseUnitName,
+            unit: product.unit || product.baseUnitName || "",
             batchNumber: "",
             expiryDate: "",
             quantity: qty,
@@ -105,10 +106,35 @@ export default function CreatePurchaseOrderPage() {
         setItems(prev => [...prev, newItem])
         setSearchQuery("")
         setShowResults(false)
+        setSelectedIndex(-1)
         toast.success(`Đã thêm nhanh: ${product.name}`)
     }, [])
 
+    const handleSearchKeyDown = (e: React.KeyboardEvent) => {
+        if (!showResults || filteredSuggestions.length === 0) return
+
+        if (e.key === "ArrowDown") {
+            e.preventDefault()
+            setSelectedIndex(prev => (prev < filteredSuggestions.length - 1 ? prev + 1 : prev))
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault()
+            setSelectedIndex(prev => (prev > 0 ? prev - 1 : prev))
+        } else if (e.key === "Enter") {
+            e.preventDefault()
+            const selected = selectedIndex >= 0 ? filteredSuggestions[selectedIndex] : filteredSuggestions[0]
+            if (selected) {
+                handleQuickAdd(selected)
+            }
+        } else if (e.key === "Escape") {
+            setShowResults(false)
+            setSelectedIndex(-1)
+        }
+    }
+
     const handleProductSaved = useCallback((savedProduct: any, formData: ProductFormData) => {
+        // Add to the search list immediately
+        setAllProducts(prev => [savedProduct, ...prev])
+
         const firstUnit = formData.units?.[0]
         const qty = 1
         const importPrice = firstUnit?.importPrice || 0
@@ -389,9 +415,11 @@ export default function CreatePurchaseOrderPage() {
                             onChange={(e) => {
                                 setSearchQuery(e.target.value)
                                 setShowResults(true)
+                                setSelectedIndex(-1)
                             }}
                             onFocus={() => setShowResults(true)}
                             onBlur={() => setTimeout(() => setShowResults(false), 200)}
+                            onKeyDown={handleSearchKeyDown}
                         />
                         <button
                             onClick={() => setShowAddModal(true)}
@@ -407,11 +435,16 @@ export default function CreatePurchaseOrderPage() {
                         <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-2xl shadow-2xl z-50 overflow-hidden">
                             {filteredSuggestions.length > 0 ? (
                                 <div className="max-h-[400px] overflow-y-auto p-2">
-                                    {filteredSuggestions.map((product) => (
+                                    {filteredSuggestions.map((product, index) => (
                                         <button
                                             key={product.id}
-                                            onClick={() => handleQuickAdd(product)}
-                                            className="w-full flex items-center justify-between p-3.5 rounded-xl hover:bg-green-50 dark:hover:bg-green-900/20 transition-colors text-left group"
+                                            onMouseDown={(e) => {
+                                                e.preventDefault()
+                                                handleQuickAdd(product)
+                                            }}
+                                            className={`w-full flex items-center justify-between p-3.5 rounded-xl transition-colors text-left group ${
+                                                selectedIndex === index ? "bg-green-100 dark:bg-green-900/40 border-l-4 border-green-500" : "hover:bg-green-50 dark:hover:bg-green-900/20"
+                                            }`}
                                         >
                                             <div className="flex flex-col gap-0.5">
                                                 <div className="text-base font-bold text-gray-800 dark:text-gray-100 group-hover:text-green-600 transition-colors">

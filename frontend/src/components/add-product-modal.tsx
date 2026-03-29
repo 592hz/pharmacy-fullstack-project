@@ -114,7 +114,7 @@ const generateInitialFormData = (data?: any): ProductFormData => {
             supplierId: typeof data.supplierId === 'object' ? (data.supplierId._id || data.supplierId.id) : (data.supplierId || data.manufacturer || ""),
             categoryId: typeof data.categoryId === 'object' ? (data.categoryId._id || data.categoryId.id) : (data.categoryId || ""),
             productCode: data.id || "",
-            vatPercent: 10,
+            vatPercent: 0,
             discountPercent: 0,
             units: [{
                 id: "1",
@@ -139,7 +139,7 @@ const generateInitialFormData = (data?: any): ProductFormData => {
         supplierId: "",
         categoryId: "",
         productCode: newId,
-        vatPercent: 10,
+        vatPercent: 0,
         discountPercent: 0,
         units: [{
             id: "1",
@@ -267,7 +267,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
     const handleBatchExpiryChange = (batchNumber: string, newExpiry: string) => {
         setFormData(prev => ({
             ...prev,
-            batches: prev.batches.map(b => 
+            batches: prev.batches.map(b =>
                 b.batchNumber === batchNumber ? { ...b, expiryDate: newExpiry } : b
             )
         }))
@@ -277,7 +277,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
         const conversionRate = initialData?.conversionRate || 1
         setFormData(prev => ({
             ...prev,
-            batches: prev.batches.map(b => 
+            batches: prev.batches.map(b =>
                 b.batchNumber === batchNumber ? { ...b, quantity: newQty * conversionRate } : b
             )
         }))
@@ -295,7 +295,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
         try {
             const firstUnit = formData.units[0]
             const conversionRate = firstUnit?.conversionRate || 1
-            
+
             const productData: any = {
                 id: formData.productCode,
                 name: formData.productName,
@@ -313,8 +313,8 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                     : Number(formData.initialQuantity) * conversionRate,
                 baseUnitName: formData.baseUnitName || "",
                 conversionRate: conversionRate,
-                batches: initialData && formData.batches.length > 0 
-                    ? formData.batches 
+                batches: initialData && formData.batches.length > 0
+                    ? formData.batches
                     : [
                         {
                             batchNumber: formData.batchNumber || (initialData ? "MỚI" : "LÔ ĐẦU"),
@@ -339,7 +339,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
             } else if (action === 'save_new') {
                 onSuccess(savedProduct, formData)
                 // Use the helper to generate a completely fresh state with a new ID
-                setFormData(generateInitialFormData()) 
+                setFormData(generateInitialFormData())
             }
         } catch (error: any) {
             toast.error(`Lỗi: ${error.message}`)

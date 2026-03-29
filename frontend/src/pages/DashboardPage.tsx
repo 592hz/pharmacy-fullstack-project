@@ -50,6 +50,8 @@ export default function DashboardPage() {
         totalExpense: 0,
         lowStockCount: 0,
         nearExpiryCount: 0,
+        lowStockProducts: [],
+        nearExpiryProducts: [],
         billCountToday: 0
     }
 
@@ -186,8 +188,8 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* Các thông tin phụ */}
-            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-5">
+            {/* Các thông tin phụ - 3 thẻ này giờ chiếm trọn hàng */}
+            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-3">
                 <div className="flex items-center space-x-4 rounded-xl border bg-white dark:bg-neutral-900 p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-500 dark:bg-blue-900/40">
                         <ShoppingCart size={22} />
@@ -196,19 +198,6 @@ export default function DashboardPage() {
                         <p className="text-sm font-medium text-muted-foreground">Hóa đơn ngày</p>
                         <p className="text-2xl font-bold tracking-tight text-foreground">{statsData.billCountToday}</p>
                         <p className="text-xs text-muted-foreground">Đã thanh toán</p>
-                    </div>
-                </div>
-
-                <div className="flex items-center space-x-4 rounded-xl border bg-white dark:bg-neutral-900 p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-500 dark:bg-red-900/40">
-                        <Flag size={22} />
-                    </div>
-                    <div>
-                        <p className="text-sm font-medium text-muted-foreground">Hàng cận date</p>
-                        <p className="text-2xl font-bold tracking-tight text-foreground">{statsData.nearExpiryCount}</p>
-                        <p className={`text-xs font-medium ${statsData.nearExpiryCount > 0 ? "text-red-500" : "text-green-500"}`}>
-                            {statsData.nearExpiryCount > 0 ? "Cần kiểm tra" : "An toàn"}
-                        </p>
                     </div>
                 </div>
 
@@ -234,14 +223,107 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                <div className="flex items-center space-x-4 rounded-xl border bg-white dark:bg-neutral-900 p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 text-orange-500 dark:bg-orange-900/40">
-                        <Activity size={22} />
+
+            </div>
+
+            {/* Cảnh báo kho & Hạn dùng */}
+            <div className="mt-8">
+                <div className="flex items-center gap-2 mb-4 px-1">
+                    <div className="w-1.5 h-6 bg-[#5c9a38] rounded-full"></div>
+                    <h2 className="text-xl font-bold text-gray-800 dark:text-gray-100 uppercase tracking-wide">Cảnh báo tồn kho & Hạn dùng</h2>
+                </div>
+
+                <div className="grid gap-6 md:grid-cols-2">
+                    {/* Hàng sắp hết hạn */}
+                    <div className="rounded-2xl border bg-white dark:bg-neutral-900 shadow-md overflow-hidden transition-all hover:shadow-lg">
+                        <div className="p-4 border-b border-gray-100 dark:border-neutral-800 bg-red-50/50 dark:bg-red-900/10 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Flag className="text-red-500 animate-pulse" size={20} />
+                                <h3 className="font-bold text-gray-800 dark:text-gray-100 text-[13px] uppercase tracking-wide">Sản phẩm sắp hết hạn (6 tháng)</h3>
+                            </div>
+                            <span className="text-[11px] bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 px-3 py-1 rounded-full font-black">
+                                {statsData.nearExpiryCount} mặt hàng
+                            </span>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-[12px] text-left">
+                                <thead className="bg-gray-50/50 dark:bg-neutral-900/50 text-gray-400 font-bold uppercase tracking-widest text-[9px] border-b border-gray-100 dark:border-neutral-800">
+                                    <tr>
+                                        <th className="px-4 py-3">Tên thuốc</th>
+                                        <th className="px-2 py-3 text-center">Số lô</th>
+                                        <th className="px-2 py-3 text-center">Hạn dùng</th>
+                                        <th className="px-4 py-3 text-right">Tồn</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
+                                    {statsData.nearExpiryProducts && statsData.nearExpiryProducts.length > 0 ? (
+                                        statsData.nearExpiryProducts.slice(0, 10).map((p: any, i: number) => (
+                                            <tr key={i} className="hover:bg-red-50/30 dark:hover:bg-red-900/5 transition-colors">
+                                                <td className="px-4 py-4 font-bold text-gray-800 dark:text-gray-200">{p.name}</td>
+                                                <td className="px-2 py-4 text-center text-gray-500 font-mono text-[10px]">{p.batchNumber}</td>
+                                                <td className="px-2 py-4 text-center font-bold text-red-500">{p.expiryDate}</td>
+                                                <td className="px-4 py-4 text-right font-black text-gray-700 bg-gray-50/20">{p.quantity} <span className="text-[10px] font-normal text-gray-400">{p.unit}</span></td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={4} className="px-4 py-12 text-center text-gray-400 italic">
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <Loader2 className="animate-spin text-gray-200" size={24} />
+                                                    <span>Không có hàng cận date cần lưu ý</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                    <div>
-                        <p className="text-sm font-medium text-muted-foreground">Hàng sắp hết</p>
-                        <p className="text-2xl font-bold tracking-tight text-foreground">{statsData.lowStockCount}</p>
-                        <p className="text-xs text-orange-500 font-medium">Cần nhập thêm</p>
+
+                    {/* Hàng sắp hết hàng */}
+                    <div className="rounded-2xl border bg-white dark:bg-neutral-900 shadow-md overflow-hidden transition-all hover:shadow-lg">
+                        <div className="p-4 border-b border-gray-100 dark:border-neutral-800 bg-orange-50/50 dark:bg-orange-900/10 flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <Activity className="text-orange-500" size={20} />
+                                <h3 className="font-bold text-gray-800 dark:text-gray-100 text-[13px] uppercase tracking-wide">Sản phẩm sắp hết hàng (≤ 1)</h3>
+                            </div>
+                            <span className="text-[11px] bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 px-3 py-1 rounded-full font-black">
+                                {statsData.lowStockCount} mặt hàng
+                            </span>
+                        </div>
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-[12px] text-left">
+                                <thead className="bg-gray-50/50 dark:bg-neutral-900/50 text-gray-400 font-bold uppercase tracking-widest text-[9px] border-b border-gray-100 dark:border-neutral-800">
+                                    <tr>
+                                        <th className="px-4 py-3">Tên thuốc</th>
+                                        <th className="px-4 py-3 text-right">Số lượng tồn kho hiện tại</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
+                                    {statsData.lowStockProducts && statsData.lowStockProducts.length > 0 ? (
+                                        statsData.lowStockProducts.slice(0, 10).map((p: any, i: number) => (
+                                            <tr key={i} className="hover:bg-orange-50/30 dark:hover:bg-orange-900/5 transition-colors">
+                                                <td className="px-4 py-4 font-bold text-gray-800 dark:text-gray-200">{p.name}</td>
+                                                <td className="px-4 py-4 text-right">
+                                                    <span className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded font-black">
+                                                        {p.quantity} {p.unit}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={2} className="px-4 py-12 text-center text-gray-400 italic">
+                                                <div className="flex flex-col items-center gap-2">
+                                                    <Loader2 className="animate-spin text-gray-200" size={24} />
+                                                    <span>Kho hàng đang ở trạng thái an toàn</span>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
