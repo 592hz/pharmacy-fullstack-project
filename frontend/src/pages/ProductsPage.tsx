@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react"
-import { Search, List, Download, RefreshCw, Plus, FileText } from "lucide-react"
+import { Search, List, Download, RefreshCw, Plus, FileText, Upload } from "lucide-react"
+import { useRef } from "react"
+import * as XLSX from "xlsx"
 import { AddProductModal } from "@/components/add-product-modal"
 import { toast } from "sonner"
 import { type Product, type ProductCategory, type Supplier } from "@/lib/schemas"
@@ -17,6 +19,7 @@ export default function ProductsPage() {
     const [productToDelete, setProductToDelete] = useState<Product | null>(null)
     const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
     const [isLoading, setIsLoading] = useState(true)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     const fetchData = async () => {
         setIsLoading(true)
@@ -169,6 +172,90 @@ export default function ProductsPage() {
         }
     }
 
+    const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        const reader = new FileReader()
+        reader.onload = async (evt) => {
+            try {
+                const bstr = evt.target?.result
+                const wb = XLSX.read(bstr, { type: 'binary' })
+                const wsname = wb.SheetNames[0]
+                const ws = wb.Sheets[wsname]
+                const data = XLSX.utils.sheet_to_json(ws) as any[]
+
+                if (data.length === 0) {
+                    toast.error("File Excel không có dữ liệu!")
+                    return
+                }
+
+                console.log("Dữ liệu dòng đầu tiên từ Excel:", data[0])
+
+                // Improved header mapping logic
+                const normalizeHeader = (h: string) => {
+                    if (!h) return "";
+                    return h.toString().toLowerCase().trim()
+                        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove accents
+                        .replace(/[^a-z0-9\s]/g, "") // Remove special chars
+                        .replace(/\s+/g, " "); // Normalize spaces
+                };
+
+                const findHeader = (row: any, variants: string[]) => {
+                    const keys = Object.keys(row);
+                    for (const v of variants) {
+                        const normalizedVariant = normalizeHeader(v);
+                        const match = keys.find(k => normalizeHeader(k) === normalizedVariant);
+                        if (match) return row[match];
+                    }
+                    return "";
+                };
+
+                const mappedProducts = data.map(row => {
+                    const id = findHeader(row, ["MA_SP", "Mã Sản Phẩm", "Mã SP", "Mã thuốc", "Mã hàng", "Mã", "SKU", "Barcode", "id", "Code"]);
+                    const name = findHeader(row, ["TEN_SP", "Tên Sản Phẩm", "Tên SP", "Tên thuốc", "Tên hàng", "Tên", "name", "Product name", "Product"]);
+                    const unit = findHeader(row, ["DVT", "Đơn Vị Tính", "ĐVT", "Đơn vị", "unit", "UOM"]);
+                    const importPrice = Number(findHeader(row, ["GIA_NHAP", "Giá Nhập", "Giá mua", "Giá vốn", "importPrice", "Purchase Price"]) || 0);
+                    const retailPrice = Number(findHeader(row, ["GIA_BAN_LE", "Giá Lẻ", "Giá bán lẻ", "Giá bán", "retailPrice", "Retail Price"]) || 0);
+                    const wholesalePrice = Number(findHeader(row, ["GIA_BAN_BUON", "Giá Sỉ", "Giá bán sỉ", "wholesalePrice", "Wholesale Price"]) || 0);
+                    const registrationNo = findHeader(row, ["Số Đăng Ký", "SĐK", "registrationNo", "Reg No"]);
+                    const manufacturer = findHeader(row, ["Nhà Sản Xuất", "Hãng sản xuất", "Xưởng", "manufacturer", "Producer"]);
+                    const categoryName = findHeader(row, ["NHOM_SP", "Nhóm Sản Phẩm", "Nhóm thuốc", "Loại", "categoryName", "Category"]);
+                    const supplierName = findHeader(row, ["NHA_CUNG_CAP", "Nhà Cung Cấp", "NCC", "supplierName", "Supplier"]);
+                    const baseQuantity = Number(findHeader(row, ["Số Lượng Tồn", "Số lượng", "Tồn kho", "Tồn", "baseQuantity", "Stock", "Quantity"]) || 0);
+
+                    return { id, name, unit, importPrice, retailPrice, wholesalePrice, registrationNo, manufacturer, categoryName, supplierName, baseQuantity };
+                }).filter(p => p.id && p.name);
+
+                console.log("Dữ liệu sau khi map:", mappedProducts)
+
+                if (mappedProducts.length === 0) {
+                    toast.error("Không tìm thấy dữ liệu sản phẩm hợp lệ trong file Excel!")
+                    return
+                }
+
+                const loadingToast = toast.loading(`Đang nhập ${mappedProducts.length} sản phẩm...`)
+                
+                const result = await productService.bulkCreate(mappedProducts)
+                
+                toast.dismiss(loadingToast)
+                
+                if (result.success > 0 || result.skipped > 0) {
+                    toast.success(`Nhập thành công ${result.success} sản phẩm! (Bỏ qua ${result.skipped} mã trùng)`)
+                    fetchData() // Refresh list
+                } else if (result.errors && result.errors.length > 0) {
+                    toast.error("Lỗi khi nhập dữ liệu: " + result.errors[0])
+                }
+            } catch (error) {
+                toast.error("Lỗi khi xử lý file Excel: " + getErrorMessage(error))
+            }
+        }
+        reader.readAsBinaryString(file)
+        
+        // Reset file input
+        if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('vi-VN').format(value)
     }
@@ -308,10 +395,28 @@ export default function ProductsPage() {
                             <button className="w-10 h-10 flex items-center justify-center bg-[#5c9a38] text-white rounded-md hover:bg-[#5c9a38]/90 shadow-sm transition-transform active:scale-95">
                                 <List size={18} />
                             </button>
-                            <button className="w-10 h-10 flex items-center justify-center bg-[#5c9a38] text-white rounded-md hover:bg-[#5c9a38]/90 shadow-sm transition-transform active:scale-95">
+                            <button className="w-10 h-10 flex items-center justify-center bg-[#5c9a38] text-white rounded-md hover:bg-[#5c9a38]/90 shadow-sm transition-transform active:scale-95" title="Tải về danh sách">
                                 <Download size={18} />
                             </button>
-                            <button className="w-10 h-10 flex items-center justify-center bg-[#5c9a38] text-white rounded-md hover:bg-[#5c9a38]/90 shadow-sm transition-transform active:scale-95">
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                onChange={handleImportExcel} 
+                                className="hidden" 
+                                accept=".xlsx, .xls" 
+                            />
+                            <button 
+                                onClick={() => fileInputRef.current?.click()}
+                                className="w-10 h-10 flex items-center justify-center bg-[#5c9a38] text-white rounded-md hover:bg-[#5c9a38]/90 shadow-sm transition-transform active:scale-95"
+                                title="Nhập từ Excel"
+                            >
+                                <Upload size={18} />
+                            </button>
+                            <button 
+                                onClick={fetchData}
+                                className="w-10 h-10 flex items-center justify-center bg-[#5c9a38] text-white rounded-md hover:bg-[#5c9a38]/90 shadow-sm transition-transform active:scale-95"
+                                title="Làm mới"
+                            >
                                 <RefreshCw size={18} />
                             </button>
                         </div>

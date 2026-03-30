@@ -259,7 +259,7 @@ export default function DashboardPage() {
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
                                     {statsData.nearExpiryProducts && statsData.nearExpiryProducts.length > 0 ? (
-                                        statsData.nearExpiryProducts.slice(0, 10).map((p: NearExpiryProduct, i: number) => (
+                                        statsData.nearExpiryProducts.slice(0, 5).map((p: NearExpiryProduct, i: number) => (
                                             <tr key={i} className="hover:bg-red-50/30 dark:hover:bg-red-900/5 transition-colors">
                                                 <td className="px-4 py-4 font-bold text-gray-800 dark:text-gray-200">{p.name}</td>
                                                 <td className="px-2 py-4 text-center text-gray-500 font-mono text-[10px]">{p.batchNumber}</td>
@@ -303,7 +303,7 @@ export default function DashboardPage() {
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
                                     {statsData.lowStockProducts && statsData.lowStockProducts.length > 0 ? (
-                                        statsData.lowStockProducts.slice(0, 10).map((p: LowStockProduct, i: number) => (
+                                        statsData.lowStockProducts.slice(0, 5).map((p: LowStockProduct, i: number) => (
                                             <tr key={i} className="hover:bg-orange-50/30 dark:hover:bg-orange-900/5 transition-colors">
                                                 <td className="px-4 py-4 font-bold text-gray-800 dark:text-gray-200">{p.name}</td>
                                                 <td className="px-4 py-4 text-right">
