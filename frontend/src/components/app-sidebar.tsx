@@ -100,8 +100,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             url: "#",
           },
           {
-            title: "Kiểm kê tồn kho",
-            url: "#",
+            title: "Quản lý kho",
+            url: "/stock",
           },
           ...(isAdmin ? [{
             title: "Quản lý thu chi",
@@ -131,7 +131,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       },
       {
         name: "Báo cáo tồn kho",
-        url: "#",
+        url: "/stock",
         icon: <PieChartIcon />,
       },
       {

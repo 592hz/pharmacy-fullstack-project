@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect } from "react"
+import { Link } from "react-router-dom"
 import { DollarSign, Calendar, TrendingUp, Activity, ShoppingCart, Flag, Loader2 } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts"
 import { type DashboardSummary, type NearExpiryProduct, type LowStockProduct } from "@/lib/schemas"
@@ -12,6 +13,8 @@ const formatCurrency = (value: number) => {
 export default function DashboardPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [summary, setSummary] = useState<DashboardSummary | null>(null)
+    const [lowStockLimit, setLowStockLimit] = useState(5)
+    const [nearExpiryLimit, setNearExpiryLimit] = useState(5)
 
     const currentMonthNum = useMemo(() => new Date().getMonth() + 1, [])
     const currentYearNum = useMemo(() => new Date().getFullYear(), [])
@@ -259,7 +262,7 @@ export default function DashboardPage() {
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
                                     {statsData.nearExpiryProducts && statsData.nearExpiryProducts.length > 0 ? (
-                                        statsData.nearExpiryProducts.slice(0, 5).map((p: NearExpiryProduct, i: number) => (
+                                        statsData.nearExpiryProducts.slice(0, nearExpiryLimit).map((p: NearExpiryProduct, i: number) => (
                                             <tr key={i} className="hover:bg-red-50/30 dark:hover:bg-red-900/5 transition-colors">
                                                 <td className="px-4 py-4 font-bold text-gray-800 dark:text-gray-200">{p.name}</td>
                                                 <td className="px-2 py-4 text-center text-gray-500 font-mono text-[10px]">{p.batchNumber}</td>
@@ -279,6 +282,25 @@ export default function DashboardPage() {
                                     )}
                                 </tbody>
                             </table>
+                        </div>
+                        {statsData.nearExpiryProducts && statsData.nearExpiryProducts.length > nearExpiryLimit && (
+                            <div className="p-3 border-t border-gray-100 dark:border-neutral-800 bg-gray-50/30 text-center">
+                                <button 
+                                    onClick={() => setNearExpiryLimit(prev => prev + 10)}
+                                    className="text-[11px] font-bold text-red-600 hover:text-red-700 uppercase tracking-tighter"
+                                >
+                                    Xem thêm 10 sản phẩm cận date...
+                                </button>
+                            </div>
+                        )}
+                        <div className="p-4 bg-red-500 hover:bg-red-600 transition-colors text-center">
+                            <Link 
+                                to="/stock" 
+                                className="text-white font-black text-[13px] uppercase tracking-widest flex items-center justify-center gap-2"
+                            >
+                                <Flag size={18} />
+                                <span>Xem quản lý hàng cận date chi tiết</span>
+                            </Link>
                         </div>
                     </div>
 
@@ -303,7 +325,7 @@ export default function DashboardPage() {
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
                                     {statsData.lowStockProducts && statsData.lowStockProducts.length > 0 ? (
-                                        statsData.lowStockProducts.slice(0, 5).map((p: LowStockProduct, i: number) => (
+                                        statsData.lowStockProducts.slice(0, lowStockLimit).map((p: LowStockProduct, i: number) => (
                                             <tr key={i} className="hover:bg-orange-50/30 dark:hover:bg-orange-900/5 transition-colors">
                                                 <td className="px-4 py-4 font-bold text-gray-800 dark:text-gray-200">{p.name}</td>
                                                 <td className="px-4 py-4 text-right">
@@ -325,6 +347,25 @@ export default function DashboardPage() {
                                     )}
                                 </tbody>
                             </table>
+                        </div>
+                        {statsData.lowStockProducts && statsData.lowStockProducts.length > lowStockLimit && (
+                            <div className="p-3 border-t border-gray-100 dark:border-neutral-800 bg-gray-50/30 text-center">
+                                <button 
+                                    onClick={() => setLowStockLimit(prev => prev + 10)}
+                                    className="text-[11px] font-bold text-orange-600 hover:text-orange-700 uppercase tracking-tighter"
+                                >
+                                    Xem thêm 10 sản phẩm...
+                                </button>
+                            </div>
+                        )}
+                        <div className="p-4 bg-orange-500 hover:bg-orange-600 transition-colors text-center">
+                            <Link 
+                                to="/stock" 
+                                className="text-white font-black text-[13px] uppercase tracking-widest flex items-center justify-center gap-2"
+                            >
+                                <ShoppingCart size={18} />
+                                <span>Xem chi tiết Quản lý kho</span>
+                            </Link>
                         </div>
                     </div>
                 </div>

@@ -119,8 +119,8 @@ export const getSummary = async (req: Request, res: Response) => {
                 totalExpense,
                 lowStockCount,
                 nearExpiryCount,
-                lowStockProducts: lowStockProducts.slice(0, 10),
-                nearExpiryProducts: nearExpiryProducts.slice(0, 10),
+                lowStockProducts: lowStockProducts,
+                nearExpiryProducts: nearExpiryProducts,
                 billCountToday: todaySlips.length
             },
             chartData: {
