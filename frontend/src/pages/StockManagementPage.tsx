@@ -5,12 +5,14 @@ import { type Product, type ProductCategory } from "@/lib/schemas"
 import { productService } from "@/services/product.service"
 import { productCategoryService } from "@/services/product-category.service"
 import { getErrorMessage } from "@/lib/utils"
+import { useDebounce } from "@/hooks/use-debounce"
 
 export default function StockManagementPage() {
     const [products, setProducts] = useState<Product[]>([])
     const [categories, setCategories] = useState<ProductCategory[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
+    const debouncedSearchQuery = useDebounce(searchQuery, 300)
     const [stockFilter, setStockFilter] = useState("Tất cả")
     const [categoryFilter, setCategoryFilter] = useState("Tất cả")
     const [displayLimit, setDisplayLimit] = useState(10)
@@ -38,12 +40,12 @@ export default function StockManagementPage() {
     // Reset display limit when filters change
     useEffect(() => {
         setDisplayLimit(10)
-    }, [searchQuery, stockFilter, categoryFilter])
+    }, [debouncedSearchQuery, stockFilter, categoryFilter])
 
 
     const filteredProducts = useMemo(() => {
         return products.filter(product => {
-            const query = searchQuery.toLowerCase().trim()
+            const query = debouncedSearchQuery.toLowerCase().trim()
             const name = product.name || product.productName || ""
             const code = product.id || product.productCode || ""
 
@@ -86,7 +88,7 @@ export default function StockManagementPage() {
 
             return true
         })
-    }, [products, searchQuery, stockFilter, categoryFilter])
+    }, [products, debouncedSearchQuery, stockFilter, categoryFilter])
 
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('vi-VN').format(value)
@@ -260,10 +262,12 @@ export default function StockManagementPage() {
                                                         p.batches.map((b, i) => {
                                                             let isNearExpiry = false
                                                             try {
-                                                                const [d, m, y] = b.expiryDate.split(/[-/]/).map(Number)
-                                                                const expiry = new Date(y, m - 1, d)
-                                                                const diff = expiry.getTime() - new Date().getTime()
-                                                                isNearExpiry = diff > 0 && diff <= 180 * 24 * 60 * 60 * 1000
+                                                                if (b.expiryDate) {
+                                                                    const [d, m, y] = b.expiryDate.split(/[-/]/).map(Number)
+                                                                    const expiry = new Date(y, m - 1, d)
+                                                                    const diff = expiry.getTime() - new Date().getTime()
+                                                                    isNearExpiry = diff > 0 && diff <= 180 * 24 * 60 * 60 * 1000
+                                                                }
                                                             } catch { }
 
                                                             return (

@@ -2,14 +2,14 @@ import { useState, useMemo, useCallback, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { Plus, AlertCircle, Search, PlusCircle, Trash2, Save, X } from "lucide-react"
 import { toast } from "sonner"
-import { type PurchaseOrder, type PurchaseOrderItem, type Product, purchaseOrderSchema } from "@/lib/schemas"
+import { type PurchaseOrder, type PurchaseOrderItem, type Product, purchaseOrderSchema, type PaymentMethod } from "@/lib/schemas"
 import { purchaseOrderService } from "@/services/purchase-order.service"
 import { productService } from "@/services/product.service"
 import { paymentMethodService } from "@/services/payment-method.service"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
 import { parseFloatSafe, getErrorMessage } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
-import { type PaymentMethod } from "@/lib/schemas"
+import { useDebounce } from "@/hooks/use-debounce"
 
 export default function PurchaseOrderDetailPage() {
     const { id } = useParams<{ id: string }>()
@@ -58,15 +58,16 @@ export default function PurchaseOrderDetailPage() {
     // Search state
     const [searchQuery, setSearchQuery] = useState("")
     const [showResults, setShowResults] = useState(false)
+    const debouncedSearchQuery = useDebounce(searchQuery, 300)
 
     const filteredSuggestions = useMemo(() => {
-        if (!searchQuery.trim()) return []
-        const query = searchQuery.toLowerCase()
+        if (!debouncedSearchQuery.trim()) return []
+        const query = debouncedSearchQuery.toLowerCase()
         return allProducts.filter(p =>
             (p.name && p.name.toLowerCase().includes(query)) ||
             (p.id && p.id.toLowerCase().includes(query))
         ).slice(0, 10)
-    }, [searchQuery, allProducts])
+    }, [debouncedSearchQuery, allProducts])
 
     const handleQuickAdd = useCallback((product: Product) => {
         const qty = 1

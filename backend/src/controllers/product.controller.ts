@@ -5,7 +5,7 @@ import Supplier from '../models/supplier.model.js';
 
 export const getProducts: RequestHandler = async (req, res) => {
     try {
-        const products = await Product.find().populate('categoryId').populate('supplierId');
+        const products = await Product.find({ isDeleted: { $ne: true } }).populate('categoryId').populate('supplierId');
         res.status(200).json(products);
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
@@ -15,7 +15,7 @@ export const getProducts: RequestHandler = async (req, res) => {
 export const getProductById: RequestHandler = async (req, res) => {
     try {
         const id = req.params.id as string;
-        const product = await Product.findOne({ id } as any).populate('categoryId').populate('supplierId');
+        const product = await Product.findOne({ id, isDeleted: { $ne: true } } as any).populate('categoryId').populate('supplierId');
         if (!product) return res.status(404).json({ message: 'Product not found' });
         res.status(200).json(product);
     } catch (error) {
@@ -47,9 +47,51 @@ export const updateProduct: RequestHandler = async (req, res) => {
 export const deleteProduct: RequestHandler = async (req, res) => {
     try {
         const id = req.params.id as string;
-        const deletedProduct = await Product.findOneAndDelete({ id } as any);
+        const deletedProduct = await Product.findOneAndUpdate(
+            { id } as any,
+            { isDeleted: true, deletedAt: new Date() },
+            { new: true }
+        );
         if (!deletedProduct) return res.status(404).json({ message: 'Product not found' });
-        res.status(200).json({ message: 'Product deleted successfully' });
+        res.status(200).json({ message: 'Product moved to trash' });
+    } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+export const getDeletedProducts: RequestHandler = async (req, res) => {
+    try {
+        const products = await Product.find({ isDeleted: true })
+            .populate('categoryId')
+            .populate('supplierId')
+            .sort({ deletedAt: -1 });
+        res.status(200).json(products);
+    } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+export const restoreProduct: RequestHandler = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const product = await Product.findOneAndUpdate(
+            { id } as any,
+            { isDeleted: false, deletedAt: null },
+            { new: true }
+        );
+        if (!product) return res.status(404).json({ message: 'Product not found' });
+        res.status(200).json(product);
+    } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+export const permanentlyDeleteProduct: RequestHandler = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const result = await Product.findOneAndDelete({ id } as any);
+        if (!result) return res.status(404).json({ message: 'Product not found' });
+        res.status(200).json({ message: 'Product permanently deleted' });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }

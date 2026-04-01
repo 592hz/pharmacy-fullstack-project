@@ -1,9 +1,11 @@
-import { api } from './api';
-import type { ProductCategory } from '@/lib/schemas';
+import { categoriesApi } from "./api"
 
 export const productCategoryService = {
-    getAll: () => api.get<ProductCategory[]>('/product-categories'),
-    create: (data: Partial<ProductCategory>) => api.post<ProductCategory>('/product-categories', data),
-    update: (id: string, data: Partial<ProductCategory>) => api.put<ProductCategory>(`/product-categories/${id}`, data),
-    delete: (id: string) => api.delete<void>(`/product-categories/${id}`)
-};
+    getAll: () => categoriesApi.getCategories(),
+    getDeleted: () => categoriesApi.getDeletedCategories(),
+    create: (data: any) => categoriesApi.createCategory(data),
+    update: (id: string, data: any) => categoriesApi.updateCategory(id, data),
+    delete: (id: string) => categoriesApi.deleteCategory(id),
+    restore: (id: string) => categoriesApi.restoreCategory(id),
+    permanentDelete: (id: string) => categoriesApi.permanentDeleteCategory(id)
+}

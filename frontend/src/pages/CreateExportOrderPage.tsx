@@ -12,6 +12,7 @@ import AddCustomerModal from "@/components/add-customer-modal"
 import { parseFloatSafe, getErrorMessage } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { type PaymentMethod } from "@/lib/schemas"
+import { useDebounce } from "@/hooks/use-debounce"
 
 export default function CreateExportOrderPage() {
     const navigate = useNavigate()
@@ -25,6 +26,7 @@ export default function CreateExportOrderPage() {
     const [doctorName, setDoctorName] = useState("")
     const [customerId, setCustomerId] = useState<string>("")
     const [customerName, setCustomerName] = useState("Khách lẻ")
+    const [symptoms, setSymptoms] = useState("")
 
     const [allProducts, setAllProducts] = useState<Product[]>([])
     const [allCustomers, setAllCustomers] = useState<Customer[]>([])
@@ -68,17 +70,18 @@ export default function CreateExportOrderPage() {
 
     // Search state
     const [searchQuery, setSearchQuery] = useState("")
+    const debouncedSearchQuery = useDebounce(searchQuery, 300)
     const [showResults, setShowResults] = useState(false)
     const [selectedIndex, setSelectedIndex] = useState(-1)
 
     const filteredSuggestions = useMemo(() => {
-        if (!searchQuery.trim()) return []
-        const query = searchQuery.toLowerCase()
+        if (!debouncedSearchQuery.trim()) return []
+        const query = debouncedSearchQuery.toLowerCase()
         return allProducts.filter(p =>
             (p.name && p.name.toLowerCase().includes(query)) ||
             (p.id && p.id.toLowerCase().includes(query))
         ).slice(0, 10)
-    }, [searchQuery, allProducts])
+    }, [debouncedSearchQuery, allProducts])
 
     const handleQuickAdd = useCallback((product: Product) => {
         const qty = 1
@@ -195,9 +198,33 @@ export default function CreateExportOrderPage() {
 
     const handleSaveOrder = async () => {
         const selectedCustomer = allCustomers.find(c => c.id === customerId)
-
-        const finalCustomerId = customerId || "KHLE";
         const finalCustomerName = customerName || "Khách lẻ";
+        let finalCustomerId = customerId || "KHLE";
+
+        // Auto-create customer if it's a manual entry and not 'Khách lẻ'
+        if ((!customerId || customerId === "KHLE") && finalCustomerName !== "Khách lẻ") {
+            try {
+                const timestamp = Date.now().toString().slice(-6)
+                const randomStr = Math.random().toString(36).substr(2, 4).toUpperCase()
+                const newId = `KH${timestamp}${randomStr}`
+
+                const newCustomer: Customer = {
+                    id: newId,
+                    name: finalCustomerName,
+                    phone: "",
+                    gender: "Nam",
+                    dob: "",
+                    address: "",
+                    notes: "Tự động tạo từ phiếu bán hàng"
+                }
+
+                await customerService.create(newCustomer)
+                finalCustomerId = newId
+                toast.success(`Đã tự động thêm khách hàng: ${finalCustomerName}`)
+            } catch (err) {
+                console.error("Auto-customer creation failed:", err)
+            }
+        }
 
         const newSlip: ExportOrder = {
             id: orderId,
@@ -211,6 +238,7 @@ export default function CreateExportOrderPage() {
             paymentStatus: "Đã thanh toán",
             isPrescription,
             doctorName: isPrescription ? doctorName : undefined,
+            symptoms,
             items: items.map(item => ({
                 ...item,
                 id: item.id || `ITEM-${Date.now()}-${Math.random()}`,
@@ -263,10 +291,12 @@ export default function CreateExportOrderPage() {
             {/* ── HEADER SECTION ── */}
             <div className="flex-none p-4 border-b border-gray-200 dark:border-neutral-800 bg-gray-50/50 dark:bg-neutral-900/50">
                 <div className="flex items-center justify-between mb-4">
-                    <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                        <TrendingUp size={24} className="text-[#5c9a38]" />
-                        Tạo phiếu bán hàng mới
-                    </h1>
+                    <div className="flex items-center gap-6">
+                        <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                            <TrendingUp size={24} className="text-[#5c9a38]" />
+                            Tạo phiếu bán hàng mới
+                        </h1>
+                    </div>
                     <div className="flex gap-2">
                         <button
                             onClick={() => navigate("/export-manage")}
@@ -283,9 +313,9 @@ export default function CreateExportOrderPage() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-8 gap-4 border p-4 rounded-xl bg-white dark:bg-neutral-800 shadow-sm">
+                <div className="grid grid-cols-12 gap-4 border p-4 rounded-xl bg-white dark:bg-neutral-800 shadow-sm items-center">
                     {/* Customer Info */}
-                    <div className="col-span-2 flex flex-col gap-1.5">
+                    <div className="col-span-3 flex flex-col gap-1.5">
                         <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1"><User size={10} /> Khách hàng *</label>
                         <div className="flex gap-1">
                             <input
@@ -305,32 +335,32 @@ export default function CreateExportOrderPage() {
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
+                    <div className="col-span-1 flex flex-col gap-1.5">
                         <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Số phiếu</label>
                         <input
                             type="text"
                             value={orderId}
                             disabled
-                            className="bg-gray-50 dark:bg-neutral-900/50 border border-gray-200 dark:border-neutral-800 px-3 py-2 rounded text-sm text-gray-400 font-mono"
+                            className="bg-gray-50 dark:bg-neutral-900/50 border border-gray-200 dark:border-neutral-800 px-2 py-2 rounded text-[11px] text-gray-400 font-mono"
                         />
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
+                    <div className="col-span-2 flex flex-col gap-1.5">
                         <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1"><Calendar size={10} /> Ngày bán</label>
                         <input
                             type="text"
                             value={new Date(exportDate).toLocaleString("vi-VN").replace(/,/g, "")}
                             disabled
-                            className="bg-gray-50 dark:bg-neutral-900/50 border border-gray-200 dark:border-neutral-800 px-3 py-2 rounded text-sm text-gray-400 font-mono"
+                            className="bg-gray-50 dark:bg-neutral-900/50 border border-gray-200 dark:border-neutral-800 px-2 py-2 rounded text-[11px] text-gray-400 font-mono"
                         />
                     </div>
 
-                    <div className="flex flex-col gap-1.5">
+                    <div className="col-span-1 flex flex-col gap-1.5">
                         <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1"><CreditCard size={10} /> HTTT</label>
                         <select
                             value={paymentMethod}
                             onChange={(e) => setPaymentMethod(e.target.value)}
-                            className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                            className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-2 py-2 rounded text-sm outline-none"
                         >
                             {allPaymentMethods.map(m => (
                                 <option key={m.id || m.name} value={m.name}>{m.name}</option>
@@ -338,28 +368,48 @@ export default function CreateExportOrderPage() {
                         </select>
                     </div>
 
-                    <div className="col-span-3 flex items-center gap-4 pt-4">
+                    <div className="col-span-2 flex flex-col gap-1.5">
+                        <label className="text-[11px] font-bold text-red-600 dark:text-red-400 uppercase tracking-wider">Triệu chứng</label>
+                        <input
+                            type="text"
+                            placeholder="Triệu chứng..."
+                            value={symptoms}
+                            onChange={(e) => setSymptoms(e.target.value)}
+                            className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm outline-none font-bold text-red-600"
+                        />
+                    </div>
+
+                    <div className="col-span-1 flex items-center pt-5">
                         <label className="flex items-center gap-2 cursor-pointer select-none">
                             <input
                                 type="checkbox"
                                 checked={isPrescription}
                                 onChange={(e) => setIsPrescription(e.target.checked)}
-                                className="rounded w-5 h-5 accent-[#5c9a38]"
+                                className="rounded w-4 h-4 accent-[#5c9a38]"
                             />
-                            <span className="text-sm font-bold text-red-600 dark:text-red-400 italic uppercase">Bán theo đơn</span>
-                        </label>
-
-                        {isPrescription && (
-                            <div className="flex-1 flex flex-col gap-1">
-                                <input
-                                    type="text"
-                                    placeholder="Tên bác sĩ chỉ định..."
-                                    value={doctorName}
-                                    onChange={(e) => setDoctorName(e.target.value)}
-                                    className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all font-semibold"
-                                />
+                            <div className="flex flex-col">
+                                <span className="text-[9px] font-black text-red-600 uppercase italic leading-none">Toa thuốc</span>
+                                {isPrescription && (
+                                    <input
+                                        type="text"
+                                        placeholder="Bác sĩ..."
+                                        value={doctorName}
+                                        onChange={(e) => setDoctorName(e.target.value)}
+                                        className="mt-1 bg-transparent border-b border-gray-300 dark:border-neutral-700 w-16 text-[10px] outline-none"
+                                    />
+                                )}
                             </div>
-                        )}
+                        </label>
+                    </div>
+
+                    {/* Total Amount Display - Prominent Box */}
+                    <div className="col-span-2 flex justify-end">
+                        <div className="bg-green-50 dark:bg-green-900/20 px-4 py-2 rounded-2xl border-2 border-green-100 dark:border-green-800/30 flex flex-col items-end shadow-sm">
+                            <span className="text-[9px] font-black text-green-600 dark:text-green-400 uppercase tracking-widest leading-none mb-1">Khách thanh toán</span>
+                            <span className="text-xl font-black text-[#5c9a38] tabular-nums leading-none">
+                                {vnd(amountToPay)} <span className="text-[10px] font-bold opacity-60">đ</span>
+                            </span>
+                        </div>
                     </div>
                 </div>
 
@@ -403,9 +453,8 @@ export default function CreateExportOrderPage() {
                                                 e.preventDefault()
                                                 handleQuickAdd(product)
                                             }}
-                                            className={`w-full flex items-center justify-between p-3.5 rounded-xl transition-colors text-left group ${
-                                                selectedIndex === index ? "bg-green-100 dark:bg-green-900/40 border-l-4 border-green-500" : "hover:bg-green-50 dark:hover:bg-green-900/20"
-                                            }`}
+                                            className={`w-full flex items-center justify-between p-3.5 rounded-xl transition-colors text-left group ${selectedIndex === index ? "bg-green-100 dark:bg-green-900/40 border-l-4 border-green-500" : "hover:bg-green-50 dark:hover:bg-green-900/20"
+                                                }`}
                                         >
                                             <div className="flex flex-col gap-0.5">
                                                 <div className="text-base font-bold text-gray-800 dark:text-gray-100 group-hover:text-green-600 transition-colors">
@@ -549,7 +598,7 @@ export default function CreateExportOrderPage() {
             <div className="flex-none p-6 border-t border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 shadow-2xl">
                 <div className="flex gap-10 items-start max-w-7xl mx-auto">
                     <div className="flex-1 flex flex-col gap-3">
-                        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest">Ghi chú phiếu bán</label>
+                        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest leading-none">Ghi chú phiếu bán</label>
                         <textarea
                             placeholder="Nhập ghi chú thêm cho đơn hàng này..."
                             value={notes}

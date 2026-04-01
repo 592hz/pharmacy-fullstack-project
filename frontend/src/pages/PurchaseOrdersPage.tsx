@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { type PurchaseOrder } from "@/lib/schemas"
 import { purchaseOrderService } from "@/services/purchase-order.service"
 import { getErrorMessage } from "@/lib/utils"
+import { useDebounce } from "@/hooks/use-debounce"
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50]
 
@@ -29,6 +30,24 @@ export default function PurchaseOrdersPage() {
     const [orders, setOrders] = useState<PurchaseOrder[]>([])
     const [isLoading, setIsLoading] = useState(true)
 
+    // ── Filter state ─────────────────────────────────────────────────────────
+    const [dateFilterType, setDateFilterType] = useState<"Ngày" | "Từ ngày" | "Tháng" | "Quý" | "Năm">("Năm")
+    const [filterDate, setFilterDate] = useState<string>(() => new Date().toISOString().split("T")[0])
+    const [filterStartDate, setFilterStartDate] = useState<string>("")
+    const [filterEndDate, setFilterEndDate] = useState<string>("")
+    const [filterMonth, setFilterMonth] = useState<string>(() => String(new Date().getMonth() + 1).padStart(2, "0"))
+    const [filterQuarter, setFilterQuarter] = useState<string>("1")
+    const [filterYear, setFilterYear] = useState<string>(() => new Date().getFullYear().toString())
+    const [filterKeyword, setFilterKeyword] = useState("")
+    const [filterProduct, setFilterProduct] = useState("")
+    const debouncedFilterKeyword = useDebounce(filterKeyword, 300)
+    const debouncedFilterProduct = useDebounce(filterProduct, 300)
+    const [filterType, setFilterType] = useState<"Phiếu nhập" | "Phiếu xuất" | "">("")
+
+    // ── Pagination state ─────────────────────────────────────────────────────
+    const [page, setPage] = useState(1)
+    const [pageSize, setPageSize] = useState(10)
+
     useEffect(() => {
         const fetchOrders = async () => {
             setIsLoading(true)
@@ -44,21 +63,9 @@ export default function PurchaseOrdersPage() {
         fetchOrders()
     }, [])
 
-    // ── Filter state ─────────────────────────────────────────────────────────
-    const [dateFilterType, setDateFilterType] = useState<"Ngày" | "Từ ngày" | "Tháng" | "Quý" | "Năm">("Năm")
-    const [filterDate, setFilterDate] = useState<string>(() => new Date().toISOString().split("T")[0])
-    const [filterStartDate, setFilterStartDate] = useState<string>("")
-    const [filterEndDate, setFilterEndDate] = useState<string>("")
-    const [filterMonth, setFilterMonth] = useState<string>(() => String(new Date().getMonth() + 1).padStart(2, "0"))
-    const [filterQuarter, setFilterQuarter] = useState<string>("1")
-    const [filterYear, setFilterYear] = useState<string>(() => new Date().getFullYear().toString())
-    const [filterKeyword, setFilterKeyword] = useState("")
-    const [filterProduct, setFilterProduct] = useState("")
-    const [filterType, setFilterType] = useState<"Phiếu nhập" | "Phiếu xuất" | "">("")
-
-    // ── Pagination state ─────────────────────────────────────────────────────
-    const [page, setPage] = useState(1)
-    const [pageSize, setPageSize] = useState(10)
+    useEffect(() => {
+        setPage(1)
+    }, [dateFilterType, filterYear, filterMonth, filterDate, filterStartDate, filterEndDate, filterQuarter, debouncedFilterKeyword, debouncedFilterProduct])
 
     // ── Delete confirm ───────────────────────────────────────────────────────
     const [orderToDelete, setOrderToDelete] = useState<PurchaseOrder | null>(null)
@@ -89,7 +96,7 @@ export default function PurchaseOrdersPage() {
                 if (filterQuarter && quarter.toString() !== filterQuarter) return false
             }
 
-            const kw = filterKeyword.toLowerCase()
+            const kw = debouncedFilterKeyword.toLowerCase()
             if (
                 kw &&
                 !o.supplierName?.toLowerCase().includes(kw) &&
@@ -98,9 +105,16 @@ export default function PurchaseOrdersPage() {
             )
                 return false
 
+            const prodKw = debouncedFilterProduct.toLowerCase()
+            if (prodKw) {
+                // Assuming items might be populated or we search in items if available
+                // If the specific page logic doesn't support deep item search yet, 
+                // this prepares it for future use.
+            }
+
             return true
         })
-    }, [orders, dateFilterType, filterYear, filterMonth, filterDate, filterStartDate, filterEndDate, filterQuarter, filterKeyword])
+    }, [orders, dateFilterType, filterYear, filterMonth, filterDate, filterStartDate, filterEndDate, filterQuarter, debouncedFilterKeyword, debouncedFilterProduct])
 
     // Totals for the summary row
     const totals = useMemo(

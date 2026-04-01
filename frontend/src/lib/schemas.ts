@@ -9,6 +9,22 @@ const dateValidation = z.string().optional().refine((val) => {
     return dateRegex.test(val)
 }, "Hạn dùng không hợp lệ (Định dạng: DD-MM-YYYY hoặc DD/MM/YYYY)")
 
+const requiredDateValidation = z.string().min(1, "Vui lòng nhập Hạn dùng").refine((val) => {
+    if (!dateRegex.test(val)) return false;
+    
+    // Tách ngày, tháng, năm từ chuỗi DD/MM/YYYY hoặc DD-MM-YYYY
+    const parts = val.split(/[-/]/);
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // Tháng trong JS bắt đầu từ 0
+    const year = parseInt(parts[2], 10);
+    
+    const expiryDate = new Date(year, month, day);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Đưa về 00:00:00 để so sánh chính xác theo ngày
+    
+    return expiryDate > today;
+}, "Hạn dùng phải là một ngày trong tương lai (lớn hơn ngày hiện tại)")
+
 // ─── AUTH ───
 export const loginSchema = z.object({
     username: z.string().min(1, "Vui lòng nhập tên đăng nhập"),
@@ -35,11 +51,11 @@ export const customerSchema = z.object({
     id: z.string().optional(),
     name: z.string().min(1, "Vui lòng nhập tên khách hàng"),
     phone: z.string().regex(phoneRegex, "Số điện thoại không hợp lệ (10-11 số)").optional().or(z.literal("")),
-    dob: z.string().optional(),
+    dob: dateValidation,
     address: z.string().optional(),
     gender: z.enum(["Nam", "Nữ", "Khác"]).default("Nam"),
-    weight: z.string().optional(),
-    age: z.string().optional(),
+    weight: z.string().regex(/^\d*$/, "Cân nặng phải là số").optional(),
+    age: z.string().regex(/^\d*$/, "Tuổi phải là số").optional(),
     notes: z.string().optional(),
 })
 
@@ -59,7 +75,7 @@ export const supplierSchema = z.object({
     notes: z.string().optional(),
     isNational: z.boolean().default(true).optional(),
     isDefaultImport: z.boolean().default(false).optional(),
-    debt: z.number().default(0),
+    debt: z.number().min(0, "Công nợ không được âm").default(0),
 })
 
 export type Supplier = z.infer<typeof supplierSchema> & { id: string }
@@ -76,9 +92,9 @@ export const productUnitSchema = z.object({
 })
 
 export const batchSchema = z.object({
-    batchNumber: z.string(),
-    expiryDate: z.string(),
-    quantity: z.number(),
+    batchNumber: z.string().min(1, "Vui lòng nhập Số lô"),
+    expiryDate: dateValidation,
+    quantity: z.number().min(0, "Số lượng không được âm"),
 })
 
 export const productSchema = z.object({
@@ -130,7 +146,7 @@ export const categorySchema = z.object({
     id: z.string().optional(),
     name: z.string().min(1, "Vui lòng nhập tên"),
     type: z.enum(["Thu", "Chi"]),
-    amount: z.number().gte(0),
+    amount: z.number().gte(0, "Số tiền không được âm"),
     date: z.string().optional(),
     notes: z.string().optional(),
 })
@@ -172,8 +188,8 @@ export const exportOrderItemSchema = z.object({
     code: z.string(),
     name: z.string(),
     unit: z.string(),
-    batchNumber: z.string().default(""),
-    expiryDate: z.string().default(""),
+    batchNumber: z.string().min(1, "Vui lòng nhập Số lô"),
+    expiryDate: requiredDateValidation,
     quantity: z.number().min(0.0001, "Số lượng phải lớn hơn 0"),
     retailPrice: z.number().min(0),
     importPrice: z.number().min(0),
@@ -197,6 +213,7 @@ export const exportOrderSchema = z.object({
     paymentStatus: z.string().default("Đã thanh toán"),
     isPrescription: z.boolean().default(false),
     doctorName: z.string().optional(),
+    symptoms: z.string().optional(),
     items: z.array(exportOrderItemSchema).min(1, "Phiếu bán hàng phải có ít nhất một sản phẩm"),
 })
 
@@ -209,8 +226,8 @@ export const purchaseOrderItemSchema = z.object({
     code: z.string(),
     name: z.string(),
     unit: z.string(),
-    batchNumber: z.string().default(""),
-    expiryDate: z.string().default(""),
+    batchNumber: z.string().min(1, "Vui lòng nhập Số lô"),
+    expiryDate: requiredDateValidation,
     quantity: z.number().min(0.0001, "Số lượng phải lớn hơn 0"),
     importPrice: z.number().min(0),
     retailPrice: z.number().min(0),
@@ -263,14 +280,14 @@ export type NearExpiryProduct = z.infer<typeof nearExpiryProductSchema>
 
 export const dashboardSummarySchema = z.object({
     stats: z.object({
-        today: z.object({ revenue: z.number(), profit: z.number() }),
-        month: z.object({ revenue: z.number(), profit: z.number() }),
-        year: z.object({ revenue: z.number(), profit: z.number() }),
-        totalIncome: z.number(),
-        totalExpense: z.number(),
-        lowStockCount: z.number(),
-        nearExpiryCount: z.number(),
-        billCountToday: z.number(),
+        today: z.object({ revenue: z.number().min(0), profit: z.number() }),
+        month: z.object({ revenue: z.number().min(0), profit: z.number() }),
+        year: z.object({ revenue: z.number().min(0), profit: z.number() }),
+        totalIncome: z.number().min(0),
+        totalExpense: z.number().min(0),
+        lowStockCount: z.number().min(0),
+        nearExpiryCount: z.number().min(0),
+        billCountToday: z.number().min(0),
         lowStockProducts: z.array(lowStockProductSchema),
         nearExpiryProducts: z.array(nearExpiryProductSchema),
     }),

@@ -20,6 +20,7 @@ import ExportOrderDetailPage from "@/pages/ExportOrderDetailPage"
 import CreateExportOrderPage from "@/pages/CreateExportOrderPage"
 import NotesPage from "@/pages/NotesPage"
 import StockManagementPage from "@/pages/StockManagementPage"
+import TrashPage from "@/pages/TrashPage"
 import { AuthProvider } from "@/context/AuthContext"
 import ProtectedRoute from "@/components/ProtectedRoute"
 
@@ -57,6 +58,7 @@ export function App() {
             <Route path="purchase-orders/:id" element={<PurchaseOrderDetailPage />} />
             <Route path="notes" element={<NotesPage />} />
             <Route path="stock" element={<StockManagementPage />} />
+            <Route path="trash" element={<TrashPage />} />
           </Route>
 
           <Route element={<AuthLayout />}>

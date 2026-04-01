@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { type ExportOrder } from "@/lib/schemas"
 import { exportSlipService } from "@/services/export-slip.service"
 import { getErrorMessage } from "@/lib/utils"
+import { useDebounce } from "@/hooks/use-debounce"
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50]
 
@@ -39,10 +40,6 @@ export default function ExportManagePage() {
         }
     }
 
-    useEffect(() => {
-        fetchSlips()
-    }, [])
-
     // ── Filter state ─────────────────────────────────────────────────────────
     const [dateFilterType, setDateFilterType] = useState<"Ngày" | "Từ ngày" | "Tháng" | "Quý" | "Năm">("Năm")
     const [filterDate, setFilterDate] = useState<string>(() => new Date().toISOString().split("T")[0])
@@ -52,11 +49,20 @@ export default function ExportManagePage() {
     const [filterQuarter, setFilterQuarter] = useState<string>("1")
     const [filterYear, setFilterYear] = useState<string>(() => new Date().getFullYear().toString())
     const [filterKeyword, setFilterKeyword] = useState("")
+    const debouncedFilterKeyword = useDebounce(filterKeyword, 300)
     const [filterPrescription, setFilterPrescription] = useState(false)
 
     // ── Pagination state ─────────────────────────────────────────────────────
     const [page, setPage] = useState(1)
     const [pageSize, setPageSize] = useState(10)
+
+    useEffect(() => {
+        fetchSlips()
+    }, [])
+
+    useEffect(() => {
+        setPage(1)
+    }, [dateFilterType, filterYear, filterMonth, filterDate, filterStartDate, filterEndDate, filterQuarter, debouncedFilterKeyword, filterPrescription])
 
     // ── Delete confirm state ─────────────────────────────────────────────────
     const [slipToDelete, setSlipToDelete] = useState<ExportOrder | null>(null)
@@ -88,7 +94,7 @@ export default function ExportManagePage() {
                 if (filterQuarter && quarter.toString() !== filterQuarter) return false
             }
 
-            const kw = filterKeyword.toLowerCase()
+            const kw = debouncedFilterKeyword.toLowerCase()
             if (
                 kw &&
                 !s.customerName.toLowerCase().includes(kw) &&
@@ -101,7 +107,7 @@ export default function ExportManagePage() {
 
             return true
         })
-    }, [slips, dateFilterType, filterYear, filterMonth, filterDate, filterStartDate, filterEndDate, filterQuarter, filterKeyword, filterPrescription])
+    }, [slips, dateFilterType, filterYear, filterMonth, filterDate, filterStartDate, filterEndDate, filterQuarter, debouncedFilterKeyword, filterPrescription])
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
     const paged = filtered.slice((page - 1) * pageSize, page * pageSize)
@@ -334,7 +340,8 @@ export default function ExportManagePage() {
                                         <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-800 w-12 text-center uppercase">STT</th>
                                         <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase">Số phiếu</th>
                                         <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase">Ngày xuất</th>
-                                        <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase">Bệnh nhân / Khách hàng</th>
+                                        <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase"> Khách hàng</th>
+                                        <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase">Triệu chứng</th>
                                         <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 text-right uppercase">Tổng tiền</th>
                                         <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase">Người tạo</th>
                                         <th className="px-3 py-3 uppercase min-w-[200px]">Ghi chú</th>
@@ -371,6 +378,9 @@ export default function ExportManagePage() {
                                                     <span className="font-semibold text-gray-800 dark:text-gray-200">{slip.customerName}</span>
                                                     {slip.isPrescription && <span className="text-[10px] text-red-600 font-bold uppercase italic">Bán theo đơn</span>}
                                                 </div>
+                                            </td>
+                                            <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 text-red-600 italic font-medium truncate max-w-[150px]" title={slip.symptoms}>
+                                                {slip.symptoms}
                                             </td>
                                             <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 text-right text-gray-600">
                                                 {vnd(slip.totalAmount)}

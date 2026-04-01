@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
-import { Search, List, Download, RefreshCw, Plus, FileText, Upload } from "lucide-react"
+import { Search, List, Download, RefreshCw, Plus, FileText, Upload, Trash2 } from "lucide-react"
+import { Link } from "react-router-dom"
 import { useRef } from "react"
 import * as XLSX from "xlsx"
 import { AddProductModal } from "@/components/add-product-modal"
@@ -8,6 +9,7 @@ import { type Product, type ProductCategory, type Supplier } from "@/lib/schemas
 import { productService } from "@/services/product.service"
 import { productCategoryService } from "@/services/product-category.service"
 import { supplierService } from "@/services/supplier.service"
+import { useDebounce } from "@/hooks/use-debounce"
 import { getErrorMessage } from "@/lib/utils"
 
 export default function ProductsPage() {
@@ -17,7 +19,6 @@ export default function ProductsPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
     const [productToDelete, setProductToDelete] = useState<Product | null>(null)
-    const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
     const [isLoading, setIsLoading] = useState(true)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -45,6 +46,7 @@ export default function ProductsPage() {
 
     // Search and Pagination State
     const [searchQuery, setSearchQuery] = useState("")
+    const debouncedSearchQuery = useDebounce(searchQuery, 300)
     const [stockFilter, setStockFilter] = useState("Tất cả")
     const [categoryFilter, setCategoryFilter] = useState("Tất cả")
     const [supplierFilter, setSupplierFilter] = useState("Tất cả")
@@ -55,7 +57,7 @@ export default function ProductsPage() {
     // Filter Logic
     const filteredProducts = products.filter(product => {
         // 1. Text Search
-        const query = searchQuery.toLowerCase().trim()
+        const query = debouncedSearchQuery.toLowerCase().trim()
 
         // Helper to get ID from potentially populated field
         const getFieldValue = (field: string | { id: string; _id?: string } | undefined | null) => {
@@ -130,22 +132,15 @@ export default function ProductsPage() {
 
     const handleDeleteClick = (product: Product) => {
         setProductToDelete(product)
-        setDeleteConfirmCount(1)
     }
 
     const confirmDelete = () => {
-        if (deleteConfirmCount === 1) {
-            setDeleteConfirmCount(2)
-            return
-        }
-
-        if (deleteConfirmCount === 2 && productToDelete) {
+        if (productToDelete) {
             productService.delete(productToDelete.id)
                 .then(() => {
                     setProducts(products.filter(p => p.id !== productToDelete.id))
-                    toast.success("Đã xóa sản phẩm thành công!")
+                    toast.success("Sản phẩm đã được chuyển vào thùng rác!")
                     setProductToDelete(null)
-                    setDeleteConfirmCount(0)
                 })
                 .catch((error: unknown) => {
                     toast.error(`Lỗi khi xóa: ${getErrorMessage(error)}`)
@@ -155,7 +150,6 @@ export default function ProductsPage() {
 
     const cancelDelete = () => {
         setProductToDelete(null)
-        setDeleteConfirmCount(0)
     }
 
     const handleSaveProduct = async (savedProduct: Product) => {
@@ -419,6 +413,13 @@ export default function ProductsPage() {
                             >
                                 <RefreshCw size={18} />
                             </button>
+                            <Link 
+                                to="/trash"
+                                className="w-10 h-10 flex items-center justify-center bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 shadow-sm transition-transform active:scale-95 border border-gray-200"
+                                title="Thùng rác"
+                            >
+                                <Trash2 size={18} />
+                            </Link>
                         </div>
 
                         {/* Search Bar */}
@@ -507,23 +508,23 @@ export default function ProductsPage() {
 
                                                 const activeOtherBatches = product.batches.filter(b => b.quantity > 0 && b.batchNumber !== "LÔ ĐẦU")
                                                 if (activeOtherBatches.length > 0) {
-                                                    const sorted = [...activeOtherBatches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
+                                                    const sorted = [...activeOtherBatches].sort((a, b) => (a.expiryDate || "").localeCompare(b.expiryDate || ""))
                                                     return sorted[0].expiryDate
                                                 }
 
                                                 const activeBatches = product.batches.filter(b => b.quantity > 0)
                                                 if (activeBatches.length > 0) {
-                                                    const sorted = [...activeBatches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
+                                                    const sorted = [...activeBatches].sort((a, b) => (a.expiryDate || "").localeCompare(b.expiryDate || ""))
                                                     return sorted[0].expiryDate
                                                 }
 
                                                 const otherBatches = product.batches.filter(b => b.batchNumber !== "LÔ ĐẦU")
                                                 if (otherBatches.length > 0) {
-                                                    const sorted = [...otherBatches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
+                                                    const sorted = [...otherBatches].sort((a, b) => (a.expiryDate || "").localeCompare(b.expiryDate || ""))
                                                     return sorted[0].expiryDate
                                                 }
 
-                                                const sorted = [...product.batches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
+                                                const sorted = [...product.batches].sort((a, b) => (a.expiryDate || "").localeCompare(b.expiryDate || ""))
                                                 return sorted[0].expiryDate
                                             }
                                             return product.expiryDate || "."
@@ -630,10 +631,8 @@ export default function ProductsPage() {
                             Xác nhận xóa sản phẩm
                         </h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                            {deleteConfirmCount === 1
-                                ? `Bạn có chắc chắn muốn xóa sản phẩm "${productToDelete.name}"? Hành động này không thể hoàn tác.`
-                                : `Vui lòng xác nhận LẦN CUỐI. Bạn thực sự muốn xóa sản phẩm "${productToDelete.name}"?`
-                            }
+                            Bạn có chắc chắn muốn xóa sản phẩm <span className="font-bold text-gray-800 dark:text-gray-200">"{productToDelete.name}"</span>? 
+                            <br/>Sản phẩm này sẽ được chuyển vào <span className="text-red-500 font-bold">Thùng rác</span>.
                         </p>
 
                         <div className="flex items-center justify-center gap-3">
@@ -643,12 +642,12 @@ export default function ProductsPage() {
                             >
                                 Hủy bỏ
                             </button>
-                            <button
-                                onClick={confirmDelete}
-                                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900 transition-colors"
-                            >
-                                {deleteConfirmCount === 1 ? 'Xóa' : 'Chắc chắn xóa'}
-                            </button>
+                                <button
+                                    onClick={confirmDelete}
+                                    className="rounded-md bg-red-600 px-6 py-2 text-sm font-bold text-white hover:bg-red-700 shadow-sm transition-colors"
+                                >
+                                    Xác nhận xóa
+                                </button>
                         </div>
                     </div>
                 </div>

@@ -22,6 +22,8 @@ export interface IProduct extends Document {
     baseUnitName?: string;
     conversionRate?: number;
     batches?: IProductBatch[];
+    isDeleted?: boolean;
+    deletedAt?: Date;
 }
 
 const ProductBatchSchema = new Schema({
@@ -45,7 +47,9 @@ const ProductSchema: Schema = new Schema({
     baseQuantity: { type: Number, required: true },
     baseUnitName: { type: String },
     conversionRate: { type: Number, default: 1 },
-    batches: [ProductBatchSchema]
+    batches: [ProductBatchSchema],
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date }
 }, { timestamps: true });
 
 export default mongoose.model<IProduct>('Product', ProductSchema);

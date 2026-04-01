@@ -4,6 +4,7 @@ import { toast } from "sonner"
 import type { Note } from "@/lib/schemas"
 import { noteSchema } from "@/lib/schemas"
 import { noteService } from "@/services/note.service"
+import { useDebounce } from "@/hooks/use-debounce"
 import { useEffect } from "react"
 import { getErrorMessage } from "@/lib/utils"
 
@@ -20,6 +21,7 @@ export default function NotesPage() {
     const [notes, setNotes] = useState<Note[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
+    const debouncedSearchQuery = useDebounce(searchQuery, 300)
     const [isAdding, setIsAdding] = useState(false)
     const [editingNote, setEditingNote] = useState<Note | null>(null)
 
@@ -45,8 +47,8 @@ export default function NotesPage() {
     }, [])
 
     const filteredNotes = notes.filter(n =>
-        n.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        n.content.toLowerCase().includes(searchQuery.toLowerCase())
+        n.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+        n.content.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
     )
 
     const handleAddNote = async () => {

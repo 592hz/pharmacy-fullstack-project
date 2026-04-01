@@ -1,11 +1,13 @@
-import { api } from './api';
-import type { Product } from '@/lib/schemas';
+import { productsApi } from "./api"
 
 export const productService = {
-    getAll: () => api.get<Product[]>('/products'),
-    getById: (id: string) => api.get<Product>(`/products/${id}`),
-    create: (data: Partial<Product>) => api.post<Product>('/products', data),
-    update: (id: string, data: Partial<Product>) => api.put<Product>(`/products/${id}`, data),
-    delete: (id: string) => api.delete<void>(`/products/${id}`),
-    bulkCreate: (products: Partial<Product>[]) => api.post<{ success: number; skipped: number; errors: string[] }>('/products/bulk', { products })
-};
+    getAll: () => productsApi.getProducts(),
+    getDeleted: () => productsApi.getDeletedProducts(),
+    getById: (id: string) => productsApi.getProductById(id),
+    create: (data: any) => productsApi.createProduct(data),
+    update: (id: string, data: any) => productsApi.updateProduct(id, data),
+    delete: (id: string) => productsApi.deleteProduct(id),
+    restore: (id: string) => productsApi.restoreProduct(id),
+    permanentDelete: (id: string) => productsApi.permanentDeleteProduct(id),
+    bulkCreate: (products: any[]) => productsApi.bulkCreateProducts(products)
+}

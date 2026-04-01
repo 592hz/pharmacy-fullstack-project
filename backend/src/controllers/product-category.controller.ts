@@ -4,7 +4,7 @@ import Product from '../models/product.model.js';
 
 export const getProductCategories = async (req: Request, res: Response) => {
     try {
-        const categories = await ProductCategory.find().sort({ name: 1 });
+        const categories = await ProductCategory.find({ isDeleted: { $ne: true } }).sort({ name: 1 });
         res.status(200).json(categories);
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
@@ -59,17 +59,74 @@ export const deleteProductCategory = async (req: Request, res: Response) => {
             return res.status(400).json({ message: 'Category ID is required' });
         }
 
-        // Check if there are products in this category
-        const productCount = await Product.countDocuments({ categoryId } as any);
-        if (productCount > 0) {
-            return res.status(400).json({ 
-                message: 'Không thể xóa nhóm sản phẩm vì đang có sản phẩm thuộc nhóm này. Vui lòng chuyển hoặc xóa các sản phẩm trước khi xóa nhóm.' 
-            });
-        }
+        // Soft delete the category
+        const deletedCategory = await ProductCategory.findByIdAndUpdate(
+            categoryId, 
+            { isDeleted: true, deletedAt: new Date() },
+            { new: true }
+        );
 
-        const deletedCategory = await ProductCategory.findByIdAndDelete(categoryId);
         if (!deletedCategory) return res.status(404).json({ message: 'Product category not found' });
-        res.status(200).json({ message: 'Product category deleted successfully' });
+
+        // Cascading soft delete for all products in this category
+        await Product.updateMany(
+            { categoryId },
+            { isDeleted: true, deletedAt: new Date() }
+        );
+
+        res.status(200).json({ message: 'Product category and its products moved to trash' });
+    } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+export const getDeletedProductCategories = async (req: Request, res: Response) => {
+    try {
+        const categories = await ProductCategory.find({ isDeleted: true }).sort({ deletedAt: -1 });
+        res.status(200).json(categories);
+    } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+export const restoreProductCategory = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        const restoredCategory = await ProductCategory.findByIdAndUpdate(
+            id,
+            { isDeleted: false, deletedAt: null },
+            { new: true }
+        );
+
+        if (!restoredCategory) return res.status(404).json({ message: 'Category not found' });
+
+        // Restore all products in this category that were deleted
+        await Product.updateMany(
+            { categoryId: id as any, isDeleted: true },
+            { isDeleted: false, deletedAt: null }
+        );
+
+        res.status(200).json(restoredCategory);
+    } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+export const permanentlyDeleteProductCategory = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+        
+        // Check if there are products still in this category (even if deleted)
+        // If we want to hard delete the category, we must hard delete or reassign products first.
+        // User said "khi xóa danh mục các sản phẩm thuộc danh mục đó được xóa hết", 
+        // so permanent delete of category should probably also permanent delete products.
+        
+        await Product.deleteMany({ categoryId: id as any });
+        const deletedCategory = await ProductCategory.findByIdAndDelete(id);
+
+        if (!deletedCategory) return res.status(404).json({ message: 'Category not found' });
+        
+        res.status(200).json({ message: 'Category and its products permanently deleted' });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }

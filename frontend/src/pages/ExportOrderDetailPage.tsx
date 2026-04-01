@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { AlertCircle, Search, PlusCircle, Trash2, Save, X, Printer } from "lucide-react"
+import { AlertCircle, Search, PlusCircle, Trash2, Save, Printer, Calendar, User, FileText, LayoutDashboard, CreditCard, Wallet, ChevronLeft } from "lucide-react"
 import { toast } from "sonner"
 import { type ExportOrder, type ExportOrderItem, type Product, exportOrderSchema } from "@/lib/schemas"
 import { exportSlipService } from "@/services/export-slip.service"
@@ -10,6 +10,7 @@ import { AddProductModal, type ProductFormData } from "@/components/add-product-
 import { parseFloatSafe, getErrorMessage } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { type PaymentMethod } from "@/lib/schemas"
+import { useDebounce } from "@/hooks/use-debounce"
 
 export default function ExportOrderDetailPage() {
     const { id } = useParams<{ id: string }>()
@@ -25,6 +26,7 @@ export default function ExportOrderDetailPage() {
     const [allProducts, setAllProducts] = useState<Product[]>([])
     const [notes, setNotes] = useState("")
     const [paymentMethod, setPaymentMethod] = useState("")
+    const [symptoms, setSymptoms] = useState("")
     const [allPaymentMethods, setAllPaymentMethods] = useState<PaymentMethod[]>([])
 
     const fetchData = useCallback(async () => {
@@ -40,6 +42,7 @@ export default function ExportOrderDetailPage() {
             setItems(slipData.items || [])
             setNotes(slipData.notes || "")
             setPaymentMethod(slipData.paymentMethod || "")
+            setSymptoms(slipData.symptoms || "")
             setAllProducts(productsData)
             setAllPaymentMethods(paymentMethodsData)
         } catch (error: unknown) {
@@ -56,15 +59,16 @@ export default function ExportOrderDetailPage() {
     // Search state
     const [searchQuery, setSearchQuery] = useState("")
     const [showResults, setShowResults] = useState(false)
+    const debouncedSearchQuery = useDebounce(searchQuery, 300)
 
     const filteredSuggestions = useMemo(() => {
-        if (!searchQuery.trim()) return []
-        const query = searchQuery.toLowerCase()
+        if (!debouncedSearchQuery.trim()) return []
+        const query = debouncedSearchQuery.toLowerCase()
         return allProducts.filter(p =>
             (p.productName || p.name || "").toLowerCase().includes(query) ||
             ((p.id || p.productCode || "")).toLowerCase().includes(query)
         ).slice(0, 10)
-    }, [allProducts, searchQuery])
+    }, [allProducts, debouncedSearchQuery])
 
     const handleQuickAdd = useCallback((product: Product) => {
         const qty = 1
@@ -74,7 +78,11 @@ export default function ExportOrderDetailPage() {
 
         // Pick the earliest expiring batch if available
         const firstBatch = product.batches && product.batches.length > 0
-            ? [...product.batches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))[0]
+            ? [...product.batches].sort((a, b) => {
+                const dateA = a.expiryDate || "";
+                const dateB = b.expiryDate || "";
+                return dateA.localeCompare(dateB);
+            })[0]
             : null
 
         const newItem: ExportOrderItem = {
@@ -180,10 +188,11 @@ export default function ExportOrderDetailPage() {
 
     const handleSaveOrder = async () => {
         if (!slip || !id) return
-        
+
         const updatedSlip: ExportOrder = {
             ...slip,
             notes,
+            symptoms,
             paymentMethod,
             items: items.map(item => ({
                 ...item,
@@ -250,152 +259,173 @@ export default function ExportOrderDetailPage() {
     const totalProfit = amountToPay - totalImport
 
     return (
-        <div className="flex flex-col h-full bg-white dark:bg-neutral-900 overflow-hidden">
-            {/* ── HEADER SECTION ── */}
-            <div className="flex-none p-3 border-b border-gray-200 dark:border-neutral-800 bg-gray-50/50 dark:bg-neutral-900/50">
-                <div className="grid grid-cols-6 gap-4">
-                    <div className="col-span-2 flex flex-col gap-1">
-                        <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">
-                            {slip.isPrescription ? "Bệnh nhân / Khách hàng" : "Tên khách hàng"}
-                        </label>
-                        <div className="flex gap-2">
-                            {isEditing ? (
-                                <>
-                                    <button
-                                        onClick={handleSaveOrder}
-                                        className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-1.5 rounded text-sm font-medium whitespace-nowrap w-[80px] text-center transition-colors flex items-center justify-center gap-1"
-                                    >
-                                        <Save size={14} /> Lưu
-                                    </button>
-                                    <button
-                                        onClick={handleCancelEdit}
-                                        className="bg-gray-400 hover:bg-gray-500 text-white px-2 py-1.5 rounded text-sm font-medium transition-colors flex items-center justify-center"
-                                        title="Hủy"
-                                    >
-                                        <X size={14} />
-                                    </button>
-                                </>
-                            ) : (
-                                <button
-                                    onClick={handleToggleEdit}
-                                    className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-4 py-1.5 rounded text-sm font-medium whitespace-nowrap w-[100px] text-center transition-colors flex items-center justify-center gap-1"
-                                    >
-                                    Sửa phiếu
-                                </button>
-                            )}
-                            <input
-                                type="text"
-                                value={slip.customerName}
-                                disabled
-                                className="flex-1 bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-800 dark:text-gray-300 outline-none"
-                            />
-                        </div>
-                    </div>
-
-                    {slip.isPrescription && (
-                        <div className="flex flex-col gap-1">
-                            <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">Bác sĩ chỉ định</label>
-                            <input
-                                type="text"
-                                value={slip.doctorName || ""}
-                                disabled
-                                className="bg-white dark:bg-neutral-800 border border-gray-300 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-800 dark:text-gray-300"
-                            />
-                        </div>
-                    )}
-
-                    <div className="flex flex-col gap-1">
-                        <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">Số phiếu</label>
-                        <input
-                            type="text"
-                            value={slip.id}
-                            disabled
-                            className="bg-white dark:bg-neutral-800 border border-gray-300 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-800 dark:text-gray-300"
-                        />
-                    </div>
-                    <div className="flex flex-col gap-1 col-span-2">
-                        <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">Ghi chú</label>
-                        <input
-                            type="text"
-                            value={slip.notes || ""}
-                            disabled
-                            className="bg-gray-50 dark:bg-neutral-800/50 border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-500"
-                        />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                        <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">HTTT</label>
-                        {isEditing ? (
-                            <select
-                                value={paymentMethod}
-                                onChange={(e) => setPaymentMethod(e.target.value)}
-                                className="bg-white dark:bg-neutral-800 border border-gray-300 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-800 dark:text-gray-300 outline-none focus:ring-1 focus:ring-[#5c9a38]"
-                            >
-                                <option value="">Chọn...</option>
-                                {allPaymentMethods.map(m => (
-                                    <option key={m.id || m.name} value={m.name}>{m.name}</option>
-                                ))}
-                            </select>
-                        ) : (
-                            <input
-                                type="text"
-                                value={paymentMethod || "Tiền mặt"}
-                                disabled
-                                className="bg-gray-50 dark:bg-neutral-800/50 border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-500"
-                            />
-                        )}
-                    </div>
-                    <div className="flex flex-col gap-1">
-                        <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">Trạng thái TT</label>
-                        <span className={`px-2 py-1 rounded text-xs font-bold text-center border ${slip.paymentStatus === 'Đã thanh toán' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
-                            {slip.paymentStatus || "Chưa thanh toán"}
+            <div className="flex-none bg-white dark:bg-neutral-900 shadow-sm z-20">
+                {/* ── TOP NAV BAR ── */}
+                <div className="flex items-center justify-between px-6 py-3 border-b border-gray-100 dark:border-neutral-800">
+                    <div className="flex items-center gap-3">
+                        <button 
+                            onClick={() => navigate("/export-manage")}
+                            className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-full text-gray-500 transition-colors"
+                        >
+                            <ChevronLeft size={20} />
+                        </button>
+                        <h1 className="text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                            <FileText size={24} className="text-[#5c9a38]" />
+                            Chi tiết phiếu xuất
+                        </h1>
+                        <span className="px-2 py-0.5 bg-[#5c9a38]/10 text-[#5c9a38] text-[10px] font-black rounded uppercase tracking-wider">
+                            {slip.id}
                         </span>
                     </div>
-                    <div className="flex flex-col gap-1">
-                        <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">Ngày xuất</label>
-                        <input
-                            type="text"
-                            value={formattedExportDate}
-                            disabled
-                            className="bg-gray-50 dark:bg-neutral-800/50 border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-500"
-                        />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                        <label className="text-[11px] font-semibold text-gray-600 dark:text-gray-400">Người tạo</label>
-                        <input
-                            type="text"
-                            value={slip.createdBy}
-                            disabled
-                            className="bg-gray-50 dark:bg-neutral-800/50 border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded text-sm text-gray-500"
-                        />
+
+                    <div className="flex items-center gap-3">
+                        {isEditing ? (
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={handleCancelEdit}
+                                    className="px-4 py-2 text-sm font-bold text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                                >
+                                    Hủy bỏ
+                                </button>
+                                <button
+                                    onClick={handleSaveOrder}
+                                    className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-xl text-sm font-black shadow-lg shadow-orange-500/20 flex items-center gap-2 transition-all transform active:scale-95"
+                                >
+                                    <Save size={18} /> LƯU THAY ĐỔI
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={handleToggleEdit}
+                                className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-6 py-2 rounded-xl text-sm font-black shadow-lg shadow-[#5c9a38]/20 flex items-center gap-2 transition-all transform active:scale-95"
+                            >
+                                <LayoutDashboard size={18} /> SỬA PHIẾU
+                            </button>
+                        )}
+                        <button className="p-2.5 bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-400 rounded-xl hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors" title="In phiếu">
+                            <Printer size={20} />
+                        </button>
                     </div>
                 </div>
 
-                {/* ── SEARCH BAR ── */}
-                <div className="mt-4 relative group">
-                    <div className="flex items-center gap-3 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-xl shadow-sm focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-blue-500 transition-all p-1">
-                        <div className="pl-3 text-gray-400 group-focus-within:text-blue-500 transition-colors">
-                            <Search size={18} />
+                {/* ── METADATA GRID ── */}
+                <div className="px-6 py-5 bg-gray-50/50 dark:bg-neutral-900/50 border-b border-gray-100 dark:border-neutral-800">
+                    <div className="grid grid-cols-12 gap-6 max-w-[1600px]">
+                        {/* Customer Info Card */}
+                        <div className="col-span-3 bg-white dark:bg-neutral-800 p-4 rounded-2xl border border-gray-100 dark:border-neutral-700 shadow-sm relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-3 text-gray-100 dark:text-neutral-700 group-hover:text-gray-200 transition-colors">
+                                <User size={48} />
+                            </div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">Khách hàng</label>
+                            <div className="text-lg font-black text-gray-800 dark:text-white truncate">
+                                {slip.customerName}
+                            </div>
+                            <div className="mt-1 text-xs text-gray-500 flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 bg-[#5c9a38] rounded-full"></span>
+                                {slip.isPrescription ? "Bán theo đơn thuốc" : "Bán lẻ thông thường"}
+                            </div>
                         </div>
-                        <input
-                            type="text"
-                            placeholder="Gõ tên hoặc mã sản phẩm để thêm vào phiếu xuất..."
-                            className="flex-1 bg-transparent border-none outline-none text-sm py-2 px-1 text-gray-800 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-500"
-                            value={searchQuery}
-                            onChange={(e) => {
-                                setSearchQuery(e.target.value)
-                                setShowResults(true)
-                            }}
-                            onFocus={() => setShowResults(true)}
-                            onBlur={() => setTimeout(() => setShowResults(false), 200)}
-                        />
-                        <button
-                            onClick={() => setShowAddModal(true)}
-                            className="flex items-center gap-2 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 px-3 py-2 rounded-lg text-sm font-semibold hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors mr-1"
-                        >
-                            <PlusCircle size={16} />
-                            <span>Thêm mới</span>
-                        </button>
+
+                        {/* Order Identity & Symptoms */}
+                        <div className="col-span-6 grid grid-cols-2 gap-4">
+                            <div className="flex flex-col gap-2">
+                                <label className="text-[10px] font-black text-[#5c9a38] uppercase tracking-[0.2em] flex items-center gap-1.5">
+                                    <div className="w-1.5 h-1.5 bg-[#5c9a38] rounded-full"></div>
+                                    Triệu chứng bệnh
+                                </label>
+                                <input
+                                    type="text"
+                                    value={symptoms}
+                                    placeholder="Không có dữ liệu triệu chứng..."
+                                    onChange={(e) => setSymptoms(e.target.value)}
+                                    disabled={!isEditing}
+                                    className={`w-full px-4 py-3 rounded-xl text-sm transition-all border-2 ${
+                                        isEditing 
+                                        ? 'bg-white border-red-200 dark:bg-neutral-800 dark:border-red-900/30 text-red-600 font-bold focus:ring-4 focus:ring-red-500/10' 
+                                        : 'bg-transparent border-transparent text-gray-700 dark:text-gray-300 font-bold italic opacity-80'
+                                    }`}
+                                />
+                            </div>
+                            <div className="flex flex-col gap-2">
+                                <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-1.5">
+                                    <div className="w-1.5 h-1.5 bg-gray-300 rounded-full"></div>
+                                    Ghi chú nhanh
+                                </label>
+                                <input
+                                    type="text"
+                                    value={notes}
+                                    placeholder="Thêm ghi chú tại đây..."
+                                    onChange={(e) => setNotes(e.target.value)}
+                                    disabled={!isEditing}
+                                    className={`w-full px-4 py-3 rounded-xl text-sm transition-all border-2 ${
+                                        isEditing 
+                                        ? 'bg-white border-blue-200 dark:bg-neutral-800 dark:border-blue-900/30 text-blue-600 font-bold focus:ring-4 focus:ring-blue-500/10' 
+                                        : 'bg-transparent border-transparent text-gray-500 dark:text-gray-400 font-medium opacity-60'
+                                    }`}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Logistics info */}
+                        <div className="col-span-3 grid grid-cols-2 gap-4">
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                                    <CreditCard size={10} /> Thanh toán
+                                </label>
+                                {isEditing ? (
+                                    <select
+                                        value={paymentMethod}
+                                        onChange={(e) => setPaymentMethod(e.target.value)}
+                                        className="bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 px-3 py-2.5 rounded-xl text-sm outline-none focus:ring-4 focus:ring-[#5c9a38]/10"
+                                    >
+                                        <option value="">Chọn...</option>
+                                        {allPaymentMethods.map(m => (
+                                            <option key={m.id || m.name} value={m.name}>{m.name}</option>
+                                        ))}
+                                    </select>
+                                ) : (
+                                    <div className="text-sm font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-neutral-800 px-3 py-2.5 rounded-xl border border-gray-100 dark:border-neutral-700">
+                                        {paymentMethod || "Tiền mặt"}
+                                    </div>
+                                )}
+                            </div>
+                            <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                                    <Calendar size={10} /> Thời gian
+                                </label>
+                                <div className="text-sm font-mono font-bold text-gray-500 dark:text-gray-400 bg-white dark:bg-neutral-800 px-3 py-2.5 rounded-xl border border-gray-100 dark:border-neutral-700 truncate">
+                                    {formattedExportDate}
+                                </div>
+                            </div>
+                        </div>
                     </div>
+                </div>
+
+                {/* ── SEARCH BAR (Integrated) ── */}
+                <div className="px-6 py-4 bg-white dark:bg-neutral-900 border-b border-gray-100 dark:border-neutral-800">
+                    <div className="relative group max-w-4xl">
+                        <div className="flex items-center gap-3 bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus-within:bg-white focus-within:border-[#5c9a38]/30 focus-within:ring-4 focus-within:ring-[#5c9a38]/5 rounded-2xl transition-all px-4 py-1">
+                            <Search size={20} className="text-gray-400 group-focus-within:text-[#5c9a38] transition-colors" />
+                            <input
+                                type="text"
+                                placeholder="Gõ tên sản phẩm để thêm vào phiếu này..."
+                                className="flex-1 bg-transparent border-none outline-none text-sm py-3 text-gray-800 dark:text-gray-200 placeholder:text-gray-400"
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value)
+                                    setShowResults(true)
+                                }}
+                                onFocus={() => setShowResults(true)}
+                                onBlur={() => setTimeout(() => setShowResults(false), 200)}
+                            />
+                            <div className="h-6 w-px bg-gray-200 dark:bg-neutral-700 mx-2"></div>
+                            <button
+                                onClick={() => setShowAddModal(true)}
+                                className="flex items-center gap-2 bg-[#5c9a38]/10 text-[#5c9a38] px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider hover:bg-[#5c9a38]/20 transition-all"
+                            >
+                                <PlusCircle size={14} /> Thêm mới
+                            </button>
+                        </div>
 
                     {showResults && searchQuery && (
                         <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-xl shadow-2xl z-50 overflow-hidden">
@@ -431,66 +461,70 @@ export default function ExportOrderDetailPage() {
             />
 
             {/* ── PRODUCTS TABLE ── */}
-            <div className="flex-1 overflow-auto">
-                <table className="w-full text-[12px] text-left border-collapse">
-                    <thead className="bg-gray-100 dark:bg-neutral-800 sticky top-0 z-10 border-b border-gray-300 dark:border-neutral-700">
+            <div className="flex-1 overflow-auto bg-white dark:bg-neutral-900 border-x border-gray-100 dark:border-neutral-800 mx-6 my-4 rounded-2xl shadow-inner shadow-gray-50 dark:shadow-neutral-950/50 relative">
+                <table className="w-full text-left border-separate border-spacing-0">
+                    <thead className="bg-gray-50 dark:bg-neutral-800/80 sticky top-0 z-10">
                         <tr>
-                            <th className="px-3 py-2 border-r border-gray-300 dark:border-neutral-700 w-24">Mã SP</th>
-                            <th className="px-3 py-2 border-r border-gray-300 dark:border-neutral-700">Tên sản phẩm</th>
-                            <th className="px-3 py-2 border-r border-gray-300 dark:border-neutral-700">ĐVT</th>
-                            <th className="px-3 py-2 border-r border-gray-300 dark:border-neutral-700">Số lô</th>
-                            <th className="px-3 py-2 border-r border-gray-300 dark:border-neutral-700">Hạn dùng</th>
-                            <th className="px-3 py-2 border-r border-gray-300 dark:border-neutral-700 text-right">Số lượng</th>
-                            <th className="px-3 py-2 border-r border-gray-300 dark:border-neutral-700 text-right">Giá nhập</th>
-                            <th className="px-3 py-2 border-r border-gray-300 dark:border-neutral-700 text-right">Giá bán</th>
-                            <th className="px-3 py-2 border-r border-gray-300 dark:border-neutral-700 text-right font-bold">Thành tiền</th>
-                            <th className="px-3 py-2 border-r border-gray-300 dark:border-neutral-700 text-right font-bold text-blue-600">Lợi nhuận</th>
-                            {isEditing && <th className="px-3 py-2 text-center w-10">Xóa</th>}
+                            <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-neutral-700 first:rounded-tl-2xl">Mã SP</th>
+                            <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-neutral-700">Tên sản phẩm</th>
+                            <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-neutral-700 w-20">ĐVT</th>
+                            <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-neutral-700">Số lô</th>
+                            <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-neutral-700">Hạn dùng</th>
+                            <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-neutral-700 text-right">Số lượng</th>
+                            <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-neutral-700 text-right">Giá nhập</th>
+                            <th className="px-4 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest border-b border-gray-100 dark:border-neutral-700 text-right">Giá bán</th>
+                            <th className="px-4 py-4 text-[10px] font-black text-[#5c9a38] uppercase tracking-widest border-b border-gray-100 dark:border-neutral-700 text-right">Thành tiền</th>
+                            <th className="px-4 py-4 text-[10px] font-black text-blue-600 uppercase tracking-widest border-b border-gray-100 dark:border-neutral-700 text-right last:rounded-tr-2xl">Lợi nhuận</th>
+                            {isEditing && <th className="px-4 py-4 border-b border-gray-100 dark:border-neutral-700 w-12"></th>}
                         </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 dark:divide-neutral-800">
+                    <tbody className="divide-y divide-gray-50 dark:divide-neutral-800">
                         {items.length === 0 ? (
                             <tr>
                                 <td colSpan={12} className="py-10 text-center text-gray-400">Chưa có sản phẩm nào.</td>
                             </tr>
                         ) : (
                             items.map((item) => (
-                                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-neutral-800/50">
-                                    <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700">{item.code}</td>
-                                    <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700 font-medium">{item.name}</td>
-                                    <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700">{item.unit}</td>
-                                    <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700">
+                                <tr key={item.id} className="hover:bg-gray-50/50 dark:hover:bg-neutral-800/30 transition-colors group">
+                                    <td className="px-4 py-3.5 text-xs font-mono text-gray-500">{item.code}</td>
+                                    <td className="px-4 py-3.5">
+                                        <div className="text-sm font-black text-gray-800 dark:text-gray-200">{item.name}</div>
+                                    </td>
+                                    <td className="px-4 py-3.5 text-xs font-bold text-gray-400 uppercase">{item.unit}</td>
+                                    <td className="px-4 py-3.5 text-xs font-bold text-gray-600 dark:text-gray-400">
                                         {isEditing ? (
-                                            <input type="text" className="w-full border rounded px-1" value={item.batchNumber || ""} onChange={(e) => updateItemField(item.id!, 'batchNumber', e.target.value)} />
+                                            <input type="text" className="w-full bg-white dark:bg-neutral-800 border-2 border-gray-100 dark:border-neutral-700 rounded-lg px-2 py-1 text-center font-bold outline-none focus:border-[#5c9a38]/30" value={item.batchNumber || ""} onChange={(e) => updateItemField(item.id!, 'batchNumber', e.target.value)} />
                                         ) : item.batchNumber}
                                     </td>
-                                    <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700">
+                                    <td className="px-4 py-3.5 text-xs font-bold text-red-500/80">
                                         {isEditing ? (
-                                            <input type="text" className="w-full border rounded px-1" value={item.expiryDate || ""} onChange={(e) => updateItemField(item.id!, 'expiryDate', e.target.value)} />
+                                            <input type="text" className="w-full bg-white dark:bg-neutral-800 border-2 border-gray-100 dark:border-neutral-700 rounded-lg px-2 py-1 text-center font-bold outline-none focus:border-[#5c9a38]/30" value={item.expiryDate || ""} onChange={(e) => updateItemField(item.id!, 'expiryDate', e.target.value)} />
                                         ) : item.expiryDate}
                                     </td>
-                                    <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700 text-right font-medium">
+                                    <td className="px-4 py-3.5 text-right">
                                         {isEditing ? (
-                                            <NumericInput className="w-16 border rounded px-1 text-right" value={Number(item.quantity)} onChange={(v) => updateItemField(item.id!, 'quantity', v)} />
-                                        ) : item.quantity}
+                                            <NumericInput className="w-20 bg-white dark:bg-neutral-800 border-2 border-gray-100 dark:border-neutral-700 rounded-lg px-2 py-1 text-right font-black outline-none focus:border-[#5c9a38]/30" value={Number(item.quantity)} onChange={(v) => updateItemField(item.id!, 'quantity', v)} />
+                                        ) : <span className="text-sm font-black text-gray-700 dark:text-gray-200">{item.quantity}</span>}
                                     </td>
-                                    <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700 text-right text-gray-500">
+                                    <td className="px-4 py-3.5 text-right font-mono text-xs text-gray-400">
                                         {isEditing ? (
-                                            <NumericInput className="w-24 border rounded px-1 text-right text-[11px]" value={Number(item.importPrice)} onChange={(v) => updateItemField(item.id!, 'importPrice', v)} />
+                                            <NumericInput className="w-24 bg-white dark:bg-neutral-800 border-2 border-gray-100 dark:border-neutral-700 rounded-lg px-2 py-1 text-right outline-none focus:border-[#5c9a38]/30" value={Number(item.importPrice)} onChange={(v) => updateItemField(item.id!, 'importPrice', v)} />
                                         ) : vnd(item.importPrice)}
                                     </td>
-                                    <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700 text-right font-medium">
+                                    <td className="px-4 py-3.5 text-right font-mono text-sm font-bold text-gray-600 dark:text-gray-300">
                                         {isEditing ? (
-                                            <NumericInput className="w-24 border rounded px-1 text-right" value={Number(item.retailPrice)} onChange={(v) => updateItemField(item.id!, 'retailPrice', v)} />
+                                            <NumericInput className="w-28 bg-white dark:bg-neutral-800 border-2 border-gray-100 dark:border-neutral-700 rounded-lg px-2 py-1 text-right font-bold outline-none focus:border-[#5c9a38]/30 text-green-600" value={Number(item.retailPrice)} onChange={(v) => updateItemField(item.id!, 'retailPrice', v)} />
                                         ) : vnd(item.retailPrice)}
                                     </td>
-                                    <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700 text-right font-bold">{vnd(item.remainingAmount)}</td>
-                                    <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-700 text-right font-bold text-blue-600">
+                                    <td className="px-4 py-3.5 text-right font-mono text-base font-black text-[#5c9a38] group-hover:scale-105 transition-transform origin-right">
+                                        {vnd(item.remainingAmount)}
+                                    </td>
+                                    <td className="px-4 py-3.5 text-right font-mono text-xs font-bold text-blue-500/70 italic bg-blue-50/10">
                                         {vnd(item.remainingAmount - (item.quantity * item.importPrice))}
                                     </td>
                                     {isEditing && (
-                                        <td className="px-3 py-2 text-center">
-                                            <button onClick={() => removeItem(item.id!)} className="text-red-500 hover:text-red-700"><Trash2 size={16} /></button>
+                                        <td className="px-4 py-3.5 text-center">
+                                            <button onClick={() => removeItem(item.id!)} className="p-1.5 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors"><Trash2 size={16} /></button>
                                         </td>
                                     )}
                                 </tr>
@@ -501,47 +535,77 @@ export default function ExportOrderDetailPage() {
             </div>
 
             {/* ── FOOTER TOTALS ── */}
-            <div className="flex-none p-4 border-t-2 border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900/80">
-                <div className="flex gap-4 mb-4">
-                    <div className="flex-1 flex flex-col gap-1">
-                        <label className="text-[11px] font-semibold text-gray-800 dark:text-gray-200 uppercase tracking-wider">Ghi chú</label>
-                        <textarea
-                            rows={1}
-                            placeholder="Nhập ghi chú phiếu xuất..."
-                            value={notes}
-                            onChange={(e) => setNotes(e.target.value)}
-                            readOnly={!isEditing}
-                            className={`w-full ${isEditing ? 'bg-white' : 'bg-transparent text-gray-500'} border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded text-sm outline-none focus:ring-1 focus:ring-[#5c9a38] transition-all resize-none`}
-                        />
+            <div className="flex-none bg-white dark:bg-neutral-900 border-t border-gray-100 dark:border-neutral-800 p-6 z-20">
+                <div className="flex flex-col lg:flex-row justify-between items-end gap-10 max-w-[1600px] mx-auto">
+                    {/* Status badges */}
+                    <div className="hidden lg:flex flex-col gap-3 mr-auto">
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Tình trạng phiếu</span>
+                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border ${
+                                slip.paymentStatus === 'Đã thanh toán' 
+                                ? 'bg-green-50 text-green-700 border-green-200 dark:bg-green-900/10 dark:border-green-900/30' 
+                                : 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/10 dark:border-red-900/30'
+                            }`}>
+                                {slip.paymentStatus || "Chưa thanh toán"}
+                            </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Nhân viên tạo</span>
+                            <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 dark:bg-neutral-800 rounded-full border border-gray-100 dark:border-neutral-700">
+                                <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-[8px] text-white font-bold">A</div>
+                                <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300">{slip.createdBy}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap justify-end gap-8 flex-1">
+                        <div className="flex flex-col items-end">
+                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                                <Wallet size={12} /> Tổng giá nhập
+                            </span>
+                            <span className="text-xl text-gray-400 dark:text-neutral-600 font-mono font-bold tracking-tight">{vnd(totalImport)}</span>
+                        </div>
+                        <div className="h-10 w-px bg-gray-100 dark:bg-neutral-800 mt-2"></div>
+                        <div className="flex flex-col items-end">
+                            <span className="text-[10px] font-black text-blue-500/70 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
+                                <LayoutDashboard size={12} /> Lợi nhuận dự kiến
+                            </span>
+                            <span className="text-xl text-blue-600 dark:text-blue-500 font-mono font-bold tracking-tight">{vnd(totalProfit)}</span>
+                        </div>
+                        <div className="h-10 w-[2px] bg-[#5c9a38]/20 mt-2"></div>
+                        <div className="flex flex-col items-end px-6 py-2 bg-[#5c9a38]/5 dark:bg-[#5c9a38]/10 rounded-2xl border border-[#5c9a38]/10">
+                            <span className="text-[11px] font-black text-[#5c9a38] uppercase tracking-widest mb-1 flex items-center gap-1.5">
+                                <CreditCard size={12} /> Khách phải trả
+                            </span>
+                            <div className="flex items-baseline gap-1">
+                                <span className="text-4xl text-[#5c9a38] font-black tracking-tighter drop-shadow-sm">{vnd(amountToPay)}</span>
+                                <span className="text-sm font-black text-[#5c9a38] uppercase opacity-70">VNĐ</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div className="flex justify-end gap-10 text-sm font-semibold">
-                    <div className="flex flex-col items-end">
-                        <span className="text-gray-500 uppercase text-[10px] tracking-wider mb-1">Tổng giá nhập</span>
-                        <span className="text-xl text-gray-700 dark:text-gray-300 font-bold">{vnd(totalImport)}</span>
-                    </div>
-                    <div className="flex flex-col items-end">
-                        <span className="text-[#5c9a38] uppercase text-[10px] tracking-wider mb-1">Tổng lợi nhuận</span>
-                        <span className="text-xl text-[#5c9a38] font-bold">{vnd(totalProfit)}</span>
-                    </div>
-                    <div className="flex flex-col items-end">
-                        <span className="text-gray-500 uppercase text-[10px] tracking-wider mb-1">Tổng tiền bán</span>
-                        <span className="text-2xl text-green-600 font-extrabold">{vnd(amountToPay)}</span>
-                    </div>
-                </div>
-
-                <div className="mt-4 flex justify-between gap-2">
-                    <button onClick={() => navigate("/export-manage")} className="flex items-center gap-1 border px-4 py-2 rounded text-sm hover:bg-gray-100 transition">
-                        <AlertCircle size={16} /> Quay lại danh sách
+                <div className="mt-8 flex justify-between items-center max-w-[1600px] mx-auto border-t border-gray-100 dark:border-neutral-800 pt-6">
+                    <button 
+                        onClick={() => navigate("/export-manage")} 
+                        className="flex items-center gap-2 text-gray-400 hover:text-gray-800 dark:hover:text-white text-sm font-bold transition-colors group"
+                    >
+                        <AlertCircle size={18} className="group-hover:rotate-12 transition-transform" /> 
+                        Quay lại danh sách phiếu
                     </button>
-                    <div className="flex gap-2">
-                        <button className="flex items-center gap-1 bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700">
-                            <Printer size={16} /> In phiếu
+                    
+                    <div className="flex gap-4">
+                        <button className="flex items-center gap-2 bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-200 px-6 py-3 rounded-xl text-sm font-black hover:bg-gray-200 dark:hover:bg-neutral-700 transition-all active:scale-95 shadow-sm">
+                            <Printer size={18} /> IN PHIẾU BÁN
                         </button>
-                        <button onClick={handleSaveOrder} className="bg-[#5c9a38] text-white px-6 py-2 rounded text-sm font-bold hover:bg-[#4d822f]">
-                            LƯU THAY ĐỔI
-                        </button>
+                        {isEditing && (
+                            <button 
+                                onClick={handleSaveOrder} 
+                                className="bg-[#5c9a38] text-white px-10 py-3 rounded-xl text-sm font-black hover:bg-[#4d822f] shadow-lg shadow-[#5c9a38]/30 transition-all active:scale-95 flex items-center gap-2"
+                            >
+                                <Save size={18} /> CẬP NHẬT PHIẾU XUẤT
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
