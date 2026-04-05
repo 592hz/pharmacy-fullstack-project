@@ -1,11 +1,15 @@
 import { useState, useEffect } from "react"
-import { Search, List, Download, RefreshCw, Plus, FileText } from "lucide-react"
+import { Search, List, Download, RefreshCw, Plus, FileText, Upload, Trash2 } from "lucide-react"
+import { Link } from "react-router-dom"
+import { useRef } from "react"
+import * as XLSX from "xlsx"
 import { AddProductModal } from "@/components/add-product-modal"
 import { toast } from "sonner"
 import { type Product, type ProductCategory, type Supplier } from "@/lib/schemas"
 import { productService } from "@/services/product.service"
 import { productCategoryService } from "@/services/product-category.service"
 import { supplierService } from "@/services/supplier.service"
+import { useDebounce } from "@/hooks/use-debounce"
 import { getErrorMessage } from "@/lib/utils"
 
 export default function ProductsPage() {
@@ -15,8 +19,8 @@ export default function ProductsPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [editingProduct, setEditingProduct] = useState<Product | null>(null)
     const [productToDelete, setProductToDelete] = useState<Product | null>(null)
-    const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
     const [isLoading, setIsLoading] = useState(true)
+    const fileInputRef = useRef<HTMLInputElement>(null)
 
     const fetchData = async () => {
         setIsLoading(true)
@@ -42,6 +46,7 @@ export default function ProductsPage() {
 
     // Search and Pagination State
     const [searchQuery, setSearchQuery] = useState("")
+    const debouncedSearchQuery = useDebounce(searchQuery, 300)
     const [stockFilter, setStockFilter] = useState("Tất cả")
     const [categoryFilter, setCategoryFilter] = useState("Tất cả")
     const [supplierFilter, setSupplierFilter] = useState("Tất cả")
@@ -52,7 +57,7 @@ export default function ProductsPage() {
     // Filter Logic
     const filteredProducts = products.filter(product => {
         // 1. Text Search
-        const query = searchQuery.toLowerCase().trim()
+        const query = debouncedSearchQuery.toLowerCase().trim()
 
         // Helper to get ID from potentially populated field
         const getFieldValue = (field: string | { id: string; _id?: string } | undefined | null) => {
@@ -90,6 +95,20 @@ export default function ProductsPage() {
         if (stockFilter === "Còn hàng" && stockCount <= 0) return false
         if (stockFilter === "Sắp hết hàng" && (stockCount <= 0 || stockCount > lowStockThreshold)) return false
         if (stockFilter === "Hết hàng" && stockCount > 0) return false
+        
+        if (stockFilter === "Cận date") {
+            if (!product.batches || product.batches.length === 0) return false
+            const sixMonthsFromNow = new Date()
+            sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6)
+            
+            const hasNearExpiryBatch = product.batches.some(batch => {
+                if (!batch.expiryDate) return false
+                const expiryDate = new Date(batch.expiryDate)
+                return expiryDate <= sixMonthsFromNow && expiryDate >= new Date()
+            })
+            
+            if (!hasNearExpiryBatch) return false
+        }
         // 3. Category Filter
         if (categoryFilter !== "Tất cả" && prodCategoryId !== categoryFilter) return false
 
@@ -127,22 +146,15 @@ export default function ProductsPage() {
 
     const handleDeleteClick = (product: Product) => {
         setProductToDelete(product)
-        setDeleteConfirmCount(1)
     }
 
     const confirmDelete = () => {
-        if (deleteConfirmCount === 1) {
-            setDeleteConfirmCount(2)
-            return
-        }
-
-        if (deleteConfirmCount === 2 && productToDelete) {
+        if (productToDelete) {
             productService.delete(productToDelete.id)
                 .then(() => {
                     setProducts(products.filter(p => p.id !== productToDelete.id))
-                    toast.success("Đã xóa sản phẩm thành công!")
+                    toast.success("Sản phẩm đã được chuyển vào thùng rác!")
                     setProductToDelete(null)
-                    setDeleteConfirmCount(0)
                 })
                 .catch((error: unknown) => {
                     toast.error(`Lỗi khi xóa: ${getErrorMessage(error)}`)
@@ -152,7 +164,6 @@ export default function ProductsPage() {
 
     const cancelDelete = () => {
         setProductToDelete(null)
-        setDeleteConfirmCount(0)
     }
 
     const handleSaveProduct = async (savedProduct: Product) => {
@@ -167,6 +178,90 @@ export default function ProductsPage() {
         } catch (error: unknown) {
             toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
+    }
+
+    const handleImportExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
+
+        const reader = new FileReader()
+        reader.onload = async (evt) => {
+            try {
+                const bstr = evt.target?.result
+                const wb = XLSX.read(bstr, { type: 'binary' })
+                const wsname = wb.SheetNames[0]
+                const ws = wb.Sheets[wsname]
+                const data = XLSX.utils.sheet_to_json(ws) as any[]
+
+                if (data.length === 0) {
+                    toast.error("File Excel không có dữ liệu!")
+                    return
+                }
+
+                console.log("Dữ liệu dòng đầu tiên từ Excel:", data[0])
+
+                // Improved header mapping logic
+                const normalizeHeader = (h: string) => {
+                    if (!h) return "";
+                    return h.toString().toLowerCase().trim()
+                        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove accents
+                        .replace(/[^a-z0-9\s]/g, "") // Remove special chars
+                        .replace(/\s+/g, " "); // Normalize spaces
+                };
+
+                const findHeader = (row: any, variants: string[]) => {
+                    const keys = Object.keys(row);
+                    for (const v of variants) {
+                        const normalizedVariant = normalizeHeader(v);
+                        const match = keys.find(k => normalizeHeader(k) === normalizedVariant);
+                        if (match) return row[match];
+                    }
+                    return "";
+                };
+
+                const mappedProducts = data.map(row => {
+                    const id = findHeader(row, ["MA_SP", "Mã Sản Phẩm", "Mã SP", "Mã thuốc", "Mã hàng", "Mã", "SKU", "Barcode", "id", "Code"]);
+                    const name = findHeader(row, ["TEN_SP", "Tên Sản Phẩm", "Tên SP", "Tên thuốc", "Tên hàng", "Tên", "name", "Product name", "Product"]);
+                    const unit = findHeader(row, ["DVT", "Đơn Vị Tính", "ĐVT", "Đơn vị", "unit", "UOM"]);
+                    const importPrice = Number(findHeader(row, ["GIA_NHAP", "Giá Nhập", "Giá mua", "Giá vốn", "importPrice", "Purchase Price"]) || 0);
+                    const retailPrice = Number(findHeader(row, ["GIA_BAN_LE", "Giá Lẻ", "Giá bán lẻ", "Giá bán", "retailPrice", "Retail Price"]) || 0);
+                    const wholesalePrice = Number(findHeader(row, ["GIA_BAN_BUON", "Giá Sỉ", "Giá bán sỉ", "wholesalePrice", "Wholesale Price"]) || 0);
+                    const registrationNo = findHeader(row, ["Số Đăng Ký", "SĐK", "registrationNo", "Reg No"]);
+                    const manufacturer = findHeader(row, ["Nhà Sản Xuất", "Hãng sản xuất", "Xưởng", "manufacturer", "Producer"]);
+                    const categoryName = findHeader(row, ["NHOM_SP", "Nhóm Sản Phẩm", "Nhóm thuốc", "Loại", "categoryName", "Category"]);
+                    const supplierName = findHeader(row, ["NHA_CUNG_CAP", "Nhà Cung Cấp", "NCC", "supplierName", "Supplier"]);
+                    const baseQuantity = Number(findHeader(row, ["Số Lượng Tồn", "Số lượng", "Tồn kho", "Tồn", "baseQuantity", "Stock", "Quantity"]) || 0);
+
+                    return { id, name, unit, importPrice, retailPrice, wholesalePrice, registrationNo, manufacturer, categoryName, supplierName, baseQuantity };
+                }).filter(p => p.id && p.name);
+
+                console.log("Dữ liệu sau khi map:", mappedProducts)
+
+                if (mappedProducts.length === 0) {
+                    toast.error("Không tìm thấy dữ liệu sản phẩm hợp lệ trong file Excel!")
+                    return
+                }
+
+                const loadingToast = toast.loading(`Đang nhập ${mappedProducts.length} sản phẩm...`)
+                
+                const result = await productService.bulkCreate(mappedProducts)
+                
+                toast.dismiss(loadingToast)
+                
+                if (result.success > 0 || result.skipped > 0) {
+                    toast.success(`Nhập thành công ${result.success} sản phẩm! (Bỏ qua ${result.skipped} mã trùng)`)
+                    fetchData() // Refresh list
+                } else if (result.errors && result.errors.length > 0) {
+                    toast.error("Lỗi khi nhập dữ liệu: " + result.errors[0])
+                }
+            } catch (error) {
+                toast.error("Lỗi khi xử lý file Excel: " + getErrorMessage(error))
+            }
+        }
+        reader.readAsBinaryString(file)
+        
+        // Reset file input
+        if (fileInputRef.current) fileInputRef.current.value = ""
     }
 
     const formatCurrency = (value: number) => {
@@ -189,14 +284,14 @@ export default function ProductsPage() {
             {/* LEFT SIDEBAR: Filters */}
             <div className={`w-full lg:w-1/4 max-w-[300px] flex flex-col gap-3 ${showFilters ? 'block' : 'hidden lg:flex'}`}>
                 {/* Header that aligns with table header */}
-                <div className="h-12 bg-[#5c9a38] rounded-t-xl hidden lg:flex items-center">
+                <div className="h-10 sm:h-12 bg-[#5c9a38] rounded-t-xl hidden lg:flex items-center">
                     <div className="relative w-full h-full">
                         <button
                             onClick={() => setIsAddModalOpen(true)}
-                            className="absolute inset-0 w-full h-full flex items-center justify-between px-4 bg-[#5c9a38] text-white rounded-t-xl font-bold text-sm hover:bg-[#5c9a38]/90 transition-colors shadow-sm"
+                            className="absolute inset-0 w-full h-full flex items-center justify-between px-4 bg-[#5c9a38] text-white rounded-t-xl font-bold text-xs sm:text-sm hover:bg-[#5c9a38]/90 transition-colors shadow-sm"
                         >
                             <span>Thêm sản phẩm mới</span>
-                            <Plus size={18} />
+                            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
                     </div>
                 </div>
@@ -271,6 +366,7 @@ export default function ProductsPage() {
                             <option>Còn hàng</option>
                             <option>Sắp hết hàng</option>
                             <option>Hết hàng</option>
+                            <option>Cận date</option>
                         </select>
                     </div>
                     <div className="border border-gray-300 dark:border-neutral-700 rounded overflow-hidden">
@@ -308,12 +404,37 @@ export default function ProductsPage() {
                             <button className="w-10 h-10 flex items-center justify-center bg-[#5c9a38] text-white rounded-md hover:bg-[#5c9a38]/90 shadow-sm transition-transform active:scale-95">
                                 <List size={18} />
                             </button>
-                            <button className="w-10 h-10 flex items-center justify-center bg-[#5c9a38] text-white rounded-md hover:bg-[#5c9a38]/90 shadow-sm transition-transform active:scale-95">
+                            <button className="w-10 h-10 flex items-center justify-center bg-[#5c9a38] text-white rounded-md hover:bg-[#5c9a38]/90 shadow-sm transition-transform active:scale-95" title="Tải về danh sách">
                                 <Download size={18} />
                             </button>
-                            <button className="w-10 h-10 flex items-center justify-center bg-[#5c9a38] text-white rounded-md hover:bg-[#5c9a38]/90 shadow-sm transition-transform active:scale-95">
+                            <input 
+                                type="file" 
+                                ref={fileInputRef} 
+                                onChange={handleImportExcel} 
+                                className="hidden" 
+                                accept=".xlsx, .xls" 
+                            />
+                            <button 
+                                onClick={() => fileInputRef.current?.click()}
+                                className="w-10 h-10 flex items-center justify-center bg-[#5c9a38] text-white rounded-md hover:bg-[#5c9a38]/90 shadow-sm transition-transform active:scale-95"
+                                title="Nhập từ Excel"
+                            >
+                                <Upload size={18} />
+                            </button>
+                            <button 
+                                onClick={fetchData}
+                                className="w-10 h-10 flex items-center justify-center bg-[#5c9a38] text-white rounded-md hover:bg-[#5c9a38]/90 shadow-sm transition-transform active:scale-95"
+                                title="Làm mới"
+                            >
                                 <RefreshCw size={18} />
                             </button>
+                            <Link 
+                                to="/trash"
+                                className="w-10 h-10 flex items-center justify-center bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 shadow-sm transition-transform active:scale-95 border border-gray-200"
+                                title="Thùng rác"
+                            >
+                                <Trash2 size={18} />
+                            </Link>
                         </div>
 
                         {/* Search Bar */}
@@ -343,13 +464,13 @@ export default function ProductsPage() {
                     <table className="w-full text-xs text-left whitespace-nowrap lg:whitespace-normal">
                         <thead className="text-gray-700 bg-gray-50/50 border-b border-gray-200 dark:border-neutral-800 dark:text-gray-300">
                             <tr>
-                                <th className="px-3 py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-24 hidden md:table-cell text-center uppercase tracking-wider">Mã</th>
-                                <th className="px-3 py-4 border-r border-gray-200 dark:border-neutral-800 font-bold min-w-[200px] uppercase tracking-wider">Sản phẩm</th>
-                                <th className="px-3 py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-20 text-center uppercase tracking-wider">ĐVT</th>
-                                <th className="px-3 py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-28 text-right uppercase tracking-wider">Giá bán lẻ</th>
-                                <th className="px-3 py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-24 text-center uppercase tracking-wider">Tồn kho</th>
-                                <th className="px-3 py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-28 text-center hidden sm:table-cell uppercase tracking-wider">Hạn dùng</th>
-                                <th className="px-3 py-4 w-[100px] text-center uppercase tracking-wider">Thao tác</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-16 sm:w-24 hidden md:table-cell text-center uppercase tracking-wider text-[9px] sm:text-[10px]">Mã</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-800 font-bold min-w-[150px] sm:min-w-[200px] uppercase tracking-wider text-[9px] sm:text-[10px]">Sản phẩm</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-12 sm:w-20 text-center uppercase tracking-wider text-[9px] sm:text-[10px]">ĐVT</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-20 sm:w-28 text-right uppercase tracking-wider text-[9px] sm:text-[10px]">Giá bán lẻ</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-16 sm:w-24 text-center uppercase tracking-wider text-[9px] sm:text-[10px]">Tồn kho</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-20 sm:w-28 text-center hidden sm:table-cell uppercase tracking-wider text-[9px] sm:text-[10px]">Hạn dùng</th>
+                                <th className="px-2 sm:px-3 py-3 w-20 sm:w-[100px] text-center uppercase tracking-wider text-[9px] sm:text-[10px]">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
@@ -395,33 +516,49 @@ export default function ProductsPage() {
                                     <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 text-center text-xs text-gray-500 hidden sm:table-cell">
                                         {(() => {
                                             if (product.batches && product.batches.length > 0) {
-                                                // Priority 1: First batch with quantity > 0 that is NOT "LÔ ĐẦU"
-                                                // Priority 2: First batch with quantity > 0
-                                                // Priority 3: First batch that is NOT "LÔ ĐẦU" (even if 0 qty)
-                                                // Priority 4: First batch available (likely "LÔ ĐẦU")
-
                                                 const activeOtherBatches = product.batches.filter(b => b.quantity > 0 && b.batchNumber !== "LÔ ĐẦU")
+                                                let targetBatch = null
+                                                
                                                 if (activeOtherBatches.length > 0) {
-                                                    const sorted = [...activeOtherBatches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
-                                                    return sorted[0].expiryDate
+                                                    const sorted = [...activeOtherBatches].sort((a, b) => (a.expiryDate || "").localeCompare(b.expiryDate || ""))
+                                                    targetBatch = sorted[0]
+                                                } else {
+                                                    const activeBatches = product.batches.filter(b => b.quantity > 0)
+                                                    if (activeBatches.length > 0) {
+                                                        const sorted = [...activeBatches].sort((a, b) => (a.expiryDate || "").localeCompare(b.expiryDate || ""))
+                                                        targetBatch = sorted[0]
+                                                    } else {
+                                                        const otherBatches = product.batches.filter(b => b.batchNumber !== "LÔ ĐẦU")
+                                                        if (otherBatches.length > 0) {
+                                                            const sorted = [...otherBatches].sort((a, b) => (a.expiryDate || "").localeCompare(b.expiryDate || ""))
+                                                            targetBatch = sorted[0]
+                                                        } else {
+                                                            const sorted = [...product.batches].sort((a, b) => (a.expiryDate || "").localeCompare(b.expiryDate || ""))
+                                                            targetBatch = sorted[0]
+                                                        }
+                                                    }
                                                 }
-
-                                                const activeBatches = product.batches.filter(b => b.quantity > 0)
-                                                if (activeBatches.length > 0) {
-                                                    const sorted = [...activeBatches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
-                                                    return sorted[0].expiryDate
+                                                
+                                                const dateStr = targetBatch?.expiryDate || "."
+                                                if (dateStr !== ".") {
+                                                    const expiryDate = new Date(dateStr)
+                                                    const sixMonthsFromNow = new Date()
+                                                    sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6)
+                                                    
+                                                    const isNearExpiry = expiryDate <= sixMonthsFromNow
+                                                    return <span className={isNearExpiry ? 'text-red-500 font-bold' : ''}>{dateStr}</span>
                                                 }
-
-                                                const otherBatches = product.batches.filter(b => b.batchNumber !== "LÔ ĐẦU")
-                                                if (otherBatches.length > 0) {
-                                                    const sorted = [...otherBatches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
-                                                    return sorted[0].expiryDate
-                                                }
-
-                                                const sorted = [...product.batches].sort((a, b) => a.expiryDate.localeCompare(b.expiryDate))
-                                                return sorted[0].expiryDate
+                                                return "."
                                             }
-                                            return product.expiryDate || "."
+                                            const soloDate = product.expiryDate || "."
+                                            if (soloDate !== ".") {
+                                                const expiryDate = new Date(soloDate)
+                                                const sixMonthsFromNow = new Date()
+                                                sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6)
+                                                const isNearExpiry = expiryDate <= sixMonthsFromNow
+                                                return <span className={isNearExpiry ? 'text-red-500 font-bold' : ''}>{soloDate}</span>
+                                            }
+                                            return "."
                                         })()}
                                     </td>
 
@@ -429,17 +566,17 @@ export default function ProductsPage() {
                                         <div className="flex items-center justify-center gap-2">
                                             <button
                                                 onClick={() => setEditingProduct(product)}
-                                                className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white p-1.5 rounded transition-transform active:scale-95"
+                                                className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white p-1 sm:p-1.5 rounded transition-transform active:scale-95"
                                                 title="Sửa"
                                             >
-                                                <FileText size={14} />
+                                                <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteClick(product)}
-                                                className="bg-red-500 hover:bg-red-600 text-white p-1.5 rounded transition-transform active:scale-95"
+                                                className="bg-red-500 hover:bg-red-600 text-white p-1 sm:p-1.5 rounded transition-transform active:scale-95"
                                                 title="Xóa"
                                             >
-                                                <Plus className="rotate-45" size={14} />
+                                                <Plus className="rotate-45 w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                             </button>
                                         </div>
                                     </td>
@@ -525,10 +662,8 @@ export default function ProductsPage() {
                             Xác nhận xóa sản phẩm
                         </h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
-                            {deleteConfirmCount === 1
-                                ? `Bạn có chắc chắn muốn xóa sản phẩm "${productToDelete.name}"? Hành động này không thể hoàn tác.`
-                                : `Vui lòng xác nhận LẦN CUỐI. Bạn thực sự muốn xóa sản phẩm "${productToDelete.name}"?`
-                            }
+                            Bạn có chắc chắn muốn xóa sản phẩm <span className="font-bold text-gray-800 dark:text-gray-200">"{productToDelete.name}"</span>? 
+                            <br/>Sản phẩm này sẽ được chuyển vào <span className="text-red-500 font-bold">Thùng rác</span>.
                         </p>
 
                         <div className="flex items-center justify-center gap-3">
@@ -538,12 +673,12 @@ export default function ProductsPage() {
                             >
                                 Hủy bỏ
                             </button>
-                            <button
-                                onClick={confirmDelete}
-                                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:focus:ring-offset-neutral-900 transition-colors"
-                            >
-                                {deleteConfirmCount === 1 ? 'Xóa' : 'Chắc chắn xóa'}
-                            </button>
+                                <button
+                                    onClick={confirmDelete}
+                                    className="rounded-md bg-red-600 px-6 py-2 text-sm font-bold text-white hover:bg-red-700 shadow-sm transition-colors"
+                                >
+                                    Xác nhận xóa
+                                </button>
                         </div>
                     </div>
                 </div>

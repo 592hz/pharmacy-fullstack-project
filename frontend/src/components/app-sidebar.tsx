@@ -14,7 +14,7 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { AudioLinesIcon, TerminalIcon, TerminalSquareIcon, BotIcon, FrameIcon, PieChartIcon, MapIcon, LayoutDashboard } from "lucide-react"
+import { AudioLinesIcon, TerminalIcon, TerminalSquareIcon, BotIcon, FrameIcon, PieChartIcon, MapIcon, LayoutDashboard, Trash2 } from "lucide-react"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useAuth();
@@ -23,9 +23,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const sidebarData = {
     teams: [
       {
-        name: "Mỹ Mỹ",
+        name: "Ngọc Mỹ",
         logo: (
-          <img src="/ngoc_my_logo.png" alt="Mỹ Mỹ Logo" className="w-full h-full object-cover rounded-md" />
+          <img src="/ngoc_my_logo.png" alt="Ngọc Mỹ Logo" className="w-full h-full object-cover rounded-md" />
         ),
         plan: "Nhà thuốc",
       },
@@ -100,8 +100,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             url: "#",
           },
           {
-            title: "Kiểm kê tồn kho",
-            url: "#",
+            title: "Quản lý kho",
+            url: "/stock",
           },
           ...(isAdmin ? [{
             title: "Quản lý thu chi",
@@ -131,13 +131,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       },
       {
         name: "Báo cáo tồn kho",
-        url: "#",
+        url: "/stock",
         icon: <PieChartIcon />,
       },
       {
         name: "Báo cáo kinh doanh",
         url: "#",
         icon: <MapIcon />,
+      },
+      {
+        name: "Thùng rác",
+        url: "/trash",
+        icon: <Trash2 />,
       },
     ] : [],
   }
@@ -157,6 +162,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           email: typeof user?.username === 'string' ? user.username : "",
           avatar: "/avata.jpg"
         }} />
+        <div className="px-4 py-2 text-[10px] text-gray-400 dark:text-neutral-500 font-medium text-center border-t border-gray-100 dark:border-neutral-800">
+          Created by Ngọc Thái
+          <br />
+          <span className="text-[#5c9a38] dark:text-[#65a34e]">Chúc bé luôn vui vẻ</span>
+        </div>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

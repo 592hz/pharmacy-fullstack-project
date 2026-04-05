@@ -5,6 +5,7 @@ import { toast } from "sonner"
 import { type ExportOrder } from "@/lib/schemas"
 import { exportSlipService } from "@/services/export-slip.service"
 import { getErrorMessage } from "@/lib/utils"
+import { useDebounce } from "@/hooks/use-debounce"
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50]
 
@@ -26,6 +27,7 @@ export default function ExportManagePage() {
     const navigate = useNavigate()
     const [slips, setSlips] = useState<ExportOrder[]>([])
     const [isLoading, setIsLoading] = useState(true)
+    const [showFilters, setShowFilters] = useState(false)
 
     const fetchSlips = async () => {
         setIsLoading(true)
@@ -39,10 +41,6 @@ export default function ExportManagePage() {
         }
     }
 
-    useEffect(() => {
-        fetchSlips()
-    }, [])
-
     // ── Filter state ─────────────────────────────────────────────────────────
     const [dateFilterType, setDateFilterType] = useState<"Ngày" | "Từ ngày" | "Tháng" | "Quý" | "Năm">("Năm")
     const [filterDate, setFilterDate] = useState<string>(() => new Date().toISOString().split("T")[0])
@@ -52,11 +50,20 @@ export default function ExportManagePage() {
     const [filterQuarter, setFilterQuarter] = useState<string>("1")
     const [filterYear, setFilterYear] = useState<string>(() => new Date().getFullYear().toString())
     const [filterKeyword, setFilterKeyword] = useState("")
+    const debouncedFilterKeyword = useDebounce(filterKeyword, 300)
     const [filterPrescription, setFilterPrescription] = useState(false)
 
     // ── Pagination state ─────────────────────────────────────────────────────
     const [page, setPage] = useState(1)
     const [pageSize, setPageSize] = useState(10)
+
+    useEffect(() => {
+        fetchSlips()
+    }, [])
+
+    useEffect(() => {
+        setPage(1)
+    }, [dateFilterType, filterYear, filterMonth, filterDate, filterStartDate, filterEndDate, filterQuarter, debouncedFilterKeyword, filterPrescription])
 
     // ── Delete confirm state ─────────────────────────────────────────────────
     const [slipToDelete, setSlipToDelete] = useState<ExportOrder | null>(null)
@@ -88,20 +95,26 @@ export default function ExportManagePage() {
                 if (filterQuarter && quarter.toString() !== filterQuarter) return false
             }
 
-            const kw = filterKeyword.toLowerCase()
-            if (
-                kw &&
-                !s.customerName.toLowerCase().includes(kw) &&
-                !(s.id || "").toLowerCase().includes(kw) &&
-                !(s.customerPhone || "").toLowerCase().includes(kw)
-            )
-                return false
+            const kw = debouncedFilterKeyword.toLowerCase()
+            if (kw) {
+                const matchesCustomer = s.customerName.toLowerCase().includes(kw)
+                const matchesId = (s.id || "").toLowerCase().includes(kw)
+                const matchesPhone = (s.customerPhone || "").toLowerCase().includes(kw)
+                const matchesItems = s.items?.some(item => 
+                    item.name.toLowerCase().includes(kw) || 
+                    item.code.toLowerCase().includes(kw)
+                )
+
+                if (!matchesCustomer && !matchesId && !matchesPhone && !matchesItems) {
+                    return false
+                }
+            }
 
             if (filterPrescription && !s.isPrescription) return false
 
             return true
         })
-    }, [slips, dateFilterType, filterYear, filterMonth, filterDate, filterStartDate, filterEndDate, filterQuarter, filterKeyword, filterPrescription])
+    }, [slips, dateFilterType, filterYear, filterMonth, filterDate, filterStartDate, filterEndDate, filterQuarter, debouncedFilterKeyword, filterPrescription])
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
     const paged = filtered.slice((page - 1) * pageSize, page * pageSize)
@@ -174,9 +187,20 @@ export default function ExportManagePage() {
                     Danh sách phiếu xuất
                 </h1>
 
-                <div className="flex flex-col md:flex-row gap-6">
+                <div className="flex flex-col lg:flex-row gap-6">
+                    {/* Filter Toggle for Mobile */}
+                    <div className="lg:hidden mb-2">
+                        <button
+                            onClick={() => setShowFilters(!showFilters)}
+                            className="flex items-center gap-2 bg-gray-100 dark:bg-neutral-800 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded-md text-sm font-medium w-full justify-center"
+                        >
+                            <Plus className={`w-4 h-4 transition-transform ${showFilters ? 'rotate-45' : ''}`} />
+                            <span>{showFilters ? "Ẩn bộ lọc" : "Hiện bộ lọc tìm kiếm"}</span>
+                        </button>
+                    </div>
+
                     {/* ── Left Sidebar ───────────────────────────────────── */}
-                    <div className="w-full md:w-64 shrink-0 flex flex-col gap-4">
+                    <div className={`w-full lg:w-64 shrink-0 flex flex-col gap-4 ${showFilters ? 'block' : 'hidden lg:flex'}`}>
                         {/* Date Filter Type Selection */}
                         <section className="flex flex-col gap-1">
                             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">Lọc theo</label>
@@ -272,7 +296,7 @@ export default function ExportManagePage() {
                         </section>
 
                         <section className="flex flex-col gap-1">
-                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">Tìm KH - Số phiếu - SĐT</label>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-tight">Tìm KH - Số phiếu - SĐT - Sản phẩm</label>
                             <input
                                 type="text"
                                 value={filterKeyword}
@@ -330,55 +354,59 @@ export default function ExportManagePage() {
                             <table className="w-full text-xs text-left border-collapse whitespace-nowrap">
                                 <thead className="bg-[#f8f9fa] dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-800 font-bold text-gray-700 dark:text-gray-400">
                                     <tr>
-                                        <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-800 w-24 text-center"></th>
-                                        <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-800 w-12 text-center uppercase">STT</th>
-                                        <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase">Số phiếu</th>
-                                        <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase">Ngày xuất</th>
-                                        <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase">Bệnh nhân / Khách hàng</th>
-                                        <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 text-right uppercase">Tổng tiền</th>
-                                        <th className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase">Người tạo</th>
-                                        <th className="px-3 py-3 uppercase min-w-[200px]">Ghi chú</th>
+                                        <th className="px-1 py-3 border-r border-gray-200 dark:border-neutral-800 w-20 text-center uppercase text-[10px]">#</th>
+                                        <th className="px-1 py-3 border-r border-gray-200 dark:border-neutral-800 w-10 text-center uppercase text-[10px] hidden sm:table-cell">STT</th>
+                                        <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase text-[10px]">Số phiếu</th>
+                                        <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase text-[10px]">Ngày xuất</th>
+                                        <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase text-[10px] min-w-[120px]">Khách hàng</th>
+                                        <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase text-[10px] hidden md:table-cell">Triệu chứng</th>
+                                        <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-800 text-right uppercase text-[10px]">Tổng cộng</th>
+                                        <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase text-[10px] hidden lg:table-cell">Người tạo</th>
+                                        <th className="px-2 py-3 uppercase text-[10px] hidden xl:table-cell">Ghi chú</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {paged.map((slip, idx) => (
-                                        <tr key={slip.id || idx} className="hover:bg-gray-50 dark:hover:bg-neutral-800/20 items-center border-b border-gray-100 dark:border-neutral-800">
-                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 flex items-center justify-center gap-1">
+                                        <tr key={slip.id || idx} className="hover:bg-gray-50 dark:hover:bg-neutral-800/20 items-center border-b border-gray-100 dark:border-neutral-800 text-[11px] sm:text-xs">
+                                            <td className="px-1 py-2 border-r border-gray-200 dark:border-neutral-800 flex items-center justify-center gap-1">
                                                 <button
                                                     onClick={() => handleView(slip.id!)}
-                                                    className="bg-[#5c9a38] text-white px-2 py-0.5 rounded text-[10px] font-bold hover:bg-[#4d822f]"
+                                                    className="bg-[#5c9a38] text-white px-2 py-0.5 rounded text-[9px] font-bold hover:bg-[#4d822f]"
                                                 >
                                                     Xem
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteClick(slip)}
-                                                    className="bg-red-500 text-white px-2 py-0.5 rounded text-[10px] font-bold hover:bg-red-600"
+                                                    className="bg-red-500 text-white px-2 py-0.5 rounded text-[9px] font-bold hover:bg-red-600"
                                                 >
                                                     Xóa
                                                 </button>
                                             </td>
-                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-center">
+                                            <td className="px-1 py-2 border-r border-gray-200 dark:border-neutral-800 text-center hidden sm:table-cell text-gray-400">
                                                 {(page - 1) * pageSize + idx + 1}
                                             </td>
-                                            <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 text-blue-600 font-medium hover:underline cursor-pointer" onClick={() => handleView(slip.id!)}>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-blue-600 font-medium hover:underline cursor-pointer" onClick={() => handleView(slip.id!)}>
                                                 {slip.id}
                                             </td>
-                                            <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 text-gray-600">
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-gray-500">
                                                 {fmtDate(slip.exportDate)}
                                             </td>
-                                            <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 items-baseline">
-                                                <div className="flex flex-col">
-                                                    <span className="font-semibold text-gray-800 dark:text-gray-200">{slip.customerName}</span>
-                                                    {slip.isPrescription && <span className="text-[10px] text-red-600 font-bold uppercase italic">Bán theo đơn</span>}
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800">
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="font-bold text-gray-800 dark:text-gray-200">{slip.customerName}</span>
+                                                    {slip.isPrescription && <span className="text-[9px] text-red-600 font-black uppercase italic leading-none">Bán theo đơn</span>}
                                                 </div>
                                             </td>
-                                            <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 text-right text-gray-600">
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-red-500 italic font-medium truncate max-w-[120px] hidden md:table-cell" title={slip.symptoms}>
+                                                {slip.symptoms}
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-right font-bold text-gray-900 dark:text-gray-100">
                                                 {vnd(slip.totalAmount)}
                                             </td>
-                                            <td className="px-3 py-2 border-r border-gray-200 dark:border-neutral-800 text-gray-600">
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-gray-500 hidden lg:table-cell">
                                                 {slip.createdBy}
                                             </td>
-                                            <td className="px-3 py-2 text-gray-500 italic max-w-xs truncate">
+                                            <td className="px-2 py-2 text-gray-400 italic truncate max-w-[150px] hidden xl:table-cell">
                                                 {slip.notes}
                                             </td>
                                         </tr>

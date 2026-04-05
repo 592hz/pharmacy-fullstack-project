@@ -5,11 +5,13 @@ import AddCustomerModal from "@/components/add-customer-modal"
 import { type Customer } from "@/lib/schemas"
 import { customerService } from "@/services/customer.service"
 import { getErrorMessage } from "@/lib/utils"
+import { useDebounce } from "@/hooks/use-debounce"
 
 
 export default function CustomersPage() {
     const [customers, setCustomers] = useState<Customer[]>([])
     const [searchTerm, setSearchTerm] = useState('')
+    const debouncedSearchTerm = useDebounce(searchTerm, 300)
     const [currentPage, setCurrentPage] = useState(1)
     const [itemsPerPage, setItemsPerPage] = useState(10)
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
@@ -33,6 +35,10 @@ export default function CustomersPage() {
     useEffect(() => {
         fetchCustomers()
     }, [])
+
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [debouncedSearchTerm])
 
     const handleDeleteClick = (customer: Customer) => {
         setCustomerToDelete(customer)
@@ -89,9 +95,9 @@ export default function CustomersPage() {
     }
 
     const filteredCustomers = customers.filter(c =>
-        c.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (c.id && c.id.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (c.phone && c.phone.includes(searchTerm))
+        c.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        (c.id && c.id.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+        (c.phone && c.phone.includes(debouncedSearchTerm))
     )
 
     const totalPages = Math.max(1, Math.ceil(filteredCustomers.length / itemsPerPage))

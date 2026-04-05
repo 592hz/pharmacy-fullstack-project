@@ -42,5 +42,27 @@ export const api = {
     delete: <T>(url: string) => fetch(`${API_BASE_URL}${url}`, {
         method: 'DELETE',
         headers: getHeaders()
-    }).then((res) => handleResponse<T>(res))
+    }).then((res) => handleResponse<T>(res)),
+};
+
+export const productsApi = {
+    getProducts: () => api.get<any[]>('/products'),
+    getDeletedProducts: () => api.get<any[]>('/products/trash'),
+    getProductById: (id: string) => api.get<any>(`/products/${id}`),
+    createProduct: (data: any) => api.post<any>('/products', data),
+    updateProduct: (id: string, data: any) => api.put<any>(`/products/${id}`, data),
+    deleteProduct: (id: string) => api.delete<{ message: string }>(`/products/${id}`),
+    restoreProduct: (id: string) => api.put<any>(`/products/${id}/restore`, {}),
+    permanentDeleteProduct: (id: string) => api.delete<{ message: string }>(`/products/${id}/permanent`),
+    bulkCreateProducts: (products: any[]) => api.post<any>('/products/bulk', { products }),
+};
+
+export const categoriesApi = {
+    getCategories: () => api.get<any[]>('/product-categories'),
+    getDeletedCategories: () => api.get<any[]>('/product-categories/trash'),
+    createCategory: (data: any) => api.post<any>('/product-categories', data),
+    updateCategory: (id: string, data: any) => api.put<any>(`/product-categories/${id}`, data),
+    deleteCategory: (id: string) => api.delete<{ message: string }>(`/product-categories/${id}`),
+    restoreCategory: (id: string) => api.put<any>(`/product-categories/${id}/restore`, {}),
+    permanentDeleteCategory: (id: string) => api.delete<{ message: string }>(`/product-categories/${id}/permanent`),
 };

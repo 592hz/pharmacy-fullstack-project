@@ -4,20 +4,24 @@ dist/
 build/
 .output/
 .next/
+.vercel/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
 # Environment Variables
 .env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-backend/.env
-frontend/.env
+.env.*
+!.env.example
+*.local
 
 # OS Files
 .DS_Store
 Thumbs.db
 *.log
+*.tmp
+*.bak
+*.swp
 
 # IDE Files
 .vscode/
@@ -26,13 +30,14 @@ Thumbs.db
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
+*.user
+*.userlock
 
 # Temporary files
 /tmp/
-*.tmp
-*.bak
 
-# Troubleshooting scripts
+# Troubleshooting & Private scripts
 backend/test-db.js
 backend/check-local.js
+backend/test-direct.js
+test-*.js

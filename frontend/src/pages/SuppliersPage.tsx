@@ -5,12 +5,14 @@ import AddSupplierModal from "@/components/add-supplier-modal"
 import { type Supplier } from "@/lib/schemas"
 import { supplierService } from "@/services/supplier.service"
 import { getErrorMessage } from "@/lib/utils"
+import { useDebounce } from "@/hooks/use-debounce"
 
 export default function SuppliersPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [suppliers, setSuppliers] = useState<Supplier[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
+    const debouncedSearchTerm = useDebounce(searchTerm, 300)
     const [currentPage, setCurrentPage] = useState(1)
     const [itemsPerPage, setItemsPerPage] = useState(10)
     const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
@@ -33,10 +35,14 @@ export default function SuppliersPage() {
         fetchSuppliers()
     }, [])
 
+    useEffect(() => {
+        setCurrentPage(1)
+    }, [debouncedSearchTerm])
+
     const filteredSuppliers = suppliers.filter(s =>
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (s.code && s.code.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        (s.phone && s.phone.includes(searchTerm))
+        s.name.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        (s.code && s.code.toLowerCase().includes(debouncedSearchTerm.toLowerCase())) ||
+        (s.phone && s.phone.includes(debouncedSearchTerm))
     )
 
     const totalPages = Math.max(1, Math.ceil(filteredSuppliers.length / itemsPerPage))

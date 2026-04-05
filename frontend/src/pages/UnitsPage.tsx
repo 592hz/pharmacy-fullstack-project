@@ -4,12 +4,14 @@ import { toast } from "sonner"
 import AddUnitModal from "@/components/add-unit-modal"
 import { type Unit } from "@/lib/schemas"
 import { unitService } from "@/services/unit.service"
+import { useDebounce } from "@/hooks/use-debounce"
 import { getErrorMessage } from "@/lib/utils"
 
 export default function UnitsPage() {
     const [units, setUnits] = useState<Unit[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
+    const debouncedSearchQuery = useDebounce(searchQuery, 300)
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [editingUnit, setEditingUnit] = useState<Unit | null>(null)
     const [unitToDelete, setUnitToDelete] = useState<Unit | null>(null)
@@ -74,8 +76,8 @@ export default function UnitsPage() {
         }
     }
 
-    const filteredUnits = units.filter(unit =>
-        unit.name.toLowerCase().includes(searchQuery.toLowerCase())
+    const filteredUnits = (units || []).filter(unit =>
+        unit.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
     )
 
     return (

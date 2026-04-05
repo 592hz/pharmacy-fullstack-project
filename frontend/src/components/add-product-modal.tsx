@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react"
-import { X } from "lucide-react"
+import { PlusCircle, X } from "lucide-react"
 import { toast } from "sonner"
 import { parseFloatSafe } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
@@ -23,7 +23,7 @@ export interface ProductUnit {
 
 export interface Batch {
     batchNumber: string
-    expiryDate: string
+    expiryDate?: string
     quantity: number
 }
 
@@ -365,18 +365,17 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-6 md:p-8">
             <div className="bg-white w-full h-full max-w-[1400px] flex flex-col rounded shadow-2xl overflow-hidden relative animate-in fade-in zoom-in-95 duration-200">
-
                 {/* HEADERS & TABS */}
                 <div className="flex flex-col border-b border-gray-200 bg-white pt-2">
-                    <div className="flex items-center justify-between px-4 pb-2">
-                        <h2 className="text-xl font-bold text-gray-800">{initialData ? "Cập nhật thông tin hàng hóa" : "Thêm mới hàng hóa"}</h2>
-                        <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-800">
-                            <X size={20} />
+                    <div className="flex items-center justify-between px-3 sm:px-4 pb-2">
+                        <h2 className="text-base sm:text-xl font-bold text-gray-800">{initialData ? "Cập nhật thông tin hàng hóa" : "Thêm mới hàng hóa"}</h2>
+                        <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-800 transition-colors">
+                            <X className="w-5 h-5 sm:w-6 sm:h-6" />
                         </button>
                     </div>
-                    <div className="flex px-4 gap-1">
+                    <div className="flex px-3 sm:px-4 gap-1">
                         <button
-                            className="px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors bg-[#5c9a38] text-white"
+                            className="px-3 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-sm font-semibold rounded-t-lg transition-colors bg-[#5c9a38] text-white"
                         >
                             Thông tin sản phẩm
                         </button>
@@ -384,19 +383,19 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                 </div>
 
                 {/* SCROLLABLE CONTENT BODY */}
-                <div className="flex-1 overflow-y-auto bg-white p-4">
-                    <div className="flex flex-col gap-6 w-full mx-auto">
+                <div className="flex-1 overflow-y-auto bg-white p-3 sm:p-4">
+                    <div className="flex flex-col gap-4 sm:gap-6 w-full mx-auto">
 
                         {/* --- GRID FORM --- */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 sm:gap-y-4">
                             {/* Row 1 */}
                             <InputField label="Tên hàng hóa" required value={formData.productName} onChange={(v) => handleInputChange('productName', v)} />
 
                             {/* Custom Searchable Select for Supplier */}
                             <div className="flex flex-col gap-1 w-full">
-                                <label className="text-xs font-semibold text-gray-700">Nhà cung cấp</label>
+                                <label className="text-[11px] sm:text-xs font-semibold text-gray-700">Nhà cung cấp</label>
                                 <select
-                                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white h-[34px]"
+                                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white h-[34px]"
                                     value={formData.supplierId}
                                     onChange={(e) => handleInputChange('supplierId', e.target.value)}
                                 >
@@ -410,9 +409,9 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                             {/* Row 2 */}
                             {/* Custom Searchable Select for Category */}
                             <div className="flex flex-col gap-1 w-full">
-                                <label className="text-xs font-semibold text-gray-700">Nhóm hàng hóa <span className="text-red-500">*</span></label>
+                                <label className="text-[11px] sm:text-xs font-semibold text-gray-700">Nhóm hàng hóa <span className="text-red-500">*</span></label>
                                 <select
-                                    className="w-full border border-blue-500 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white h-[34px]"
+                                    className="w-full border border-blue-500 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white h-[34px]"
                                     value={formData.categoryId}
                                     onChange={(e) => handleInputChange('categoryId', e.target.value)}
                                 >
@@ -422,17 +421,19 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                     ))}
                                 </select>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-2 sm:gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-xs font-medium text-gray-500">%VAT</label>
+                                    <label className="text-[11px] sm:text-xs font-medium text-gray-500 uppercase tracking-tight">%VAT</label>
                                     <NumericInput
+                                        className="h-[34px] text-xs sm:text-sm"
                                         value={formData.vatPercent}
                                         onChange={(v) => handleInputChange('vatPercent', v)}
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-xs font-medium text-gray-500">%CK</label>
+                                    <label className="text-[11px] sm:text-xs font-medium text-gray-500 uppercase tracking-tight">%CK</label>
                                     <NumericInput
+                                        className="h-[34px] text-xs sm:text-sm"
                                         value={formData.discountPercent}
                                         onChange={(v) => handleInputChange('discountPercent', v)}
                                     />
@@ -443,46 +444,47 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                             <InputField label="Mã hàng hóa" disabled value={formData.productCode} onChange={(v) => handleInputChange('productCode', v)} placeholder="SP000294" />
 
                             {/* Inventory Section */}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-2 sm:gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-gray-700">Số lượng tồn kho</label>
+                                    <label className="text-[11px] sm:text-xs font-semibold text-gray-700">Tồn kho hiện tại</label>
                                     <NumericInput
+                                        className="h-[34px] text-xs sm:text-sm font-bold text-blue-600"
                                         value={formData.initialQuantity}
                                         onChange={(v) => handleInputChange('initialQuantity', v)}
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-gray-700">Đơn vị cơ bản (nhỏ nhất)</label>
+                                    <label className="text-[11px] sm:text-xs font-semibold text-gray-700">Đơn vị cơ bản</label>
                                     <input
                                         type="text"
                                         value={formData.baseUnitName}
                                         onChange={(e) => handleInputChange('baseUnitName', e.target.value)}
-                                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white"
-                                        placeholder="Ví dụ: Viên, Chai..."
+                                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white"
+                                        placeholder="Viên, Chai..."
                                     />
                                 </div>
                             </div>
 
                             {/* Batch & Expiry Section */}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-2 sm:gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-gray-700">Số lô {initialData && "(Lô mới)"}</label>
+                                    <label className="text-[11px] sm:text-xs font-semibold text-gray-700">Số lô {initialData && "(Lô mới)"}</label>
                                     <input
                                         type="text"
                                         value={formData.batchNumber}
                                         onChange={(e) => handleInputChange('batchNumber', e.target.value)}
-                                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white"
+                                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white font-mono"
                                         placeholder="Nhập số lô..."
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-gray-700">Hạn dùng (DD-MM-YYYY) {initialData && "(Lô mới)"}</label>
+                                    <label className="text-[11px] sm:text-xs font-semibold text-gray-700 truncate">Hạn dùng (DD-MM-YYYY)</label>
                                     <input
                                         type="text"
                                         value={formData.expiryDate}
                                         onChange={(e) => handleInputChange('expiryDate', e.target.value)}
-                                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white"
-                                        placeholder="Ví dụ: 31-12-2025"
+                                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white font-mono"
+                                        placeholder="31-12-2025"
                                     />
                                 </div>
                             </div>
@@ -490,40 +492,40 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
 
                         {/* --- BATCHES TABLE (Only for Edit Mode) --- */}
                         {initialData && formData.batches && formData.batches.length > 0 && (
-                            <div className="mt-4 border-t border-gray-100 pt-4">
-                                <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                                    <span className="w-1.5 h-4 bg-[#5c9a38] rounded-full"></span>
-                                    Quản lý lô hàng & Hạn dùng hiện tại
+                            <div className="mt-2 border-t border-gray-100 pt-4">
+                                <h3 className="text-xs sm:text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                    <span className="w-1 h-3 sm:w-1.5 sm:h-4 bg-[#5c9a38] rounded-full"></span>
+                                    Quản lý lô hàng hiện tại
                                 </h3>
-                                <div className="border border-gray-200 rounded-lg overflow-hidden bg-gray-50/30">
-                                    <table className="w-full text-xs text-left">
+                                <div className="border border-gray-200 rounded-lg overflow-x-auto bg-gray-50/30">
+                                    <table className="w-full text-[10px] sm:text-xs text-left min-w-[500px]">
                                         <thead className="bg-gray-100 text-gray-700 font-bold uppercase tracking-wider">
                                             <tr>
-                                                <th className="px-4 py-2 border-r border-gray-200 w-1/3">Số lô</th>
-                                                <th className="px-4 py-2 border-r border-gray-200 w-1/3 text-center">Hạn dùng (Sửa tại đây)</th>
-                                                <th className="px-4 py-2 text-right">Số lượng tồn (Sửa tại đây)</th>
+                                                <th className="px-3 sm:px-4 py-2 border-r border-gray-200">Số lô</th>
+                                                <th className="px-3 sm:px-4 py-2 border-r border-gray-200 text-center">Hạn dùng</th>
+                                                <th className="px-3 sm:px-4 py-2 text-right">Số lượng tồn</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-gray-200 bg-white">
                                             {formData.batches.map((batch, idx) => (
                                                 <tr key={`${batch.batchNumber}-${idx}`} className="hover:bg-gray-50 transition-colors">
-                                                    <td className="px-4 py-2 border-r border-gray-200 font-medium text-gray-700">
+                                                    <td className="px-3 sm:px-4 py-2 border-r border-gray-200 font-medium text-gray-700">
                                                         {batch.batchNumber}
                                                     </td>
-                                                    <td className="px-4 py-2 border-r border-gray-200">
+                                                    <td className="px-3 sm:px-4 py-2 border-r border-gray-200">
                                                         <input
                                                             type="text"
-                                                            value={batch.expiryDate}
+                                                            value={batch.expiryDate || ""}
                                                             onChange={(e) => handleBatchExpiryChange(batch.batchNumber, e.target.value)}
-                                                            className="w-full border border-gray-300 rounded px-2 py-1 text-center focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white"
+                                                            className="w-full border border-gray-300 rounded px-2 py-1 text-center focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white font-mono"
                                                             placeholder="DD-MM-YYYY"
                                                         />
                                                     </td>
-                                                    <td className="px-4 py-2 text-right">
+                                                    <td className="px-3 sm:px-4 py-2 text-right">
                                                         <NumericInput
                                                             value={batch.quantity / (initialData.conversionRate || 1)}
                                                             onChange={(v) => handleBatchQuantityChange(batch.batchNumber, v)}
-                                                            className="w-[100px] ml-auto text-right border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] font-bold text-blue-600 bg-white"
+                                                            className="w-[80px] sm:w-[100px] ml-auto text-right border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] font-bold text-blue-600 bg-white"
                                                         />
                                                     </td>
                                                 </tr>
@@ -531,47 +533,44 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                         </tbody>
                                     </table>
                                 </div>
-                                <p className="text-[10px] text-gray-400 mt-2 italic">
-                                    * Thay đổi hạn dùng tại bảng trên sẽ được cập nhật trực tiếp cho từng lô hàng tương ứng.
-                                </p>
                             </div>
                         )}
 
                         {/* --- UNIT ADD --- */}
-                        <div className="flex flex-wrap items-center gap-x-8 gap-y-4 pt-2">
+                        <div className="flex items-center pt-2">
                             <button
                                 onClick={addUnitRow}
-                                className="bg-[#5c9a38] text-white px-6 py-2 rounded text-sm font-medium hover:bg-[#5c9a38]/90 transition-colors"
+                                className="bg-[#5c9a38] text-white px-4 sm:px-6 py-2 rounded text-xs sm:text-sm font-medium hover:bg-[#5c9a38]/90 transition-colors shadow-sm flex items-center gap-2"
                             >
-                                Thêm đơn vị tính
+                                <PlusCircle className="w-4 h-4" /> Thêm đơn vị tính
                             </button>
                         </div>
                         {/* --- UNITS TABLE --- */}
-                        <div className="mt-2 border-t border-gray-200 pt-4">
-                            <div className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="text-gray-700 font-bold border-b border-gray-200">
+                        <div className="mt-2 border-t border-gray-200 pt-2 lg:pt-4">
+                            <div className="border border-gray-200 rounded-lg overflow-x-auto bg-white shadow-sm">
+                                <table className="w-full text-[10px] sm:text-sm text-left min-w-[700px]">
+                                    <thead className="bg-gray-50 text-gray-700 font-bold border-b border-gray-200">
                                         <tr>
-                                            <th className="px-4 py-3">Tên đơn vị tính</th>
-                                            <th className="px-4 py-3 text-center">Tỉ lệ quy<br />đổi</th>
-                                            <th className="px-4 py-3 text-center">Giá nhập</th>
-                                            <th className="px-4 py-3 text-center">Giá bán lẻ</th>
-                                            <th className="px-4 py-3 text-center">Giá bán buôn</th>
-                                            <th className="px-4 py-3 text-center">Mặc định<br />bán</th>
-                                            <th className="w-10"></th>
+                                            <th className="px-3 sm:px-4 py-3">Tên đơn vị tính</th>
+                                            <th className="px-1 sm:px-4 py-3 text-center">Tỉ lệ quy<br />đổi</th>
+                                            <th className="px-1 sm:px-4 py-3 text-center">Giá nhập</th>
+                                            <th className="px-1 sm:px-4 py-3 text-center">Giá bán lẻ</th>
+                                            <th className="px-1 sm:px-4 py-3 text-center">Giá bán buôn</th>
+                                            <th className="px-1 sm:px-4 py-3 text-center">Mặc định</th>
+                                            <th className="w-8 sm:w-10"></th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
                                         {formData.units.map((unit) => (
                                             <tr key={unit.id} className="hover:bg-gray-50/50">
-                                                <td className="px-4 py-2">
+                                                <td className="px-3 sm:px-4 py-2">
                                                     <input
                                                         type="text"
                                                         value={unit.unitName}
                                                         list={`unit-list-${unit.id}`}
                                                         onChange={(e) => handleUnitChange(unit.id, 'unitName', e.target.value)}
-                                                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white"
-                                                        placeholder="Chọn/Nhập đơn vị tính *"
+                                                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[32px] sm:h-[34px] bg-white"
+                                                        placeholder="Vỉ, Hộp..."
                                                     />
                                                     <datalist id={`unit-list-${unit.id}`}>
                                                         {availableUnits.map(mu => (
@@ -579,50 +578,50 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                                         ))}
                                                     </datalist>
                                                 </td>
-                                                <td className="px-4 py-2">
+                                                <td className="px-1 sm:px-4 py-2">
                                                     <NumericInput
                                                         value={unit.conversionRate}
                                                         onChange={(v) => handleUnitChange(unit.id, 'conversionRate', v)}
-                                                        className="w-[80px] mx-auto text-center border border-transparent hover:border-gray-300 focus:border-blue-500 focus:bg-white bg-transparent rounded px-2 py-1 text-sm outline-none block"
+                                                        className="w-[50px] sm:w-[80px] mx-auto text-center border-transparent hover:border-gray-200 focus:border-[#5c9a38] focus:bg-white bg-transparent rounded px-1 py-1 text-xs sm:text-sm outline-none block"
                                                     />
                                                 </td>
-                                                <td className="px-4 py-2">
+                                                <td className="px-1 sm:px-4 py-2">
                                                     <NumericInput
                                                         value={unit.importPrice}
                                                         onChange={(v) => handleUnitChange(unit.id, 'importPrice', v)}
-                                                        className="w-[120px] mx-auto text-center border border-transparent hover:border-gray-300 focus:border-blue-500 focus:bg-white bg-transparent rounded px-2 py-1 text-sm outline-none text-[#5c9a38] font-medium block"
+                                                        className="w-[80px] sm:w-[120px] mx-auto text-center border-transparent hover:border-gray-200 focus:border-[#5c9a38] focus:bg-white bg-transparent rounded px-1 py-1 text-xs sm:text-sm outline-none text-[#5c9a38] font-bold block"
                                                     />
                                                 </td>
-                                                <td className="px-4 py-2">
+                                                <td className="px-1 sm:px-4 py-2">
                                                     <NumericInput
                                                         value={unit.retailPrice}
                                                         onChange={(v) => handleUnitChange(unit.id, 'retailPrice', v)}
-                                                        className="w-[120px] mx-auto text-center border border-transparent hover:border-gray-300 focus:border-blue-500 focus:bg-white bg-transparent rounded px-2 py-1 text-sm outline-none font-semibold block"
+                                                        className="w-[80px] sm:w-[120px] mx-auto text-center border-transparent hover:border-gray-200 focus:border-[#5c9a38] focus:bg-white bg-transparent rounded px-1 py-1 text-xs sm:text-sm outline-none font-bold block text-gray-800"
                                                     />
                                                 </td>
-                                                <td className="px-4 py-2">
+                                                <td className="px-1 sm:px-4 py-2">
                                                     <NumericInput
                                                         value={unit.wholesalePrice}
                                                         onChange={(v) => handleUnitChange(unit.id, 'wholesalePrice', v)}
-                                                        className="w-[120px] mx-auto text-center border border-transparent hover:border-gray-300 focus:border-blue-500 focus:bg-white bg-transparent rounded px-2 py-1 text-sm outline-none font-semibold text-gray-600 block"
+                                                        className="w-[80px] sm:w-[120px] mx-auto text-center border-transparent hover:border-gray-200 focus:border-[#5c9a38] focus:bg-white bg-transparent rounded px-1 py-1 text-xs sm:text-sm outline-none font-medium text-gray-500 block"
                                                     />
                                                 </td>
-                                                <td className="px-4 py-2 text-center">
+                                                <td className="px-1 sm:px-4 py-2 text-center">
                                                     <input
                                                         type="radio"
                                                         checked={unit.isDefault}
                                                         onChange={() => setUnitDefault(unit.id)}
-                                                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 mx-auto block cursor-pointer"
+                                                        className="w-4 h-4 text-[#5c9a38] border-gray-300 focus:ring-[#5c9a38] mx-auto block cursor-pointer accent-[#5c9a38]"
                                                     />
                                                 </td>
-                                                <td className="px-2 py-2 text-center">
+                                                <td className="px-1 sm:px-2 py-2 text-center">
                                                     {formData.units.length > 1 && (
                                                         <button
                                                             onClick={() => removeUnitRow(unit.id)}
-                                                            className="text-red-400 hover:text-red-600 p-1"
+                                                            className="text-red-400 hover:text-red-600 p-1 transition-colors"
                                                             title="Xóa dòng"
                                                         >
-                                                            <X size={16} />
+                                                            <X className="w-4 h-4" />
                                                         </button>
                                                     )}
                                                 </td>
@@ -633,29 +632,29 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                             </div>
                         </div>
                         {/* Empty space at bottom to ensure scroll reaches end smoothly */}
-                        <div className="h-4"></div>
+                        <div className="h-6 sm:h-4"></div>
                     </div>
                 </div>
 
                 {/* FOOTER ACTIONS */}
-                <div className="flex items-center justify-end px-4 py-3 border-t border-gray-200 bg-white gap-2">
+                <div className="flex flex-wrap items-center justify-end px-3 sm:px-4 py-2 sm:py-3 border-t border-gray-200 bg-gray-50 gap-2">
                     <button
                         onClick={() => handleSubmit('save_new')}
-                        className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-4 py-2 rounded text-sm font-medium transition-colors border-l border-white/20"
+                        className="bg-white hover:bg-gray-100 text-[#5c9a38] border border-[#5c9a38] px-3 sm:px-4 py-2 rounded text-[11px] sm:text-sm font-bold transition-all active:scale-95 flex-1 sm:flex-none"
                     >
-                        ✓ Lưu và Thêm mới
+                        ✓ Lưu & Thêm mới
                     </button>
                     <button
                         onClick={() => handleSubmit('save')}
-                        className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-4 py-2 rounded text-sm font-medium transition-colors border-l border-white/20"
+                        className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-4 sm:px-8 py-2 rounded text-[11px] sm:text-sm font-black transition-all active:scale-95 shadow-lg shadow-green-500/10 flex-1 sm:flex-none"
                     >
-                        ✓ Lưu và Đóng
+                        ✓ LƯU HÀNG HÓA
                     </button>
                     <button
                         onClick={onClose}
-                        className="text-[#000000] hover:bg-gray-200 px-4 py-2 rounded text-sm font-bold ml-2 transition-colors flex items-center gap-1"
+                        className="text-gray-500 hover:bg-gray-100 px-3 sm:px-4 py-2 rounded text-[11px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 flex-1 sm:flex-none border border-transparent hover:border-gray-200"
                     >
-                        <X size={16} className="text-[#000000]" /> Thoát
+                        <X className="w-4 h-4" /> Thoát
                     </button>
                 </div>
             </div>

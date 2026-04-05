@@ -55,10 +55,10 @@ export function MobileNav() {
                                 item.special && "bg-[#5c9a38] text-white shadow-lg shadow-green-500/20 -mt-8 border-4 border-white dark:border-neutral-900",
                                 isActive && !item.special && "bg-green-50 dark:bg-green-900/20"
                             )}>
-                                <Icon size={item.special ? 24 : 20} strokeWidth={isActive ? 2.5 : 2} />
+                                <Icon className={cn(item.special ? "w-6 h-6" : "w-5 h-5")} strokeWidth={isActive ? 2.5 : 2} />
                             </div>
                             <span className={cn(
-                                "text-[10px] font-bold tracking-tight",
+                                "text-[9px] sm:text-[10px] font-bold tracking-tight",
                                 item.special && "mt-1"
                             )}>
                                 {item.label}

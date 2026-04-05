@@ -4,12 +4,16 @@ export interface IProductCategory extends Document {
     code: string;
     name: string;
     notes?: string;
+    isDeleted?: boolean;
+    deletedAt?: Date;
 }
 
 const ProductCategorySchema: Schema = new Schema({
     code: { type: String, required: true, unique: true },
     name: { type: String, required: true },
-    notes: { type: String }
+    notes: { type: String },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date }
 }, { 
     timestamps: true,
     toJSON: {

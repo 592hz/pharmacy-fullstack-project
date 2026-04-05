@@ -1,15 +1,18 @@
 import { useState, useEffect } from "react"
-import { Plus } from "lucide-react"
+import { Plus, Trash2 } from "lucide-react"
+import { Link } from "react-router-dom"
 import { toast } from "sonner"
 import AddProductCategoryModal from "@/components/add-product-category-modal"
 import { type ProductCategory } from "@/lib/schemas"
 import { productCategoryService } from "@/services/product-category.service"
+import { useDebounce } from "@/hooks/use-debounce"
 import { getErrorMessage } from "@/lib/utils"
 
 export default function ProductCategoriesPage() {
     const [categories, setCategories] = useState<ProductCategory[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
+    const debouncedSearchQuery = useDebounce(searchQuery, 300)
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
     const [editingCategory, setEditingCategory] = useState<ProductCategory | null>(null)
     const [categoryToDelete, setCategoryToDelete] = useState<ProductCategory | null>(null)
@@ -38,7 +41,8 @@ export default function ProductCategoriesPage() {
         if (!categoryToDelete || !categoryToDelete.id) return
         try {
             await productCategoryService.delete(categoryToDelete.id)
-            setCategories(categories.filter(c => c.id !== categoryToDelete.id))
+            // Use both id and _id logic to be safe during state filtering
+            setCategories(prev => prev.filter(c => c.id !== categoryToDelete.id && (c as any)._id !== categoryToDelete.id))
             toast.success("Đã xóa nhóm hàng hóa thành công!")
             setCategoryToDelete(null)
         } catch (error: unknown) {
@@ -74,9 +78,9 @@ export default function ProductCategoriesPage() {
         }
     }
 
-    const filteredCategories = categories.filter(cat => 
-        cat.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-        (cat.code && cat.code.toLowerCase().includes(searchQuery.toLowerCase()))
+    const filteredCategories = (categories || []).filter(cat =>
+        cat.name.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) || 
+        (cat.code && cat.code.toLowerCase().includes(debouncedSearchQuery.toLowerCase()))
     )
 
     return (
@@ -105,12 +109,20 @@ export default function ProductCategoriesPage() {
                             </div>
                         </div>
 
-                        <button
-                            onClick={() => setIsAddModalOpen(true)}
-                            className="flex items-center gap-2 bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-5 py-2 rounded-md font-medium transition-colors text-sm w-full sm:w-auto justify-center"
-                        >
-                            <Plus size={18} /> Thêm mới
-                        </button>
+                        <div className="flex items-center gap-2 w-full sm:w-auto">
+                            <Link
+                                to="/trash"
+                                className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded-md font-medium transition-colors text-sm justify-center border border-gray-200"
+                            >
+                                <Trash2 size={18} /> Thùng rác
+                            </Link>
+                            <button
+                                onClick={() => setIsAddModalOpen(true)}
+                                className="flex items-center gap-2 bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-5 py-2 rounded-md font-medium transition-colors text-sm w-full sm:w-auto justify-center"
+                            >
+                                <Plus size={18} /> Thêm mới
+                            </button>
+                        </div>
                     </div>
 
                     {/* Table */}
@@ -223,7 +235,8 @@ export default function ProductCategoriesPage() {
                         </div>
                         
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6 leading-relaxed">
-                            Bạn có chắc chắn muốn xóa nhóm sản phẩm <span className="font-bold text-gray-800 dark:text-gray-200">"{categoryToDelete.name}"</span>? Thao tác này sẽ không thể khôi phục.
+                            Bạn có chắc chắn muốn xóa nhóm sản phẩm <span className="font-bold text-gray-800 dark:text-gray-200">"{categoryToDelete.name}"</span>? 
+                            <br/> <span className="text-red-500 italic mt-1 block">Lưu ý: Tất cả sản phẩm thuộc nhóm này cũng sẽ bị chuyển vào thùng rác.</span>
                         </p>
 
                         <div className="flex items-center justify-end gap-2">

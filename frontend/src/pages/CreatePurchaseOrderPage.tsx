@@ -13,6 +13,10 @@ import { supplierService } from "@/services/supplier.service"
 import { purchaseOrderService } from "@/services/purchase-order.service"
 import { paymentMethodService } from "@/services/payment-method.service"
 import { type Product, type PurchaseOrderItem, type PurchaseOrder, type Supplier, type PaymentMethod } from "@/lib/schemas"
+import { useDebounce } from "@/hooks/use-debounce"
+import { cacheService } from "@/services/cache.service"
+
+const DRAFT_STORAGE_KEY = "purchase_order_draft"
 
 export default function CreatePurchaseOrderPage() {
     const navigate = useNavigate()
@@ -24,12 +28,20 @@ export default function CreatePurchaseOrderPage() {
     const [notes, setNotes] = useState("")
     const [items, setItems] = useState<PurchaseOrderItem[]>([])
 
+    const generateOrderId = () => {
+        const now = new Date();
+        const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+        const timePart = `${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+        const randomPart = String(Math.floor(Math.random() * 1000)).padStart(3, "0");
+        return `PN${datePart}${timePart}${randomPart}`;
+    };
+
     // Metadata (some auto-generated/fixed)
-    const [orderId] = useState(() => `PN${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`)
+    const [orderId, setOrderId] = useState(generateOrderId)
     const [importDate] = useState(() => new Date().toISOString())
     const createdBy = "Quản trị viên"
     const [paymentMethod, setPaymentMethod] = useState("Chuyển khoản")
-    const [allPaymentMethods, setAllPaymentMethods] = useState<PaymentMethod[]>([])
+    const [allPaymentMethods, setAllPaymentMethods] = useState<PaymentMethod[]>(() => cacheService.get("payment_methods") || [])
 
     const [showAddModal, setShowAddModal] = useState(false)
     const [showAddSupplierModal, setShowAddSupplierModal] = useState(false)
@@ -37,9 +49,38 @@ export default function CreatePurchaseOrderPage() {
     // Search state
     const [searchQuery, setSearchQuery] = useState("")
     const [showResults, setShowResults] = useState(false)
+    const debouncedSearchQuery = useDebounce(searchQuery, 300)
     const [selectedIndex, setSelectedIndex] = useState(-1)
-    const [allProducts, setAllProducts] = useState<Product[]>([])
-    const [allSuppliers, setAllSuppliers] = useState<Supplier[]>([])
+    const [allProducts, setAllProducts] = useState<Product[]>(() => cacheService.get("products") || [])
+    const [allSuppliers, setAllSuppliers] = useState<Supplier[]>(() => cacheService.get("suppliers") || [])
+
+    // Draft handling
+    const [hasRestoredDraft, setHasRestoredDraft] = useState(false)
+
+    const clearDraft = useCallback(() => {
+        localStorage.removeItem(DRAFT_STORAGE_KEY)
+    }, [])
+
+    const saveDraft = useCallback(() => {
+        const draftData = {
+            orderId,
+            supplierId,
+            supplierName,
+            invoiceNumber,
+            notes,
+            items,
+            paymentMethod,
+            timestamp: new Date().getTime()
+        }
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData))
+    }, [orderId, supplierId, supplierName, invoiceNumber, notes, items, paymentMethod])
+
+    // Auto-save useEffect
+    useEffect(() => {
+        if (items.length > 0 || supplierId || invoiceNumber || notes) {
+            saveDraft()
+        }
+    }, [items, supplierId, supplierName, invoiceNumber, notes, paymentMethod, saveDraft])
 
     useEffect(() => {
         const fetchData = async () => {
@@ -53,12 +94,40 @@ export default function CreatePurchaseOrderPage() {
                 setAllSuppliers(suppliers);
                 setAllPaymentMethods(paymentMethods);
 
-                // Set default payment method
-                const defaultMethod = paymentMethods.find((m: PaymentMethod) => m.isDefault);
-                if (defaultMethod) {
-                    setPaymentMethod(defaultMethod.name);
-                } else if (paymentMethods.length > 0) {
-                    setPaymentMethod(paymentMethods[0].name);
+                // Save to cache
+                cacheService.set("products", products);
+                cacheService.set("suppliers", suppliers);
+                cacheService.set("payment_methods", paymentMethods);
+
+                // Load draft if exists
+                const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY)
+                if (savedDraft && !hasRestoredDraft) {
+                    try {
+                        const parsed = JSON.parse(savedDraft)
+                        // Only restore if it's "fresh" enough (optional, let's just restore)
+                        setOrderId(parsed.orderId)
+                        setSupplierId(parsed.supplierId)
+                        setSupplierName(parsed.supplierName)
+                        setInvoiceNumber(parsed.invoiceNumber)
+                        setNotes(parsed.notes)
+                        setItems(parsed.items)
+                        setPaymentMethod(parsed.paymentMethod)
+                        setHasRestoredDraft(true)
+                        toast.info("Đã khôi phục bản nháp phiếu nhập trước đó", {
+                            description: `Phiếu lưu vào lúc ${new Date(parsed.timestamp).toLocaleString("vi-VN")}`,
+                            duration: 5000,
+                        })
+                    } catch (e) {
+                        console.error("Failed to parse draft", e)
+                    }
+                } else {
+                    // Set default payment method if no draft
+                    const defaultMethod = paymentMethods.find((m: PaymentMethod) => m.isDefault);
+                    if (defaultMethod) {
+                        setPaymentMethod(defaultMethod.name);
+                    } else if (paymentMethods.length > 0) {
+                        setPaymentMethod(paymentMethods[0].name);
+                    }
                 }
             } catch (error: unknown) {
                 console.error("Error fetching data:", getErrorMessage(error));
@@ -69,13 +138,13 @@ export default function CreatePurchaseOrderPage() {
     }, []);
 
     const filteredSuggestions = useMemo(() => {
-        if (!searchQuery.trim()) return []
-        const query = searchQuery.toLowerCase()
+        if (!debouncedSearchQuery.trim()) return []
+        const query = debouncedSearchQuery.toLowerCase()
         return allProducts.filter(p =>
             (p.name && p.name.toLowerCase().includes(query)) ||
             (p.id && p.id.toLowerCase().includes(query))
         ).slice(0, 10)
-    }, [searchQuery, allProducts])
+    }, [debouncedSearchQuery, allProducts])
 
     const handleQuickAdd = useCallback((product: Product) => {
         const qty = 1
@@ -144,7 +213,7 @@ export default function CreatePurchaseOrderPage() {
         const total = qty * importPrice
         const discountAmt = Math.round(total * discountPct / 100)
         const vatAmt = Math.round((total - discountAmt) * vatPct / 100)
-        
+
         const newItem: PurchaseOrderItem = {
             id: `new-${Date.now()}-${Math.random()}`,
             code: savedProduct.id || formData.productCode || "",
@@ -286,39 +355,65 @@ export default function CreatePurchaseOrderPage() {
 
         try {
             await purchaseOrderService.create(newOrder)
+            clearDraft()
             toast.success("Đã tạo phiếu nhập mới thành công")
             navigate("/purchase-orders")
-        } catch (error: unknown) {
-            toast.error("Lỗi khi lưu đơn hàng: " + getErrorMessage(error))
+        } catch (error: any) {
+            const errorMsg = getErrorMessage(error);
+            if (errorMsg.includes("E11000") || errorMsg.includes("duplicate key")) {
+                toast.error("Lỗi: Mã phiếu này đã tồn tại trong hệ thống. Đang tự động làm mới mã...");
+                setOrderId(generateOrderId());
+            } else {
+                toast.error("Lỗi khi lưu đơn hàng: " + errorMsg)
+            }
         }
     }, [items, supplierId, invoiceNumber, notes, importDate, createdBy, paymentMethod, navigate, orderId, supplierName, totalAmount, totalDiscount, totalVat, amountToPay])
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-neutral-900 overflow-hidden">
             {/* ── HEADER SECTION ── */}
-            <div className="flex-none p-4 border-b border-gray-200 dark:border-neutral-800 bg-gray-50/50 dark:bg-neutral-900/50">
-                <div className="flex items-center justify-between mb-4">
-                    <h1 className="text-xl font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                        <Plus size={24} className="text-[#5c9a38]" />
+            <div className="flex-none p-3 sm:p-4 border-b border-gray-200 dark:border-neutral-800 bg-gray-50/50 dark:bg-neutral-900/50">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 gap-2">
+                    <h1 className="text-base sm:text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                        <Plus className="w-5 h-5 text-[#5c9a38]" />
                         Tạo phiếu nhập mới
                     </h1>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                        {items.length > 0 && (
+                            <button
+                                onClick={() => {
+                                    if (window.confirm("Bạn có chắc chắn muốn xóa bản nháp và làm mới phiếu này?")) {
+                                        clearDraft()
+                                        setItems([])
+                                        setSupplierId("")
+                                        setSupplierName("")
+                                        setInvoiceNumber("")
+                                        setNotes("")
+                                        setOrderId(generateOrderId())
+                                        toast.success("Đã xóa bản nháp")
+                                    }
+                                }}
+                                className="bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/10 dark:text-red-400 px-3 sm:px-4 py-2 rounded text-xs sm:text-sm font-medium transition-colors border border-red-200 dark:border-red-900/30 flex-1 sm:flex-none"
+                            >
+                                <Trash2 className="w-4 h-4 inline mr-1" /> Xóa bản nháp
+                            </button>
+                        )}
                         <button
                             onClick={() => navigate("/purchase-orders")}
-                            className="bg-gray-200 hover:bg-gray-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded text-sm font-medium transition-colors"
+                            className="bg-gray-200 hover:bg-gray-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-gray-700 dark:text-gray-300 px-3 sm:px-4 py-2 rounded text-xs sm:text-sm font-medium transition-colors flex-1 sm:flex-none"
                         >
-                            <X size={16} className="inline mr-1" /> Thoát
+                            <X className="w-4 h-4 inline mr-1" /> Thoát
                         </button>
                         <button
                             onClick={handleSaveOrder}
-                            className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-6 py-2 rounded text-sm font-bold shadow-sm transition-all flex items-center gap-2"
+                            className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-4 sm:px-8 py-2 rounded text-xs sm:text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2 flex-1 sm:flex-none"
                         >
-                            <Save size={18} /> LƯU PHIẾU
+                            <Save className="w-4 h-4 sm:w-5 sm:h-5" /> LƯU PHIẾU
                         </button>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-7 gap-4 border p-4 rounded-xl bg-white dark:bg-neutral-800 shadow-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 border p-3 rounded-xl bg-white dark:bg-neutral-800 shadow-sm transition-all">
                     {/* Supplier Select */}
                     <div className="col-span-2 flex flex-col gap-1.5">
                         <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Nhà cung cấp *</label>
@@ -401,15 +496,15 @@ export default function CreatePurchaseOrderPage() {
                 </div>
 
                 {/* ── SEARCH-FIRST ADD BAR ── */}
-                <div className="mt-6 relative group">
-                    <div className="flex items-center gap-3 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-2xl shadow-md focus-within:ring-4 focus-within:ring-green-500/10 focus-within:border-green-500 transition-all p-1.5">
-                        <div className="pl-4 text-gray-400 group-focus-within:text-green-500 transition-colors">
-                            <Search size={22} />
+                <div className="mt-3 relative group">
+                    <div className="flex items-center gap-2 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-xl shadow-sm focus-within:ring-2 focus-within:ring-green-500/10 focus-within:border-green-500 transition-all p-1">
+                        <div className="pl-3 text-gray-400 group-focus-within:text-green-500 transition-colors">
+                            <Search size={18} />
                         </div>
                         <input
                             type="text"
-                            placeholder="Tìm kiếm sản phẩm theo tên hoặc mã (F1)..."
-                            className="flex-1 bg-transparent border-none outline-none text-base py-2 px-1 text-gray-800 dark:text-gray-200 placeholder:text-gray-400"
+                            placeholder="Tìm sản phẩm (F1)..."
+                            className="flex-1 bg-transparent border-none outline-none text-sm py-1.5 px-1 text-gray-800 dark:text-gray-200 placeholder:text-gray-400 font-medium"
                             value={searchQuery}
                             onChange={(e) => {
                                 setSearchQuery(e.target.value)
@@ -422,9 +517,9 @@ export default function CreatePurchaseOrderPage() {
                         />
                         <button
                             onClick={() => setShowAddModal(true)}
-                            className="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-5 py-2.5 rounded-xl text-sm font-bold hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors border border-green-200 dark:border-green-800/50"
+                            className="flex items-center gap-2 bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-400 px-4 py-2 rounded-lg text-xs font-bold hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors border border-green-200 dark:border-green-800/50"
                         >
-                            <PlusCircle size={18} />
+                            <PlusCircle size={16} />
                             <span>Thêm mới sản phẩm (F2)</span>
                         </button>
                     </div>
@@ -441,9 +536,8 @@ export default function CreatePurchaseOrderPage() {
                                                 e.preventDefault()
                                                 handleQuickAdd(product)
                                             }}
-                                            className={`w-full flex items-center justify-between p-3.5 rounded-xl transition-colors text-left group ${
-                                                selectedIndex === index ? "bg-green-100 dark:bg-green-900/40 border-l-4 border-green-500" : "hover:bg-green-50 dark:hover:bg-green-900/20"
-                                            }`}
+                                            className={`w-full flex items-center justify-between p-3.5 rounded-xl transition-colors text-left group ${selectedIndex === index ? "bg-green-100 dark:bg-green-900/40 border-l-4 border-green-500" : "hover:bg-green-50 dark:hover:bg-green-900/20"
+                                                }`}
                                         >
                                             <div className="flex flex-col gap-0.5">
                                                 <div className="text-base font-bold text-gray-800 dark:text-gray-100 group-hover:text-green-600 transition-colors">
@@ -494,27 +588,27 @@ export default function CreatePurchaseOrderPage() {
             />
 
             {/* ── LINE ITEMS DATA GRID ── */}
-            <div className="flex-1 overflow-auto p-4 bg-gray-50/30 dark:bg-neutral-900">
-                <div className="bg-white dark:bg-neutral-800 rounded-2xl border border-gray-200 dark:border-neutral-700 shadow-sm overflow-hidden">
-                    <table className="w-full text-[12px] text-left whitespace-nowrap">
-                        <thead className="bg-gray-50 dark:bg-neutral-900 text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider border-b border-gray-200 dark:border-neutral-700">
+            <div className="flex-1 overflow-auto p-3 bg-gray-50/30 dark:bg-neutral-900">
+                <div className="bg-white dark:bg-neutral-800 rounded-xl border border-gray-200 dark:border-neutral-700 shadow-sm overflow-hidden min-w-fit">
+                    <table className="w-full text-[11px] text-left whitespace-nowrap border-collapse">
+                        <thead className="bg-gray-50 dark:bg-neutral-900 text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider border-b border-gray-200 dark:border-neutral-700 sticky top-0 ">
                             <tr>
-                                <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-700 w-24">Mã SP</th>
-                                <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-700">Tên sản phẩm</th>
-                                <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-700">ĐVT</th>
-                                <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-700 text-center">Số lô</th>
-                                <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-700 text-center">Hạn dùng</th>
-                                <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-700 text-right">Số lượng</th>
-                                <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-700 text-right">Giá nhập *</th>
-                                <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-700 text-right">Giá bán lẻ</th>
-                                <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-700 text-right">Tổng tiền</th>
-                                <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-700 text-right">%CK</th>
-                                <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-700 text-right">Chiết khấu</th>
-                                <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-700 text-right">%VAT</th>
-                                <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-700 text-right">VAT</th>
-                                <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-700 text-right font-bold text-blue-600 dark:text-blue-400">Còn lại</th>
-                                <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-700 text-center">SĐK</th>
-                                <th className="px-2 py-3 text-center w-10">#</th>
+                                <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-700 w-24">Mã SP</th>
+                                <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-700 min-w-[200px]">Tên sản phẩm</th>
+                                <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-700 w-16">ĐVT</th>
+                                <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-700 text-center w-24">Số lô *</th>
+                                <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-700 text-center w-28">Hạn dùng *</th>
+                                <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-700 text-right w-16">SL</th>
+                                <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-700 text-right w-24">Giá nhập *</th>
+                                <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-700 text-right w-24">Giá bán</th>
+                                <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-700 text-right">Tổng tiền</th>
+                                <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-700 text-right w-12">%CK</th>
+                                <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-700 text-right w-20">CK VNĐ</th>
+                                <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-700 text-right w-12">%VAT</th>
+                                <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-700 text-right w-20">VAT</th>
+                                <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-700 text-right font-bold text-blue-600 dark:text-blue-400">Còn lại</th>
+                                <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-700 text-center w-20">SĐK</th>
+                                <th className="px-2 py-2 text-center w-8">#</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
@@ -529,84 +623,85 @@ export default function CreatePurchaseOrderPage() {
                                 </tr>
                             ) : (
                                 items.map((item) => (
-                                    <tr key={item.id} className="hover:bg-green-50/30 dark:hover:bg-green-900/5 transition-colors">
-                                        <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 font-mono text-gray-500">{item.code}</td>
-                                        <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800">
-                                            <div className="font-bold text-gray-800 dark:text-gray-100 max-w-[200px] truncate" title={item.name}>{item.name}</div>
+                                    <tr key={item.id} className="hover:bg-green-50/20 dark:hover:bg-green-900/5 transition-colors group border-b dark:border-neutral-700">
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-gray-500 font-medium">{item.code}</td>
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800">
+                                            <div className="font-semibold text-gray-800 dark:text-gray-100 max-w-[200px] truncate" title={item.name}>{item.name}</div>
                                         </td>
-                                        <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800">{item.unit}</td>
-                                        <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800">
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-center text-gray-600 font-medium">{item.unit}</td>
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800">
                                             <input
                                                 type="text"
-                                                className="w-full bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-center outline-none focus:ring-1 focus:ring-blue-500"
+                                                className="w-full bg-blue-50/40 dark:bg-blue-900/10 border border-blue-200/50 dark:border-blue-900/30 px-1 py-1 rounded text-center outline-none focus:ring-1 focus:ring-blue-500 text-[11px] font-semibold text-blue-800 dark:text-blue-300"
                                                 value={item.batchNumber || ""}
-                                                placeholder="Lô..."
+                                                placeholder="..."
                                                 onChange={(e) => updateItemField(item.id!, 'batchNumber', e.target.value)}
                                             />
                                         </td>
-                                        <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800">
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800">
                                             <input
                                                 type="text"
-                                                className="w-full bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-center outline-none focus:ring-1 focus:ring-blue-500"
+                                                className="w-full bg-blue-50/40 dark:bg-blue-900/10 border border-blue-200/50 dark:border-blue-900/30 px-1 py-1 rounded text-center outline-none focus:ring-1 focus:ring-blue-500 text-[11px] font-semibold text-blue-800 dark:text-blue-300"
                                                 value={item.expiryDate || ""}
-                                                placeholder="HH-DD-YYYY"
+                                                placeholder="MM/YY"
                                                 onChange={(e) => updateItemField(item.id!, 'expiryDate', e.target.value)}
                                             />
                                         </td>
-                                        <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right">
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right">
                                             <NumericInput
-                                                className="w-16 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none focus:ring-1 focus:ring-blue-500 font-bold"
+                                                className="w-full bg-gray-50 dark:bg-neutral-900/30 border border-gray-200 dark:border-neutral-700 px-1 py-1 rounded text-right outline-none focus:ring-1 focus:ring-green-500 font-bold text-gray-800 dark:text-gray-100"
                                                 value={Number(item.quantity)}
                                                 onChange={(v) => updateItemField(item.id!, 'quantity', v)}
                                             />
                                         </td>
-                                        <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right">
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right">
                                             <NumericInput
-                                                className="w-24 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none focus:ring-1 focus:ring-blue-500 font-bold text-red-600 dark:text-red-400"
+                                                className="w-full bg-transparent border-none px-1 py-1 text-right outline-none font-bold text-red-600 dark:text-red-400"
                                                 value={Number(item.importPrice)}
                                                 onChange={(v) => updateItemField(item.id!, 'importPrice', v)}
                                             />
                                         </td>
-                                        <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right">
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right">
                                             <NumericInput
-                                                className="w-24 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none focus:ring-1 focus:ring-blue-500 font-bold"
+                                                className="w-full bg-transparent border-none px-1 py-1 text-right outline-none font-bold text-gray-700 dark:text-gray-300"
                                                 value={Number(item.retailPrice)}
                                                 onChange={(v) => updateItemField(item.id!, 'retailPrice', v)}
                                             />
                                         </td>
-                                        <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right font-medium">{vnd(item.totalAmount)}</td>
-                                        <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right">
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right font-semibold text-gray-600">{vnd(item.totalAmount)}</td>
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right">
                                             <NumericInput
-                                                className="w-12 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none"
+                                                className="w-full bg-transparent border-none text-right outline-none p-0 font-medium"
                                                 value={Number(item.discountPercent)}
                                                 onChange={(v) => updateItemField(item.id!, 'discountPercent', v)}
                                             />
                                         </td>
-                                        <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right text-gray-500">{vnd(item.discountAmount)}</td>
-                                        <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right">
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right text-gray-400 font-medium">{vnd(item.discountAmount)}</td>
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right">
                                             <NumericInput
-                                                className="w-12 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-right outline-none"
+                                                className="w-full bg-transparent border-none text-right outline-none p-0 font-medium"
                                                 value={Number(item.vatPercent)}
                                                 onChange={(v) => updateItemField(item.id!, 'vatPercent', v)}
                                             />
                                         </td>
-                                        <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right text-gray-500">{vnd(item.vatAmount)}</td>
-                                        <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-right font-bold text-green-700 dark:text-green-400">{vnd(item.remainingAmount)}</td>
-                                        <td className="px-2 py-3 border-r border-gray-100 dark:border-neutral-800 text-center">
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right text-gray-400 font-medium">{vnd(item.vatAmount)}</td>
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right font-bold text-green-700 dark:text-green-400">{vnd(item.remainingAmount)}</td>
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-center">
                                             <input
                                                 type="text"
-                                                className="w-16 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900 px-1 py-1 rounded text-center outline-none focus:ring-1 focus:ring-blue-500"
+                                                className="w-full bg-transparent border-none px-1 py-0.5 text-center text-[11px] font-medium outline-none text-gray-500"
                                                 value={item.registrationNumber || ""}
-                                                placeholder="SĐK..."
+                                                placeholder="-"
                                                 onChange={(e) => updateItemField(item.id!, 'registrationNumber', e.target.value)}
                                             />
                                         </td>
-                                        <td className="px-2 py-3 text-center">
+                                        <td className="px-2 py-1.5 text-center">
                                             <button
                                                 onClick={() => removeItem(item.id!)}
-                                                className="text-red-400 hover:text-red-600 p-1 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all"
+                                                className="text-gray-300 hover:text-red-400 transition-colors p-1"
+                                                title="Xóa"
                                             >
-                                                <Trash2 size={16} />
+                                                <Trash2 size={14} />
                                             </button>
                                         </td>
                                     </tr>
@@ -617,65 +712,63 @@ export default function CreatePurchaseOrderPage() {
                 </div>
             </div>
 
-            {/* ── FOOTER SUB-SECTION (Totals) ── */}
-            <div className="flex-none p-4 border-t-2 border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
-                <div className="flex gap-8 items-start">
-                    <div className="flex-1 flex flex-col gap-2">
-                        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Ghi chú phiếu nhập</label>
+            <div className="flex-none p-2.5 sm:p-4 border-t border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
+                <div className="flex flex-col lg:flex-row gap-4 items-start">
+                    <div className="flex-1 flex flex-col gap-1 w-full">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Ghi chú phiếu nhập</label>
                         <textarea
-                            placeholder="Nhập ghi chú thêm nếu cần..."
+                            placeholder="Nhập ghi chú thêm..."
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
-                            className="w-full bg-gray-50 dark:bg-neutral-800 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded-xl text-sm min-h-[80px] outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all resize-none"
+                            className="w-full bg-gray-50/50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 px-3 py-2 rounded-xl text-xs min-h-[50px] lg:min-h-[80px] outline-none focus:ring-2 focus:ring-green-500/10 focus:border-green-500 transition-all resize-none italic"
                         />
                     </div>
 
-                    <div className="w-[450px] bg-gray-50 dark:bg-neutral-800/50 p-6 rounded-2xl border border-gray-200 dark:border-neutral-700 shadow-inner">
-                        <div className="space-y-4">
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-gray-500 font-medium">Tổng tiền hàng:</span>
-                                <span className="font-bold text-gray-800 dark:text-gray-200">{vnd(totalAmount)}</span>
+                    <div className="w-full lg:w-[360px] bg-gray-50/30 dark:bg-neutral-800/50 p-4 rounded-xl border border-gray-100 dark:border-neutral-700 shadow-sm">
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center text-[11px] sm:text-xs">
+                                <span className="text-gray-500 font-medium tracking-tight">Tổng tiền hàng:</span>
+                                <span className="font-bold text-gray-700 dark:text-gray-300 ml-auto">{vnd(totalAmount)}</span>
                             </div>
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-gray-500 font-medium">Tổng chiết khấu:</span>
-                                <span className="font-bold text-orange-600">-{vnd(totalDiscount)}</span>
+                            <div className="flex justify-between items-center text-[11px] sm:text-xs">
+                                <span className="text-gray-500 font-medium tracking-tight">Tổng chiết khấu:</span>
+                                <span className="font-bold text-orange-500 ml-auto">-{vnd(totalDiscount)}</span>
                             </div>
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-gray-500 font-medium">Tổng thuế VAT:</span>
-                                <span className="font-bold text-gray-800 dark:text-gray-200">+{vnd(totalVat)}</span>
+                            <div className="flex justify-between items-center text-[11px] sm:text-xs">
+                                <span className="text-gray-500 font-medium tracking-tight">Tổng thuế VAT:</span>
+                                <span className="font-bold text-gray-700 dark:text-gray-300 ml-auto">+{vnd(totalVat)}</span>
                             </div>
-                            <div className="h-px bg-gray-200 dark:bg-neutral-700 my-2"></div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-lg font-black text-gray-800 dark:text-gray-100 uppercase tracking-tighter">Cần thanh toán</span>
-                                <div className="text-3xl font-black text-[#5c9a38] drop-shadow-sm">
-                                    {vnd(amountToPay)} <span className="text-sm font-medium">đ</span>
+                            <div className="h-px bg-gray-100 dark:bg-neutral-700 my-1"></div>
+                            <div className="flex justify-between items-center pt-1">
+                                <span className="text-xs sm:text-sm font-black text-gray-800 dark:text-gray-100 uppercase tracking-tighter">Cần thanh toán</span>
+                                <div className="text-xl sm:text-2xl font-black text-[#5c9a38] drop-shadow-sm flex items-baseline gap-1">
+                                    {vnd(amountToPay)} <span className="text-[9px] sm:text-[10px] font-bold opacity-60">đ</span>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <div className="mt-4 flex justify-between items-center pt-4 border-t border-gray-100 dark:border-neutral-800">
+                <div className="mt-3 flex justify-between items-center pt-2 border-t border-gray-50 dark:border-neutral-800">
                     <div className="flex gap-4">
-                        <label className="flex items-center gap-2 cursor-pointer select-none">
-                            <input type="checkbox" className="rounded-lg w-5 h-5 accent-[#5c9a38]" />
-                            <span className="text-sm font-bold text-gray-700 dark:text-gray-300">Giá đã bao gồm VAT</span>
+                        <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                            <input type="checkbox" className="rounded-md w-4 h-4 accent-[#5c9a38]" />
+                            <span className="text-[11px] font-bold text-gray-500">Giá đã bao gồm VAT</span>
                         </label>
-
                     </div>
 
-                    <div className="flex gap-3">
-                        <button 
-                            onClick={() => navigate("/purchase-orders")} 
-                            className="flex items-center gap-2 border border-gray-300 dark:border-neutral-700 px-4 py-2 rounded-xl text-sm hover:bg-gray-100 dark:hover:bg-neutral-800 transition text-gray-700 dark:text-gray-300 font-bold"
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => navigate("/purchase-orders")}
+                            className="flex items-center gap-1.5 border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded-lg text-xs hover:bg-gray-50 dark:hover:bg-neutral-800 transition text-gray-600 dark:text-gray-400 font-bold"
                         >
-                            <AlertCircle size={16} /> Quay lại danh sách
+                            <AlertCircle size={14} /> Danh sách
                         </button>
                         <button
                             onClick={handleSaveOrder}
-                            className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-8 py-3 rounded-xl text-sm font-black shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center gap-2"
+                            className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-8 py-2 rounded-lg text-xs font-black shadow-lg shadow-green-500/10 active:scale-95 transition-all flex items-center gap-2"
                         >
-                            <Save size={20} /> LƯU
+                            <Save size={16} /> LƯU PHIẾU
                         </button>
                     </div>
                 </div>
