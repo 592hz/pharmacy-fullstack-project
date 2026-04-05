@@ -95,6 +95,20 @@ export default function ProductsPage() {
         if (stockFilter === "Còn hàng" && stockCount <= 0) return false
         if (stockFilter === "Sắp hết hàng" && (stockCount <= 0 || stockCount > lowStockThreshold)) return false
         if (stockFilter === "Hết hàng" && stockCount > 0) return false
+        
+        if (stockFilter === "Cận date") {
+            if (!product.batches || product.batches.length === 0) return false
+            const sixMonthsFromNow = new Date()
+            sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6)
+            
+            const hasNearExpiryBatch = product.batches.some(batch => {
+                if (!batch.expiryDate) return false
+                const expiryDate = new Date(batch.expiryDate)
+                return expiryDate <= sixMonthsFromNow && expiryDate >= new Date()
+            })
+            
+            if (!hasNearExpiryBatch) return false
+        }
         // 3. Category Filter
         if (categoryFilter !== "Tất cả" && prodCategoryId !== categoryFilter) return false
 
@@ -270,14 +284,14 @@ export default function ProductsPage() {
             {/* LEFT SIDEBAR: Filters */}
             <div className={`w-full lg:w-1/4 max-w-[300px] flex flex-col gap-3 ${showFilters ? 'block' : 'hidden lg:flex'}`}>
                 {/* Header that aligns with table header */}
-                <div className="h-12 bg-[#5c9a38] rounded-t-xl hidden lg:flex items-center">
+                <div className="h-10 sm:h-12 bg-[#5c9a38] rounded-t-xl hidden lg:flex items-center">
                     <div className="relative w-full h-full">
                         <button
                             onClick={() => setIsAddModalOpen(true)}
-                            className="absolute inset-0 w-full h-full flex items-center justify-between px-4 bg-[#5c9a38] text-white rounded-t-xl font-bold text-sm hover:bg-[#5c9a38]/90 transition-colors shadow-sm"
+                            className="absolute inset-0 w-full h-full flex items-center justify-between px-4 bg-[#5c9a38] text-white rounded-t-xl font-bold text-xs sm:text-sm hover:bg-[#5c9a38]/90 transition-colors shadow-sm"
                         >
                             <span>Thêm sản phẩm mới</span>
-                            <Plus size={18} />
+                            <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
                         </button>
                     </div>
                 </div>
@@ -352,6 +366,7 @@ export default function ProductsPage() {
                             <option>Còn hàng</option>
                             <option>Sắp hết hàng</option>
                             <option>Hết hàng</option>
+                            <option>Cận date</option>
                         </select>
                     </div>
                     <div className="border border-gray-300 dark:border-neutral-700 rounded overflow-hidden">
@@ -449,13 +464,13 @@ export default function ProductsPage() {
                     <table className="w-full text-xs text-left whitespace-nowrap lg:whitespace-normal">
                         <thead className="text-gray-700 bg-gray-50/50 border-b border-gray-200 dark:border-neutral-800 dark:text-gray-300">
                             <tr>
-                                <th className="px-3 py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-24 hidden md:table-cell text-center uppercase tracking-wider">Mã</th>
-                                <th className="px-3 py-4 border-r border-gray-200 dark:border-neutral-800 font-bold min-w-[200px] uppercase tracking-wider">Sản phẩm</th>
-                                <th className="px-3 py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-20 text-center uppercase tracking-wider">ĐVT</th>
-                                <th className="px-3 py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-28 text-right uppercase tracking-wider">Giá bán lẻ</th>
-                                <th className="px-3 py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-24 text-center uppercase tracking-wider">Tồn kho</th>
-                                <th className="px-3 py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-28 text-center hidden sm:table-cell uppercase tracking-wider">Hạn dùng</th>
-                                <th className="px-3 py-4 w-[100px] text-center uppercase tracking-wider">Thao tác</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-16 sm:w-24 hidden md:table-cell text-center uppercase tracking-wider text-[9px] sm:text-[10px]">Mã</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-800 font-bold min-w-[150px] sm:min-w-[200px] uppercase tracking-wider text-[9px] sm:text-[10px]">Sản phẩm</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-12 sm:w-20 text-center uppercase tracking-wider text-[9px] sm:text-[10px]">ĐVT</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-20 sm:w-28 text-right uppercase tracking-wider text-[9px] sm:text-[10px]">Giá bán lẻ</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-16 sm:w-24 text-center uppercase tracking-wider text-[9px] sm:text-[10px]">Tồn kho</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-800 font-bold w-20 sm:w-28 text-center hidden sm:table-cell uppercase tracking-wider text-[9px] sm:text-[10px]">Hạn dùng</th>
+                                <th className="px-2 sm:px-3 py-3 w-20 sm:w-[100px] text-center uppercase tracking-wider text-[9px] sm:text-[10px]">Thao tác</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
@@ -501,33 +516,49 @@ export default function ProductsPage() {
                                     <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 text-center text-xs text-gray-500 hidden sm:table-cell">
                                         {(() => {
                                             if (product.batches && product.batches.length > 0) {
-                                                // Priority 1: First batch with quantity > 0 that is NOT "LÔ ĐẦU"
-                                                // Priority 2: First batch with quantity > 0
-                                                // Priority 3: First batch that is NOT "LÔ ĐẦU" (even if 0 qty)
-                                                // Priority 4: First batch available (likely "LÔ ĐẦU")
-
                                                 const activeOtherBatches = product.batches.filter(b => b.quantity > 0 && b.batchNumber !== "LÔ ĐẦU")
+                                                let targetBatch = null
+                                                
                                                 if (activeOtherBatches.length > 0) {
                                                     const sorted = [...activeOtherBatches].sort((a, b) => (a.expiryDate || "").localeCompare(b.expiryDate || ""))
-                                                    return sorted[0].expiryDate
+                                                    targetBatch = sorted[0]
+                                                } else {
+                                                    const activeBatches = product.batches.filter(b => b.quantity > 0)
+                                                    if (activeBatches.length > 0) {
+                                                        const sorted = [...activeBatches].sort((a, b) => (a.expiryDate || "").localeCompare(b.expiryDate || ""))
+                                                        targetBatch = sorted[0]
+                                                    } else {
+                                                        const otherBatches = product.batches.filter(b => b.batchNumber !== "LÔ ĐẦU")
+                                                        if (otherBatches.length > 0) {
+                                                            const sorted = [...otherBatches].sort((a, b) => (a.expiryDate || "").localeCompare(b.expiryDate || ""))
+                                                            targetBatch = sorted[0]
+                                                        } else {
+                                                            const sorted = [...product.batches].sort((a, b) => (a.expiryDate || "").localeCompare(b.expiryDate || ""))
+                                                            targetBatch = sorted[0]
+                                                        }
+                                                    }
                                                 }
-
-                                                const activeBatches = product.batches.filter(b => b.quantity > 0)
-                                                if (activeBatches.length > 0) {
-                                                    const sorted = [...activeBatches].sort((a, b) => (a.expiryDate || "").localeCompare(b.expiryDate || ""))
-                                                    return sorted[0].expiryDate
+                                                
+                                                const dateStr = targetBatch?.expiryDate || "."
+                                                if (dateStr !== ".") {
+                                                    const expiryDate = new Date(dateStr)
+                                                    const sixMonthsFromNow = new Date()
+                                                    sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6)
+                                                    
+                                                    const isNearExpiry = expiryDate <= sixMonthsFromNow
+                                                    return <span className={isNearExpiry ? 'text-red-500 font-bold' : ''}>{dateStr}</span>
                                                 }
-
-                                                const otherBatches = product.batches.filter(b => b.batchNumber !== "LÔ ĐẦU")
-                                                if (otherBatches.length > 0) {
-                                                    const sorted = [...otherBatches].sort((a, b) => (a.expiryDate || "").localeCompare(b.expiryDate || ""))
-                                                    return sorted[0].expiryDate
-                                                }
-
-                                                const sorted = [...product.batches].sort((a, b) => (a.expiryDate || "").localeCompare(b.expiryDate || ""))
-                                                return sorted[0].expiryDate
+                                                return "."
                                             }
-                                            return product.expiryDate || "."
+                                            const soloDate = product.expiryDate || "."
+                                            if (soloDate !== ".") {
+                                                const expiryDate = new Date(soloDate)
+                                                const sixMonthsFromNow = new Date()
+                                                sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6)
+                                                const isNearExpiry = expiryDate <= sixMonthsFromNow
+                                                return <span className={isNearExpiry ? 'text-red-500 font-bold' : ''}>{soloDate}</span>
+                                            }
+                                            return "."
                                         })()}
                                     </td>
 
@@ -535,17 +566,17 @@ export default function ProductsPage() {
                                         <div className="flex items-center justify-center gap-2">
                                             <button
                                                 onClick={() => setEditingProduct(product)}
-                                                className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white p-1.5 rounded transition-transform active:scale-95"
+                                                className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white p-1 sm:p-1.5 rounded transition-transform active:scale-95"
                                                 title="Sửa"
                                             >
-                                                <FileText size={14} />
+                                                <FileText className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                             </button>
                                             <button
                                                 onClick={() => handleDeleteClick(product)}
-                                                className="bg-red-500 hover:bg-red-600 text-white p-1.5 rounded transition-transform active:scale-95"
+                                                className="bg-red-500 hover:bg-red-600 text-white p-1 sm:p-1.5 rounded transition-transform active:scale-95"
                                                 title="Xóa"
                                             >
-                                                <Plus className="rotate-45" size={14} />
+                                                <Plus className="rotate-45 w-3.5 h-3.5 sm:w-4 sm:h-4" />
                                             </button>
                                         </div>
                                     </td>

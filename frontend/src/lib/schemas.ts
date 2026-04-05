@@ -2,28 +2,34 @@ import { z } from "zod"
 
 // ─── UTILS ───
 const phoneRegex = /^[0-9]{10,11}$/
-const dateRegex = /^(\d{2})[-/](\d{2})[-/](\d{4})$/
+const dateRegex = /^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/
 
 const dateValidation = z.string().optional().refine((val) => {
     if (!val || val === "." || val === "") return true
     return dateRegex.test(val)
 }, "Hạn dùng không hợp lệ (Định dạng: DD-MM-YYYY hoặc DD/MM/YYYY)")
 
-const requiredDateValidation = z.string().min(1, "Vui lòng nhập Hạn dùng").refine((val) => {
-    if (!dateRegex.test(val)) return false;
-    
-    // Tách ngày, tháng, năm từ chuỗi DD/MM/YYYY hoặc DD-MM-YYYY
-    const parts = val.split(/[-/]/);
-    const day = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1; // Tháng trong JS bắt đầu từ 0
-    const year = parseInt(parts[2], 10);
-    
-    const expiryDate = new Date(year, month, day);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Đưa về 00:00:00 để so sánh chính xác theo ngày
-    
-    return expiryDate > today;
-}, "Hạn dùng phải là một ngày trong tương lai (lớn hơn ngày hiện tại)")
+const requiredDateValidation = z.string()
+    .min(1, "Vui lòng nhập Hạn dùng")
+    .refine((val) => dateRegex.test(val), "Hạn dùng không hợp lệ (Định dạng: DD-MM-YYYY hoặc DD/MM/YYYY)")
+    .refine((val) => {
+        const parts = val.split(/[-/]/);
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+        const d = new Date(year, month, day);
+        return d.getFullYear() === year && d.getMonth() === month && d.getDate() === day;
+    }, "Ngày tháng không hợp lệ")
+    .refine((val) => {
+        const parts = val.split(/[-/]/);
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+        const expiryDate = new Date(year, month, day);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return expiryDate > today;
+    }, "Hạn dùng phải là một ngày trong tương lai (lớn hơn ngày hiện tại)")
 
 // ─── AUTH ───
 export const loginSchema = z.object({

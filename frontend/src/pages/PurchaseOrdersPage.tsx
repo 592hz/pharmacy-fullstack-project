@@ -7,6 +7,10 @@ import { purchaseOrderService } from "@/services/purchase-order.service"
 import { getErrorMessage } from "@/lib/utils"
 import { useDebounce } from "@/hooks/use-debounce"
 
+const DRAFT_STORAGE_KEY = "purchase_order_draft"
+
+type PurchaseOrderWithDraft = PurchaseOrder & { isDraft?: boolean }
+
 const PAGE_SIZE_OPTIONS = [10, 20, 50]
 
 const vnd = (n: number) =>
@@ -27,7 +31,7 @@ const fmtDate = (iso: string) => {
 
 export default function PurchaseOrdersPage() {
     const navigate = useNavigate()
-    const [orders, setOrders] = useState<PurchaseOrder[]>([])
+    const [orders, setOrders] = useState<PurchaseOrderWithDraft[]>([])
     const [isLoading, setIsLoading] = useState(true)
 
     // ── Filter state ─────────────────────────────────────────────────────────
@@ -47,13 +51,43 @@ export default function PurchaseOrdersPage() {
     // ── Pagination state ─────────────────────────────────────────────────────
     const [page, setPage] = useState(1)
     const [pageSize, setPageSize] = useState(10)
+    const [showFilters, setShowFilters] = useState(false)
 
     useEffect(() => {
         const fetchOrders = async () => {
             setIsLoading(true)
             try {
                 const data = await purchaseOrderService.getAll()
-                setOrders(data)
+                
+                // Load draft if exists
+                const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY)
+                let combinedOrders: PurchaseOrderWithDraft[] = [...data]
+                
+                if (savedDraft) {
+                    try {
+                        const parsed = JSON.parse(savedDraft)
+                        const draftOrder: PurchaseOrderWithDraft = {
+                            id: parsed.orderId || "DRAFT",
+                            importDate: new Date(parsed.timestamp || Date.now()).toISOString(),
+                            supplierName: parsed.supplierName || "(Chưa chọn NCC)",
+                            totalAmount: parsed.items?.reduce((s: number, i: any) => s + (Number(i.totalAmount) || 0), 0) || 0,
+                            discount: parsed.items?.reduce((s: number, i: any) => s + (Number(i.discountAmount) || 0), 0) || 0,
+                            vat: parsed.items?.reduce((s: number, i: any) => s + (Number(i.vatAmount) || 0), 0) || 0,
+                            grandTotal: parsed.items?.reduce((s: number, i: any) => s + (Number(i.remainingAmount) || 0), 0) || 0,
+                            notes: parsed.notes || "",
+                            createdBy: "Quản trị viên",
+                            invoiceNumber: parsed.invoiceNumber || "",
+                            items: parsed.items || [],
+                            supplierId: parsed.supplierId || "",
+                            isDraft: true
+                        }
+                        combinedOrders = [draftOrder, ...combinedOrders]
+                    } catch (e) {
+                        console.error("Failed to parse draft", e)
+                    }
+                }
+                
+                setOrders(combinedOrders)
             } catch {
                 toast.error("Không thể tải danh sách phiếu nhập")
             } finally {
@@ -68,7 +102,7 @@ export default function PurchaseOrdersPage() {
     }, [dateFilterType, filterYear, filterMonth, filterDate, filterStartDate, filterEndDate, filterQuarter, debouncedFilterKeyword, debouncedFilterProduct])
 
     // ── Delete confirm ───────────────────────────────────────────────────────
-    const [orderToDelete, setOrderToDelete] = useState<PurchaseOrder | null>(null)
+    const [orderToDelete, setOrderToDelete] = useState<PurchaseOrderWithDraft | null>(null)
     const [deleteStep, setDeleteStep] = useState(0)
 
     // ── Derived filtered + paginated data ────────────────────────────────────
@@ -107,9 +141,11 @@ export default function PurchaseOrdersPage() {
 
             const prodKw = debouncedFilterProduct.toLowerCase()
             if (prodKw) {
-                // Assuming items might be populated or we search in items if available
-                // If the specific page logic doesn't support deep item search yet, 
-                // this prepares it for future use.
+                const hasMatchingItem = o.items?.some(item => 
+                    (item.name && item.name.toLowerCase().includes(prodKw)) ||
+                    (item.code && item.code.toLowerCase().includes(prodKw))
+                );
+                if (!hasMatchingItem) return false
             }
 
             return true
@@ -139,7 +175,7 @@ export default function PurchaseOrdersPage() {
         setPage(1)
     }
 
-    const handleDeleteClick = (order: PurchaseOrder) => {
+    const handleDeleteClick = (order: PurchaseOrderWithDraft) => {
         setOrderToDelete(order)
         setDeleteStep(1)
     }
@@ -148,9 +184,15 @@ export default function PurchaseOrdersPage() {
         if (deleteStep === 1) { setDeleteStep(2); return }
         if (deleteStep === 2 && orderToDelete?.id) {
             try {
-                await purchaseOrderService.delete(orderToDelete.id)
-                setOrders((prev) => prev.filter((o) => o.id !== orderToDelete.id))
-                toast.success(`Đã xóa phiếu nhập ${orderToDelete.id}!`)
+                if (orderToDelete.isDraft) {
+                    localStorage.removeItem(DRAFT_STORAGE_KEY)
+                    setOrders((prev) => prev.filter((o) => !o.isDraft))
+                    toast.success("Đã xóa bản nháp thành công!")
+                } else {
+                    await purchaseOrderService.delete(orderToDelete.id)
+                    setOrders((prev) => prev.filter((o) => o.id !== orderToDelete.id))
+                    toast.success(`Đã xóa phiếu nhập ${orderToDelete.id}!`)
+                }
                 setOrderToDelete(null)
                 setDeleteStep(0)
             } catch (error: unknown) {
@@ -161,7 +203,11 @@ export default function PurchaseOrdersPage() {
 
     const cancelDelete = () => { setOrderToDelete(null); setDeleteStep(0) }
 
-    const handleView = (order: PurchaseOrder) => {
+    const handleView = (order: PurchaseOrderWithDraft) => {
+        if (order.isDraft) {
+            navigate(`/purchase-orders/create`)
+            return
+        }
         if (order.id) {
             navigate(`/purchase-orders/${order.id}`)
         }
@@ -193,9 +239,21 @@ export default function PurchaseOrdersPage() {
                     </h1>
                 </div>
 
-                <div className="flex">
+                <div className="flex flex-col lg:flex-row">
+                    {/* Filter Toggle for Mobile */}
+                    <div className="lg:hidden p-3 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-between bg-gray-50 dark:bg-neutral-900/50">
+                        <button
+                            onClick={() => setShowFilters(!showFilters)}
+                            className="flex items-center gap-2 bg-white dark:bg-neutral-800 border border-gray-300 dark:border-neutral-700 px-3 py-1.5 rounded-md text-xs font-medium"
+                        >
+                            <SlidersHorizontal className="w-4 h-4" />
+                            <span>{showFilters ? "Ẩn bộ lọc" : "Hiện bộ lọc"}</span>
+                        </button>
+                        <div className="text-[10px] font-bold text-gray-500 uppercase">Bộ lọc tìm kiếm</div>
+                    </div>
+
                     {/* ── Left: Filter Panel ───────────────────────────────────── */}
-                    <div className="w-44 shrink-0 border-r border-gray-200 dark:border-neutral-800 p-3 flex flex-col gap-2 bg-gray-50 dark:bg-neutral-900/50">
+                    <div className={`w-full lg:w-44 shrink-0 border-r border-gray-200 dark:border-neutral-800 p-3 flex flex-col gap-2 bg-gray-50 dark:bg-neutral-900/50 ${showFilters ? 'block' : 'hidden lg:flex'}`}>
                         {/* Date Filter Type Selection */}
                         <div>
                             <select
@@ -370,17 +428,17 @@ export default function PurchaseOrdersPage() {
                                 <thead className="text-[11px] text-gray-700 uppercase bg-gray-50 dark:bg-neutral-800/50 dark:text-gray-300 border-b border-gray-200 dark:border-neutral-800">
                                     <tr>
                                         <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 w-8"></th>
-                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 w-8 text-center">STT</th>
-                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800">Số phiếu</th>
-                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800">Ngày nhập</th>
-                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 min-w-[160px]">Nhà cung cấp</th>
-                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-right">Tổng tiền</th>
-                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-right">Chiết khấu</th>
-                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-right">VAT</th>
-                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-right font-bold text-green-700 dark:text-green-400">Tổng cộng</th>
-                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800">Ghi chú</th>
-                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800">Người tạo</th>
-                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800">Số hóa đơn</th>
+                                        <th className="px-1 sm:px-2 py-2 border-r border-gray-200 dark:border-neutral-800 w-8 text-center text-[10px]">STT</th>
+                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-[10px]">Số phiếu</th>
+                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-[10px]">Ngày nhập</th>
+                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 min-w-[120px] sm:min-w-[160px] text-[10px]">Nhà cung cấp</th>
+                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-right text-[10px] hidden md:table-cell">Tổng tiền</th>
+                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-right text-[10px] hidden lg:table-cell">Chiết khấu</th>
+                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-right text-[10px] hidden lg:table-cell">VAT</th>
+                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-right font-bold text-green-700 dark:text-green-400 text-[10px]">Tổng cộng</th>
+                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-[10px] hidden xl:table-cell">Ghi chú</th>
+                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-[10px] hidden sm:table-cell">Người tạo</th>
+                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-[10px] hidden md:table-cell">Hóa đơn</th>
                                     </tr>
                                 </thead>
 
@@ -388,27 +446,27 @@ export default function PurchaseOrdersPage() {
                                     {/* Totals row */}
                                     <tr className="bg-blue-50 dark:bg-blue-900/10 font-semibold text-gray-700 dark:text-gray-300">
                                         <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800" />
-                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800" />
-                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800" />
+                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-[10px]" />
+                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-[10px]" />
                                         <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800">
-                                            <span className="text-blue-600 dark:text-blue-400 font-bold text-xs">TỔNG CỘNG</span>
+                                            <span className="text-blue-600 dark:text-blue-400 font-bold text-[10px]">TỔNG</span>
                                         </td>
-                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800" />
-                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-right text-blue-700 dark:text-blue-300">
+                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-[10px]" />
+                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-right text-blue-700 dark:text-blue-300 text-[10px] hidden md:table-cell">
                                             {vnd(totals.totalAmount)}
                                         </td>
-                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-right text-blue-700 dark:text-blue-300">
+                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-right text-blue-700 dark:text-blue-300 text-[10px] hidden lg:table-cell">
                                             {vnd(totals.discount)}
                                         </td>
-                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-right text-blue-700 dark:text-blue-300">
+                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-right text-blue-700 dark:text-blue-300 text-[10px] hidden lg:table-cell">
                                             {vnd(totals.vat)}
                                         </td>
-                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-right text-green-700 dark:text-green-400 font-bold">
+                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-right text-green-700 dark:text-green-400 font-bold text-[10px]">
                                             {vnd(totals.grandTotal)}
                                         </td>
-                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800" />
-                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800" />
-                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800" />
+                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-[10px] hidden xl:table-cell" />
+                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-[10px] hidden sm:table-cell" />
+                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-[10px] hidden md:table-cell" />
                                     </tr>
 
                                     {paged.length === 0 ? (
@@ -420,17 +478,20 @@ export default function PurchaseOrdersPage() {
                                     ) : (
                                         paged.map((order, idx) => (
                                             <tr
-                                                key={order.id}
-                                                className="hover:bg-gray-50 dark:hover:bg-neutral-800/40 text-gray-700 dark:text-gray-300 text-[13px]"
+                                                key={order.isDraft ? "draft-row" : order.id}
+                                                className={`hover:bg-gray-50 dark:hover:bg-neutral-800/40 text-[13px] transition-colors ${order.isDraft
+                                                    ? "bg-amber-50/50 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200"
+                                                    : "text-gray-700 dark:text-gray-300"
+                                                    }`}
                                             >
                                                 {/* Action buttons */}
                                                 <td className="px-1.5 py-1.5 border-r border-gray-200 dark:border-neutral-800 space-x-1 whitespace-nowrap">
                                                     <button
                                                         onClick={() => handleView(order)}
                                                         title="Xem"
-                                                        className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-1.5 py-1 rounded text-[11px] font-semibold"
+                                                        className={`${order.isDraft ? "bg-amber-600 hover:bg-amber-700" : "bg-[#5c9a38] hover:bg-[#5c9a38]/90"} text-white px-1.5 py-1 rounded text-[11px] font-semibold`}
                                                     >
-                                                        Xem
+                                                        {order.isDraft ? "Tiếp tục" : "Xem"}
                                                     </button>
                                                     <button
                                                         onClick={() => handleDeleteClick(order)}
@@ -444,10 +505,13 @@ export default function PurchaseOrdersPage() {
                                                 <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-center text-gray-500">
                                                     {(page - 1) * pageSize + idx + 1}
                                                 </td>
-                                                <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 font-medium text-blue-600 dark:text-blue-400 cursor-pointer hover:underline"
+                                                <td className={`px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 font-medium cursor-pointer hover:underline flex items-center gap-1.5 ${order.isDraft ? "text-amber-600 dark:text-amber-400" : "text-blue-600 dark:text-blue-400"}`}
                                                     onClick={() => handleView(order)}
                                                 >
                                                     {order.id}
+                                                    {order.isDraft && (
+                                                        <span className="bg-amber-600 text-white text-[9px] px-1.5 py-0.5 rounded font-black tracking-tighter shadow-sm animate-pulse">NHÁP</span>
+                                                    )}
                                                 </td>
                                                 <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800">
                                                     {fmtDate(order.importDate)}
@@ -455,26 +519,26 @@ export default function PurchaseOrdersPage() {
                                                 <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 max-w-[200px] whitespace-normal break-words text-xs leading-snug">
                                                     {order.supplierName}
                                                 </td>
-                                                <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-right">
+                                                <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-right text-[11px] sm:text-[13px] hidden md:table-cell">
                                                     {vnd(order.totalAmount)}
                                                 </td>
-                                                <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-right">
+                                                <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-right text-[11px] sm:text-[13px] hidden lg:table-cell">
                                                     {order.discount > 0 ? vnd(order.discount) : <span className="text-gray-400">0</span>}
                                                 </td>
-                                                <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-right">
+                                                <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-right text-[11px] sm:text-[13px] hidden lg:table-cell">
                                                     {vnd(order.vat)}
                                                 </td>
-                                                <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-right font-semibold text-green-700 dark:text-green-400">
+                                                <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-right font-semibold text-green-700 dark:text-green-400 text-[11px] sm:text-[13px]">
                                                     {vnd(order.grandTotal)}
                                                 </td>
-                                                <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-xs text-gray-500">
+                                                <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-[10px] sm:text-xs text-gray-500 hidden xl:table-cell">
                                                     {order.notes || ""}
                                                 </td>
-                                                <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-xs">
+                                                <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-[10px] sm:text-xs hidden sm:table-cell">
                                                     {order.createdBy}
                                                 </td>
-                                                <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-xs text-gray-500">
-                                                    {order.id}
+                                                <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-[10px] sm:text-xs text-gray-500 hidden md:table-cell">
+                                                    {order.invoiceNumber || ""}
                                                 </td>
                                             </tr>
                                         ))

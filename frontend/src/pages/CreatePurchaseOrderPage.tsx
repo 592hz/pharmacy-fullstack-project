@@ -14,6 +14,9 @@ import { purchaseOrderService } from "@/services/purchase-order.service"
 import { paymentMethodService } from "@/services/payment-method.service"
 import { type Product, type PurchaseOrderItem, type PurchaseOrder, type Supplier, type PaymentMethod } from "@/lib/schemas"
 import { useDebounce } from "@/hooks/use-debounce"
+import { cacheService } from "@/services/cache.service"
+
+const DRAFT_STORAGE_KEY = "purchase_order_draft"
 
 export default function CreatePurchaseOrderPage() {
     const navigate = useNavigate()
@@ -38,7 +41,7 @@ export default function CreatePurchaseOrderPage() {
     const [importDate] = useState(() => new Date().toISOString())
     const createdBy = "Quản trị viên"
     const [paymentMethod, setPaymentMethod] = useState("Chuyển khoản")
-    const [allPaymentMethods, setAllPaymentMethods] = useState<PaymentMethod[]>([])
+    const [allPaymentMethods, setAllPaymentMethods] = useState<PaymentMethod[]>(() => cacheService.get("payment_methods") || [])
 
     const [showAddModal, setShowAddModal] = useState(false)
     const [showAddSupplierModal, setShowAddSupplierModal] = useState(false)
@@ -48,8 +51,36 @@ export default function CreatePurchaseOrderPage() {
     const [showResults, setShowResults] = useState(false)
     const debouncedSearchQuery = useDebounce(searchQuery, 300)
     const [selectedIndex, setSelectedIndex] = useState(-1)
-    const [allProducts, setAllProducts] = useState<Product[]>([])
-    const [allSuppliers, setAllSuppliers] = useState<Supplier[]>([])
+    const [allProducts, setAllProducts] = useState<Product[]>(() => cacheService.get("products") || [])
+    const [allSuppliers, setAllSuppliers] = useState<Supplier[]>(() => cacheService.get("suppliers") || [])
+
+    // Draft handling
+    const [hasRestoredDraft, setHasRestoredDraft] = useState(false)
+
+    const clearDraft = useCallback(() => {
+        localStorage.removeItem(DRAFT_STORAGE_KEY)
+    }, [])
+
+    const saveDraft = useCallback(() => {
+        const draftData = {
+            orderId,
+            supplierId,
+            supplierName,
+            invoiceNumber,
+            notes,
+            items,
+            paymentMethod,
+            timestamp: new Date().getTime()
+        }
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData))
+    }, [orderId, supplierId, supplierName, invoiceNumber, notes, items, paymentMethod])
+
+    // Auto-save useEffect
+    useEffect(() => {
+        if (items.length > 0 || supplierId || invoiceNumber || notes) {
+            saveDraft()
+        }
+    }, [items, supplierId, supplierName, invoiceNumber, notes, paymentMethod, saveDraft])
 
     useEffect(() => {
         const fetchData = async () => {
@@ -63,12 +94,40 @@ export default function CreatePurchaseOrderPage() {
                 setAllSuppliers(suppliers);
                 setAllPaymentMethods(paymentMethods);
 
-                // Set default payment method
-                const defaultMethod = paymentMethods.find((m: PaymentMethod) => m.isDefault);
-                if (defaultMethod) {
-                    setPaymentMethod(defaultMethod.name);
-                } else if (paymentMethods.length > 0) {
-                    setPaymentMethod(paymentMethods[0].name);
+                // Save to cache
+                cacheService.set("products", products);
+                cacheService.set("suppliers", suppliers);
+                cacheService.set("payment_methods", paymentMethods);
+
+                // Load draft if exists
+                const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY)
+                if (savedDraft && !hasRestoredDraft) {
+                    try {
+                        const parsed = JSON.parse(savedDraft)
+                        // Only restore if it's "fresh" enough (optional, let's just restore)
+                        setOrderId(parsed.orderId)
+                        setSupplierId(parsed.supplierId)
+                        setSupplierName(parsed.supplierName)
+                        setInvoiceNumber(parsed.invoiceNumber)
+                        setNotes(parsed.notes)
+                        setItems(parsed.items)
+                        setPaymentMethod(parsed.paymentMethod)
+                        setHasRestoredDraft(true)
+                        toast.info("Đã khôi phục bản nháp phiếu nhập trước đó", {
+                            description: `Phiếu lưu vào lúc ${new Date(parsed.timestamp).toLocaleString("vi-VN")}`,
+                            duration: 5000,
+                        })
+                    } catch (e) {
+                        console.error("Failed to parse draft", e)
+                    }
+                } else {
+                    // Set default payment method if no draft
+                    const defaultMethod = paymentMethods.find((m: PaymentMethod) => m.isDefault);
+                    if (defaultMethod) {
+                        setPaymentMethod(defaultMethod.name);
+                    } else if (paymentMethods.length > 0) {
+                        setPaymentMethod(paymentMethods[0].name);
+                    }
                 }
             } catch (error: unknown) {
                 console.error("Error fetching data:", getErrorMessage(error));
@@ -296,6 +355,7 @@ export default function CreatePurchaseOrderPage() {
 
         try {
             await purchaseOrderService.create(newOrder)
+            clearDraft()
             toast.success("Đã tạo phiếu nhập mới thành công")
             navigate("/purchase-orders")
         } catch (error: any) {
@@ -312,29 +372,48 @@ export default function CreatePurchaseOrderPage() {
     return (
         <div className="flex flex-col h-full bg-white dark:bg-neutral-900 overflow-hidden">
             {/* ── HEADER SECTION ── */}
-            <div className="flex-none p-3 border-b border-gray-200 dark:border-neutral-800 bg-gray-50/50 dark:bg-neutral-900/50">
-                <div className="flex items-center justify-between mb-3">
-                    <h1 className="text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                        <Plus size={20} className="text-[#5c9a38]" />
+            <div className="flex-none p-3 sm:p-4 border-b border-gray-200 dark:border-neutral-800 bg-gray-50/50 dark:bg-neutral-900/50">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 gap-2">
+                    <h1 className="text-base sm:text-lg font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                        <Plus className="w-5 h-5 text-[#5c9a38]" />
                         Tạo phiếu nhập mới
                     </h1>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                        {items.length > 0 && (
+                            <button
+                                onClick={() => {
+                                    if (window.confirm("Bạn có chắc chắn muốn xóa bản nháp và làm mới phiếu này?")) {
+                                        clearDraft()
+                                        setItems([])
+                                        setSupplierId("")
+                                        setSupplierName("")
+                                        setInvoiceNumber("")
+                                        setNotes("")
+                                        setOrderId(generateOrderId())
+                                        toast.success("Đã xóa bản nháp")
+                                    }
+                                }}
+                                className="bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/10 dark:text-red-400 px-3 sm:px-4 py-2 rounded text-xs sm:text-sm font-medium transition-colors border border-red-200 dark:border-red-900/30 flex-1 sm:flex-none"
+                            >
+                                <Trash2 className="w-4 h-4 inline mr-1" /> Xóa bản nháp
+                            </button>
+                        )}
                         <button
                             onClick={() => navigate("/purchase-orders")}
-                            className="bg-gray-200 hover:bg-gray-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-gray-700 dark:text-gray-300 px-4 py-2 rounded text-sm font-medium transition-colors"
+                            className="bg-gray-200 hover:bg-gray-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-gray-700 dark:text-gray-300 px-3 sm:px-4 py-2 rounded text-xs sm:text-sm font-medium transition-colors flex-1 sm:flex-none"
                         >
-                            <X size={16} className="inline mr-1" /> Thoát
+                            <X className="w-4 h-4 inline mr-1" /> Thoát
                         </button>
                         <button
                             onClick={handleSaveOrder}
-                            className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-6 py-2 rounded text-sm font-bold shadow-sm transition-all flex items-center gap-2"
+                            className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-4 sm:px-8 py-2 rounded text-xs sm:text-sm font-bold shadow-sm transition-all flex items-center justify-center gap-2 flex-1 sm:flex-none"
                         >
-                            <Save size={18} /> LƯU PHIẾU
+                            <Save className="w-4 h-4 sm:w-5 sm:h-5" /> LƯU PHIẾU
                         </button>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-7 gap-3 border p-3 rounded-xl bg-white dark:bg-neutral-800 shadow-sm transition-all">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-7 gap-3 border p-3 rounded-xl bg-white dark:bg-neutral-800 shadow-sm transition-all">
                     {/* Supplier Select */}
                     <div className="col-span-2 flex flex-col gap-1.5">
                         <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Nhà cung cấp *</label>
@@ -633,38 +712,37 @@ export default function CreatePurchaseOrderPage() {
                 </div>
             </div>
 
-            {/* ── FOOTER SUB-SECTION (Totals) ── */}
-            <div className="flex-none p-2.5 border-t border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
-                <div className="flex gap-4 items-start">
-                    <div className="flex-1 flex flex-col gap-1">
+            <div className="flex-none p-2.5 sm:p-4 border-t border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
+                <div className="flex flex-col lg:flex-row gap-4 items-start">
+                    <div className="flex-1 flex flex-col gap-1 w-full">
                         <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest pl-1">Ghi chú phiếu nhập</label>
                         <textarea
                             placeholder="Nhập ghi chú thêm..."
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
-                            className="w-full bg-gray-50/50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 px-3 py-2 rounded-xl text-xs min-h-[50px] outline-none focus:ring-2 focus:ring-green-500/10 focus:border-green-500 transition-all resize-none italic"
+                            className="w-full bg-gray-50/50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 px-3 py-2 rounded-xl text-xs min-h-[50px] lg:min-h-[80px] outline-none focus:ring-2 focus:ring-green-500/10 focus:border-green-500 transition-all resize-none italic"
                         />
                     </div>
 
-                    <div className="w-[360px] bg-gray-50/30 dark:bg-neutral-800/50 p-4 rounded-xl border border-gray-100 dark:border-neutral-700 shadow-sm">
-                        <div className="space-y-1.5">
-                            <div className="flex justify-between items-center text-[11px]">
+                    <div className="w-full lg:w-[360px] bg-gray-50/30 dark:bg-neutral-800/50 p-4 rounded-xl border border-gray-100 dark:border-neutral-700 shadow-sm">
+                        <div className="space-y-2">
+                            <div className="flex justify-between items-center text-[11px] sm:text-xs">
                                 <span className="text-gray-500 font-medium tracking-tight">Tổng tiền hàng:</span>
                                 <span className="font-bold text-gray-700 dark:text-gray-300 ml-auto">{vnd(totalAmount)}</span>
                             </div>
-                            <div className="flex justify-between items-center text-[11px]">
+                            <div className="flex justify-between items-center text-[11px] sm:text-xs">
                                 <span className="text-gray-500 font-medium tracking-tight">Tổng chiết khấu:</span>
                                 <span className="font-bold text-orange-500 ml-auto">-{vnd(totalDiscount)}</span>
                             </div>
-                            <div className="flex justify-between items-center text-[11px]">
+                            <div className="flex justify-between items-center text-[11px] sm:text-xs">
                                 <span className="text-gray-500 font-medium tracking-tight">Tổng thuế VAT:</span>
                                 <span className="font-bold text-gray-700 dark:text-gray-300 ml-auto">+{vnd(totalVat)}</span>
                             </div>
                             <div className="h-px bg-gray-100 dark:bg-neutral-700 my-1"></div>
-                            <div className="flex justify-between items-center pt-0.5">
-                                <span className="text-xs font-black text-gray-800 dark:text-gray-100 uppercase tracking-tighter">Cần thanh toán</span>
-                                <div className="text-2xl font-black text-[#5c9a38] drop-shadow-sm flex items-baseline gap-1">
-                                    {vnd(amountToPay)} <span className="text-[9px] font-bold opacity-60">đ</span>
+                            <div className="flex justify-between items-center pt-1">
+                                <span className="text-xs sm:text-sm font-black text-gray-800 dark:text-gray-100 uppercase tracking-tighter">Cần thanh toán</span>
+                                <div className="text-xl sm:text-2xl font-black text-[#5c9a38] drop-shadow-sm flex items-baseline gap-1">
+                                    {vnd(amountToPay)} <span className="text-[9px] sm:text-[10px] font-bold opacity-60">đ</span>
                                 </div>
                             </div>
                         </div>

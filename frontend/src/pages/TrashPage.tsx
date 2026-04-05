@@ -37,11 +37,11 @@ export default function TrashPage() {
         try {
             if (type === "category") {
                 await productCategoryService.restore(id)
-                setCategories(prev => prev.filter(c => c.id !== id && (c as any)._id !== id))
+                setCategories(categories.filter(c => c.id !== id))
                 toast.success("Đã khôi phục nhóm sản phẩm và các sản phẩm liên quan!")
             } else {
                 await productService.restore(id)
-                setProducts(prev => prev.filter(p => p.id !== id))
+                setProducts(products.filter(p => p.id !== id))
                 toast.success("Đã khôi phục sản phẩm!")
             }
         } catch (error: unknown) {
@@ -54,10 +54,10 @@ export default function TrashPage() {
         try {
             if (itemToPermanentDelete.type === "category") {
                 await productCategoryService.permanentDelete(itemToPermanentDelete.id)
-                setCategories(prev => prev.filter(c => c.id !== itemToPermanentDelete.id && (c as any)._id !== itemToPermanentDelete.id))
+                setCategories(categories.filter(c => c.id !== itemToPermanentDelete.id))
             } else {
                 await productService.permanentDelete(itemToPermanentDelete.id)
-                setProducts(prev => prev.filter(p => p.id !== itemToPermanentDelete.id))
+                setProducts(products.filter(p => p.id !== itemToPermanentDelete.id))
             }
             toast.success("Đã xóa vĩnh viễn!")
             setItemToPermanentDelete(null)
@@ -79,21 +79,19 @@ export default function TrashPage() {
                     <div className="flex border-b border-gray-200 dark:border-neutral-800 mb-6">
                         <button
                             onClick={() => setActiveTab("categories")}
-                            className={`px-6 py-3 text-sm font-bold transition-colors border-b-2 ${
-                                activeTab === "categories" 
-                                ? "border-[#5c9a38] text-[#5c9a38]" 
-                                : "border-transparent text-gray-500 hover:text-gray-700"
-                            }`}
+                            className={`px-6 py-3 text-sm font-bold transition-colors border-b-2 ${activeTab === "categories"
+                                    ? "border-[#5c9a38] text-[#5c9a38]"
+                                    : "border-transparent text-gray-500 hover:text-gray-700"
+                                }`}
                         >
                             Nhóm sản phẩm ({categories.length})
                         </button>
                         <button
                             onClick={() => setActiveTab("products")}
-                            className={`px-6 py-3 text-sm font-bold transition-colors border-b-2 ${
-                                activeTab === "products" 
-                                ? "border-[#5c9a38] text-[#5c9a38]" 
-                                : "border-transparent text-gray-500 hover:text-gray-700"
-                            }`}
+                            className={`px-6 py-3 text-sm font-bold transition-colors border-b-2 ${activeTab === "products"
+                                    ? "border-[#5c9a38] text-[#5c9a38]"
+                                    : "border-transparent text-gray-500 hover:text-gray-700"
+                                }`}
                         >
                             Sản phẩm ({products.length})
                         </button>
@@ -145,7 +143,7 @@ export default function TrashPage() {
                                                     className="flex items-center gap-1.5 bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-md text-[11px] font-bold transition-colors"
                                                     title="Xóa vĩnh viễn"
                                                 >
-                                                    <TrashIcon size={14} /> Xóa HV
+                                                    <TrashIcon size={14} /> Xóa vv
                                                 </button>
                                             </div>
                                         </td>
@@ -168,7 +166,7 @@ export default function TrashPage() {
                             <h3 className="text-lg font-bold text-[#1a3352] dark:text-white">Xác nhận xóa vĩnh viễn</h3>
                         </div>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-                            Bạn có chắc muốn xóa vĩnh viễn <span className="font-bold text-gray-800 dark:text-gray-200">"{itemToPermanentDelete.name}"</span>? 
+                            Bạn có chắc muốn xóa vĩnh viễn <span className="font-bold text-gray-800 dark:text-gray-200">"{itemToPermanentDelete.name}"</span>?
                             Hành động này <span className="text-red-500 font-bold">không thể khôi phục</span>.
                         </p>
                         <div className="flex justify-end gap-2">

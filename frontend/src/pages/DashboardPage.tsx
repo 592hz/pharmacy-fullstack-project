@@ -107,26 +107,26 @@ export default function DashboardPage() {
 
     return (
         <div className="flex flex-1 flex-col gap-6 p-4">
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 relative">
+            <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 relative">
                 {stats.map((item, index) => {
                     const Icon = item.icon
                     return (
                         <div
                             key={index}
-                            className="flex items-center justify-between rounded-xl border bg-white dark:bg-neutral-900 p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
+                            className="flex items-center justify-between rounded-xl border bg-white dark:bg-neutral-900 p-3 sm:p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
                         >
-                            <div className="space-y-1">
-                                <p className="text-sm font-medium text-muted-foreground">{item.title}</p>
-                                <p className="text-2xl font-bold tracking-tight text-foreground">
-                                    {item.value}
+                            <div className="space-y-0.5 sm:space-y-1">
+                                <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase">{item.title}</p>
+                                <p className="text-sm sm:text-xl font-black tracking-tight text-foreground truncate">
+                                    {item.value.replace(" \u20ab", "")} <span className="text-[10px] font-normal font-mono opacity-50 sm:text-xs">đ</span>
                                 </p>
-                                <p className="text-xs text-muted-foreground">{item.sub}</p>
+                                <p className="text-[9px] sm:text-xs text-muted-foreground">{item.sub}</p>
                             </div>
-
+ 
                             <div
-                                className={`flex h-12 w-12 items-center justify-center rounded-full ${item.color}`}
+                                className={`flex h-8 w-8 sm:h-11 sm:w-11 items-center justify-center rounded-full shrink-0 ${item.color}`}
                             >
-                                <Icon size={22} />
+                                <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
                             </div>
                         </div>
                     )
