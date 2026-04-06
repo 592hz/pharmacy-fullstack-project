@@ -1,6 +1,6 @@
-import { useState, useMemo, useCallback, useEffect } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { Search, PlusCircle, Trash2, Save, X, Calendar, User, CreditCard, TrendingUp, Plus } from "lucide-react"
+import { Search, PlusCircle, Trash2, Save, X, User, CreditCard, TrendingUp, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { type ExportOrder, type ExportOrderItem, type Product, type Customer, exportOrderSchema } from "@/lib/schemas"
 import { exportSlipService } from "@/services/export-slip.service"
@@ -14,6 +14,31 @@ import { NumericInput } from "@/components/ui/numeric-input"
 import { type PaymentMethod } from "@/lib/schemas"
 import { useDebounce } from "@/hooks/use-debounce"
 import { cacheService } from "@/services/cache.service"
+import { Calendar as CalendarIcon } from "lucide-react"
+
+// Helper functions for date conversion
+const formatDateTimeToVN = (isoString: string) => {
+    if (!isoString) return ""
+    const date = new Date(isoString)
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = date.getFullYear()
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${day}/${month}/${year} ${hours}:${minutes}`
+}
+
+const parseVNDateTimeToISO = (vnString: string) => {
+    if (!vnString) return new Date().toISOString()
+    const regex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s(\d{1,2}):(\d{1,2})$/
+    const match = vnString.match(regex)
+    if (match) {
+        const [, day, month, year, hours, minutes] = match
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes))
+        return date.toISOString()
+    }
+    return new Date().toISOString()
+}
 
 export default function CreateExportOrderPage() {
     const navigate = useNavigate()
@@ -69,10 +94,12 @@ export default function CreateExportOrderPage() {
 
     // Metadata
     const [orderId] = useState(() => `PX${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`)
-    const exportDate = new Date().toISOString()
+    const [dateValue, setDateValue] = useState(() => formatDateTimeToVN(new Date().toISOString()))
+    const [dateError, setDateError] = useState("")
 
     const [showAddModal, setShowAddModal] = useState(false)
     const [showAddCustomerModal, setShowAddCustomerModal] = useState(false)
+    const dateInputRef = useRef<HTMLInputElement>(null)
 
     // Search state
     const [searchQuery, setSearchQuery] = useState("")
@@ -208,6 +235,30 @@ export default function CreateExportOrderPage() {
     }, [])
 
     const handleSaveOrder = async () => {
+        const vnDate = dateValue
+        const dateRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s(\d{1,2}):(\d{1,2})$/
+        if (!vnDate || !dateRegex.test(vnDate)) {
+            toast.error("Ngày bán không hợp lệ (định dạng: dd/mm/yyyy HH:mm)")
+            setDateError("Định dạng dd/mm/yyyy HH:mm")
+            return
+        }
+
+        const parts = vnDate.match(dateRegex)
+        if (parts) {
+            const d = parseInt(parts[1], 10)
+            const m = parseInt(parts[2], 10) - 1
+            const y = parseInt(parts[3], 10)
+            const h = parseInt(parts[4], 10)
+            const min = parseInt(parts[5], 10)
+            const checkDate = new Date(y, m, d, h, min)
+            if (checkDate.getFullYear() !== y || checkDate.getMonth() !== m || checkDate.getDate() !== d || checkDate.getHours() !== h || checkDate.getMinutes() !== min) {
+                toast.error("Ngày tháng này không có trong lịch!")
+                setDateError("Ngày không hợp lệ")
+                return
+            }
+        }
+
+        const finalExportDate = parseVNDateTimeToISO(vnDate)
         const selectedCustomer = allCustomers.find(c => c.id === customerId)
         const finalCustomerName = customerName || "Khách lẻ";
         let finalCustomerId = customerId || "KHLE";
@@ -239,7 +290,7 @@ export default function CreateExportOrderPage() {
 
         const newSlip: ExportOrder = {
             id: orderId,
-            exportDate: new Date().toISOString(),
+            exportDate: finalExportDate,
             customerId: finalCustomerId,
             customerName: finalCustomerName,
             customerPhone: selectedCustomer?.phone || "",
@@ -334,7 +385,7 @@ export default function CreateExportOrderPage() {
                                 value={customerName}
                                 onChange={(e) => setCustomerName(e.target.value)}
                                 placeholder="Tên khách hàng..."
-                                className="flex-1 bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all font-semibold"
+                                className="flex-1 bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all font-semibold"
                             />
                             <button
                                 onClick={() => setShowAddCustomerModal(true)}
@@ -357,13 +408,56 @@ export default function CreateExportOrderPage() {
                     </div>
 
                     <div className="lg:col-span-2 flex flex-col gap-1.5">
-                        <label className="text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1"><Calendar size={10} /> Ngày bán</label>
-                        <input
-                            type="text"
-                            value={new Date(exportDate).toLocaleString("vi-VN").replace(/,/g, "")}
-                            disabled
-                            className="bg-gray-50 dark:bg-neutral-900/50 border border-gray-200 dark:border-neutral-800 px-2 py-1.5 sm:py-2 rounded text-[10px] sm:text-[11px] text-gray-400 font-mono"
-                        />
+                        <div className="flex justify-between items-center px-1">
+                            <label className="text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1"><CalendarIcon size={10} /> Ngày bán</label>
+                            <div className="flex gap-1.5">
+                                <button 
+                                    onClick={() => setDateValue(formatDateTimeToVN(new Date().toISOString()))}
+                                    className="text-[9px] font-black text-[#5c9a38] hover:underline uppercase"
+                                >
+                                    Bây giờ
+                                </button>
+                                <button 
+                                    onClick={() => {
+                                        const morning = new Date()
+                                        morning.setHours(8, 0, 0, 0)
+                                        setDateValue(formatDateTimeToVN(morning.toISOString()))
+                                    }}
+                                    className="text-[9px] font-black text-blue-500 hover:underline uppercase"
+                                >
+                                    8h Sáng
+                                </button>
+                            </div>
+                        </div>
+                        <div className="relative group">
+                            <input
+                                type="text"
+                                value={dateValue}
+                                onChange={(e) => {
+                                    setDateValue(e.target.value)
+                                    if (dateError) setDateError("")
+                                }}
+                                placeholder="dd/mm/yyyy HH:mm"
+                                className={`w-full bg-white dark:bg-neutral-900 border ${dateError ? 'border-red-500' : 'border-gray-300 dark:border-neutral-700'} px-2 py-1.5 sm:py-2 pr-8 rounded text-[10px] sm:text-[11px] text-gray-800 dark:text-gray-200 font-mono focus:ring-2 focus:ring-[#5c9a38]/20 focus:border-[#5c9a38] outline-none transition-all shadow-sm`}
+                            />
+                            <button 
+                                onClick={() => dateInputRef.current?.showPicker()}
+                                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#5c9a38] transition-colors"
+                            >
+                                <CalendarIcon size={14} />
+                            </button>
+                            <input
+                                type="datetime-local"
+                                ref={dateInputRef}
+                                className="absolute opacity-0 pointer-events-none"
+                                onChange={(e) => {
+                                    if (e.target.value) {
+                                        setDateValue(formatDateTimeToVN(new Date(e.target.value).toISOString()))
+                                    }
+                                }}
+                            />
+                            {dateError && <span className="absolute -bottom-4 left-0 text-[9px] text-red-500 font-bold">{dateError}</span>}
+                        </div>
                     </div>
 
                     <div className="lg:col-span-1 flex flex-col gap-1.5">
@@ -371,7 +465,7 @@ export default function CreateExportOrderPage() {
                         <select
                             value={paymentMethod}
                             onChange={(e) => setPaymentMethod(e.target.value)}
-                            className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-2 py-1.5 sm:py-2 rounded text-xs sm:text-sm outline-none"
+                            className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-2 py-1.5 sm:py-2 rounded text-xs sm:text-sm text-gray-900 dark:text-gray-100 outline-none"
                         >
                             {allPaymentMethods.map(m => (
                                 <option key={m.id || m.name} value={m.name}>{m.name}</option>
@@ -386,7 +480,7 @@ export default function CreateExportOrderPage() {
                             placeholder="Triệu chứng..."
                             value={symptoms}
                             onChange={(e) => setSymptoms(e.target.value)}
-                            className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm outline-none font-bold text-red-600"
+                            className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm outline-none font-bold text-red-600 dark:text-red-400"
                         />
                     </div>
 
@@ -399,14 +493,14 @@ export default function CreateExportOrderPage() {
                                 className="rounded w-4 h-4 accent-[#5c9a38]"
                             />
                             <div className="flex flex-col">
-                                <span className="text-[9px] font-black text-red-600 uppercase italic leading-none">Toa thuốc</span>
+                                <span className="text-[9px] font-black text-red-600 dark:text-red-400 uppercase italic leading-none">Toa thuốc</span>
                                 {isPrescription && (
                                     <input
                                         type="text"
                                         placeholder="Bác sĩ..."
                                         value={doctorName}
                                         onChange={(e) => setDoctorName(e.target.value)}
-                                        className="mt-1 bg-transparent border-b border-gray-300 dark:border-neutral-700 w-16 text-[10px] outline-none"
+                                        className="mt-1 bg-transparent border-b border-gray-300 dark:border-neutral-700 w-16 text-[10px] text-gray-900 dark:text-gray-100 outline-none"
                                     />
                                 )}
                             </div>
@@ -476,7 +570,9 @@ export default function CreateExportOrderPage() {
                                                     <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
                                                     <span>ĐVT: <b className="text-gray-700 dark:text-gray-300">{product.unit}</b></span>
                                                     <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
-                                                    <span className="text-blue-600 dark:text-blue-400 font-bold font-mono">Giá bán: {vnd(product.retailPrice || 0)}</span>
+                                                    <span>Tồn: <b className={product.baseQuantity && product.baseQuantity > 0 ? "text-blue-600 dark:text-blue-400" : "text-red-500 font-black"}>{product.baseQuantity || 0} {product.unit}</b></span>
+                                                    <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                                    <span className="text-[#5c9a38] font-bold font-mono">Giá bán: {vnd(product.retailPrice || 0)}</span>
                                                 </div>
                                             </div>
                                             <div className="bg-[#5c9a38] text-white px-3 py-1.5 rounded-lg text-[10px] font-black tracking-wider opacity-0 group-hover:opacity-100 transform translate-x-2 group-hover:translate-x-0 transition-all shadow-lg">
@@ -543,15 +639,15 @@ export default function CreateExportOrderPage() {
                                         const profitPerItem = item.remainingAmount - (item.quantity * item.importPrice)
                                         return (
                                             <tr key={item.id} className="hover:bg-green-50/20 dark:hover:bg-green-900/5 transition-colors group">
-                                                <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 font-mono text-gray-400 text-[10px] group-hover:text-gray-600 transition-colors">{item.code}</td>
+                                                <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 font-mono text-gray-400 dark:text-gray-500 text-[10px] group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">{item.code}</td>
                                                 <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800">
                                                     <div className="font-bold text-gray-800 dark:text-gray-100 text-xs sm:text-sm">{item.name}</div>
                                                 </td>
-                                                <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 text-gray-600 text-xs sm:text-sm text-center">{item.unit}</td>
+                                                <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 text-gray-600 dark:text-gray-300 text-xs sm:text-sm text-center">{item.unit}</td>
                                                 <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800">
                                                     <input
                                                         type="text"
-                                                        className="w-full bg-transparent border border-transparent hover:border-gray-300 dark:hover:border-neutral-600 px-1 py-1 rounded text-center outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-[#5c9a38] text-xs sm:text-sm font-semibold transition-all"
+                                                        className="w-full bg-transparent border border-transparent hover:border-gray-300 dark:hover:border-neutral-600 px-1 py-1 rounded text-center outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-[#5c9a38] text-xs sm:text-sm font-semibold text-gray-800 dark:text-gray-200 transition-all"
                                                         value={item.batchNumber || ""}
                                                         onChange={(e) => updateItemField(item.id!, 'batchNumber', e.target.value)}
                                                     />
@@ -559,7 +655,7 @@ export default function CreateExportOrderPage() {
                                                 <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800">
                                                     <input
                                                         type="text"
-                                                        className="w-full bg-transparent border border-transparent hover:border-gray-300 dark:hover:border-neutral-600 px-1 py-1 rounded text-center outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-[#5c9a38] text-[10px] sm:text-xs font-semibold transition-all"
+                                                        className="w-full bg-transparent border border-transparent hover:border-gray-300 dark:hover:border-neutral-600 px-1 py-1 rounded text-center outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-[#5c9a38] text-[10px] sm:text-xs font-semibold text-gray-800 dark:text-gray-200 transition-all"
                                                         value={item.expiryDate || ""}
                                                         onChange={(e) => updateItemField(item.id!, 'expiryDate', e.target.value)}
                                                     />
@@ -614,7 +710,7 @@ export default function CreateExportOrderPage() {
                             placeholder="Nhập ghi chú thêm cho đơn hàng này..."
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
-                            className="w-full bg-gray-50 dark:bg-neutral-800 border border-gray-300 dark:border-neutral-700 px-4 py-3 rounded-2xl text-sm min-h-[80px] sm:min-h-[100px] outline-none focus:ring-2 focus:ring-[#5c9a38]/20 focus:border-[#5c9a38] transition-all resize-none shadow-inner"
+                            className="w-full bg-gray-50 dark:bg-neutral-800 border border-gray-300 dark:border-neutral-700 px-4 py-3 rounded-2xl text-sm text-gray-900 dark:text-gray-100 min-h-[80px] sm:min-h-[100px] outline-none focus:ring-2 focus:ring-[#5c9a38]/20 focus:border-[#5c9a38] transition-all resize-none shadow-inner"
                         />
                     </div>
 

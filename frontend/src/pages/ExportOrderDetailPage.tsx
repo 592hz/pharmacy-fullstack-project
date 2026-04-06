@@ -251,177 +251,175 @@ export default function ExportOrderDetailPage() {
     const totalProfit = amountToPay - totalImport
 
     return (
-            <div className="flex-none bg-white dark:bg-neutral-900 shadow-sm z-20">
-                {/* ── TOP NAV BAR ── */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-3 border-b border-gray-100 dark:border-neutral-800 gap-4">
-                    <div className="flex items-center gap-3">
-                        <button 
-                            onClick={() => navigate("/export-manage")}
-                            className="p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-full text-gray-500 transition-colors"
+        <div className="flex-none bg-white dark:bg-neutral-900 shadow-sm z-20">
+            {/* ── TOP NAV BAR ── */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between px-4 sm:px-6 py-3 border-b border-gray-100 dark:border-neutral-800 gap-4">
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => navigate("/export-manage")}
+                        className="p-1.5 sm:p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-full text-gray-500 transition-colors"
+                    >
+                        <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+                    </button>
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
+                        <h1 className="text-base sm:text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
+                            <FileText size={20} className="text-[#5c9a38] hidden sm:block" />
+                            Chi tiết phiếu xuất
+                        </h1>
+                        <span className="w-fit px-2 py-0.5 bg-[#5c9a38]/10 text-[#5c9a38] text-[9px] sm:text-[10px] font-black rounded uppercase tracking-wider">
+                            {slip.id}
+                        </span>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2 sm:gap-3 ml-auto sm:ml-0">
+                    {isEditing ? (
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={handleCancelEdit}
+                                className="px-3 py-2 text-xs sm:text-sm font-bold text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                            >
+                                Hủy
+                            </button>
+                            <button
+                                onClick={handleSaveOrder}
+                                className="bg-orange-500 hover:bg-orange-600 text-white px-4 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-black shadow-lg shadow-orange-500/20 flex items-center gap-2 transition-all"
+                            >
+                                <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> LƯU
+                            </button>
+                        </div>
+                    ) : (
+                        <button
+                            onClick={handleToggleEdit}
+                            className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-4 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-black shadow-lg shadow-[#5c9a38]/20 flex items-center gap-2 transition-all"
                         >
-                            <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+                            <LayoutDashboard className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> SỬA PHIẾU
                         </button>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3">
-                            <h1 className="text-base sm:text-xl font-bold text-gray-800 dark:text-white flex items-center gap-2">
-                                <FileText size={20} className="text-[#5c9a38] hidden sm:block" />
-                                Chi tiết phiếu xuất
-                            </h1>
-                            <span className="w-fit px-2 py-0.5 bg-[#5c9a38]/10 text-[#5c9a38] text-[9px] sm:text-[10px] font-black rounded uppercase tracking-wider">
-                                {slip.id}
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 sm:gap-3 ml-auto sm:ml-0">
-                        {isEditing ? (
-                            <div className="flex items-center gap-2">
-                                <button
-                                    onClick={handleCancelEdit}
-                                    className="px-3 py-2 text-xs sm:text-sm font-bold text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-                                >
-                                    Hủy
-                                </button>
-                                <button
-                                    onClick={handleSaveOrder}
-                                    className="bg-orange-500 hover:bg-orange-600 text-white px-4 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-black shadow-lg shadow-orange-500/20 flex items-center gap-2 transition-all"
-                                >
-                                    <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> LƯU
-                                </button>
-                            </div>
-                        ) : (
-                            <button
-                                onClick={handleToggleEdit}
-                                className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-4 sm:px-6 py-2 rounded-xl text-xs sm:text-sm font-black shadow-lg shadow-[#5c9a38]/20 flex items-center gap-2 transition-all"
-                            >
-                                <LayoutDashboard className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> SỬA PHIẾU
-                            </button>
-                        )}
-                        <button className="p-2 sm:p-2.5 bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-400 rounded-xl hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors" title="In phiếu">
-                            <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
-                        </button>
-                    </div>
+                    )}
+                    <button className="p-2 sm:p-2.5 bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-400 rounded-xl hover:bg-gray-200 dark:hover:bg-neutral-700 transition-colors" title="In phiếu">
+                        <Printer className="w-4 h-4 sm:w-5 sm:h-5" />
+                    </button>
                 </div>
+            </div>
 
-                {/* ── METADATA GRID ── */}
-                <div className="px-4 sm:px-6 py-4 sm:py-5 bg-gray-50/50 dark:bg-neutral-900/50 border-b border-gray-100 dark:border-neutral-800">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                        {/* Customer Info Card */}
-                        <div className="bg-white dark:bg-neutral-800 p-4 rounded-xl border border-gray-100 dark:border-neutral-700 shadow-sm relative overflow-hidden group">
-                            <div className="absolute top-0 right-0 p-3 text-gray-100 dark:text-neutral-700 group-hover:text-gray-200 transition-colors hidden sm:block">
-                                <User size={48} />
-                            </div>
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 leading-none">Khách hàng</label>
-                            <div className="text-base sm:text-lg font-black text-gray-800 dark:text-white truncate pr-10">
-                                {slip.customerName}
-                            </div>
-                            <div className="mt-1 text-[10px] sm:text-xs text-gray-500 flex items-center gap-2">
-                                <span className="w-1.5 h-1.5 bg-[#5c9a38] rounded-full"></span>
-                                {slip.isPrescription ? "Bán theo đơn thuốc" : "Bán lẻ thông thường"}
-                            </div>
+            {/* ── METADATA GRID ── */}
+            <div className="px-4 sm:px-6 py-4 sm:py-5 bg-gray-50/50 dark:bg-neutral-900/50 border-b border-gray-100 dark:border-neutral-800">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                    {/* Customer Info Card */}
+                    <div className="bg-white dark:bg-neutral-800 p-4 rounded-xl border border-gray-100 dark:border-neutral-700 shadow-sm relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-3 text-gray-100 dark:text-neutral-700 group-hover:text-gray-200 transition-colors hidden sm:block">
+                            <User size={48} />
                         </div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 leading-none">Khách hàng</label>
+                        <div className="text-base sm:text-lg font-black text-gray-800 dark:text-white truncate pr-10">
+                            {slip.customerName}
+                        </div>
+                        <div className="mt-1 text-[10px] sm:text-xs text-gray-500 flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 bg-[#5c9a38] rounded-full"></span>
+                            {slip.isPrescription ? "Bán theo đơn thuốc" : "Bán lẻ thông thường"}
+                        </div>
+                    </div>
 
-                        {/* Symptoms */}
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[10px] font-black text-[#5c9a38] uppercase tracking-[0.2em] flex items-center gap-1.5">
-                                <div className="w-1.5 h-1.5 bg-[#5c9a38] rounded-full"></div>
-                                Triệu chứng bệnh
-                            </label>
-                            <input
-                                type="text"
-                                value={symptoms}
-                                placeholder="..."
-                                onChange={(e) => setSymptoms(e.target.value)}
-                                disabled={!isEditing}
-                                className={`w-full px-3 py-2 rounded-xl text-xs sm:text-sm transition-all border-2 ${
-                                    isEditing 
-                                    ? 'bg-white border-red-200 dark:bg-neutral-800 dark:border-red-900/30 text-red-600 font-bold' 
-                                    : 'bg-transparent border-transparent text-gray-700 dark:text-gray-300 font-bold italic'
+                    {/* Symptoms */}
+                    <div className="flex flex-col gap-2">
+                        <label className="text-[10px] font-black text-[#5c9a38] uppercase tracking-[0.2em] flex items-center gap-1.5">
+                            <div className="w-1.5 h-1.5 bg-[#5c9a38] rounded-full"></div>
+                            Triệu chứng bệnh
+                        </label>
+                        <input
+                            type="text"
+                            value={symptoms}
+                            placeholder="..."
+                            onChange={(e) => setSymptoms(e.target.value)}
+                            disabled={!isEditing}
+                            className={`w-full px-3 py-2 rounded-xl text-xs sm:text-sm transition-all border-2 ${isEditing
+                                ? 'bg-white border-red-200 dark:bg-neutral-800 dark:border-red-900/30 text-red-600 font-bold'
+                                : 'bg-transparent border-transparent text-gray-700 dark:text-gray-300 font-bold italic'
                                 } outline-none focus:ring-4 focus:ring-red-500/5`}
-                            />
-                        </div>
+                        />
+                    </div>
 
-                        {/* Notes */}
-                        <div className="flex flex-col gap-2">
-                            <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-1.5">
-                                <div className="w-1.5 h-1.5 bg-gray-300 rounded-full"></div>
-                                Ghi chú nhanh
-                            </label>
-                            <input
-                                type="text"
-                                value={notes}
-                                placeholder="..."
-                                onChange={(e) => setNotes(e.target.value)}
-                                disabled={!isEditing}
-                                className={`w-full px-3 py-2 rounded-xl text-xs sm:text-sm transition-all border-2 ${
-                                    isEditing 
-                                    ? 'bg-white border-blue-200 dark:bg-neutral-800 dark:border-blue-900/30 text-blue-600 font-bold' 
-                                    : 'bg-transparent border-transparent text-gray-500 dark:text-gray-400 font-medium'
+                    {/* Notes */}
+                    <div className="flex flex-col gap-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-1.5">
+                            <div className="w-1.5 h-1.5 bg-gray-300 rounded-full"></div>
+                            Ghi chú nhanh
+                        </label>
+                        <input
+                            type="text"
+                            value={notes}
+                            placeholder="..."
+                            onChange={(e) => setNotes(e.target.value)}
+                            disabled={!isEditing}
+                            className={`w-full px-3 py-2 rounded-xl text-xs sm:text-sm transition-all border-2 ${isEditing
+                                ? 'bg-white border-blue-200 dark:bg-neutral-800 dark:border-blue-900/30 text-blue-600 font-bold'
+                                : 'bg-transparent border-transparent text-gray-500 dark:text-gray-400 font-medium'
                                 } outline-none focus:ring-4 focus:ring-blue-500/5`}
-                            />
-                        </div>
+                        />
+                    </div>
 
-                        {/* Payment & Logistics info */}
-                        <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                                    <CreditCard size={10} /> HTTT
-                                </label>
-                                {isEditing ? (
-                                    <select
-                                        value={paymentMethod}
-                                        onChange={(e) => setPaymentMethod(e.target.value)}
-                                        className="bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 px-2 py-2 rounded-xl text-xs sm:text-sm outline-none"
-                                    >
-                                        <option value="">Chọn...</option>
-                                        {allPaymentMethods.map(m => (
-                                            <option key={m.id || m.name} value={m.name}>{m.name}</option>
-                                        ))}
-                                    </select>
-                                ) : (
-                                    <div className="text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-neutral-800 px-3 py-2 rounded-xl border border-gray-100 dark:border-neutral-700 truncate">
-                                        {paymentMethod || "Tiền mặt"}
-                                    </div>
-                                )}
-                            </div>
-                            <div className="flex flex-col gap-1.5">
-                                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                                    <Calendar size={10} /> Ngày xuất
-                                </label>
-                                <div className="text-xs sm:text-sm font-mono font-bold text-gray-500 dark:text-gray-400 bg-white dark:bg-neutral-800 px-2 sm:px-3 py-2 rounded-xl border border-gray-100 dark:border-neutral-700 truncate">
-                                    {slip.exportDate.split('T')[0]}
+                    {/* Payment & Logistics info */}
+                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                                <CreditCard size={10} /> HTTT
+                            </label>
+                            {isEditing ? (
+                                <select
+                                    value={paymentMethod}
+                                    onChange={(e) => setPaymentMethod(e.target.value)}
+                                    className="bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 px-2 py-2 rounded-xl text-xs sm:text-sm outline-none"
+                                >
+                                    <option value="">Chọn...</option>
+                                    {allPaymentMethods.map(m => (
+                                        <option key={m.id || m.name} value={m.name}>{m.name}</option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <div className="text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-neutral-800 px-3 py-2 rounded-xl border border-gray-100 dark:border-neutral-700 truncate">
+                                    {paymentMethod || "Tiền mặt"}
                                 </div>
+                            )}
+                        </div>
+                        <div className="flex flex-col gap-1.5">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
+                                <Calendar size={10} /> Ngày xuất
+                            </label>
+                            <div className="text-xs sm:text-sm font-mono font-bold text-gray-500 dark:text-gray-400 bg-white dark:bg-neutral-800 px-2 sm:px-3 py-2 rounded-xl border border-gray-100 dark:border-neutral-700 truncate">
+                                {slip.exportDate.split('T')[0]}
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
 
-                {/* ── SEARCH BAR (Integrated) ── */}
-                <div className="px-4 sm:px-6 py-4 bg-white dark:bg-neutral-900 border-b border-gray-100 dark:border-neutral-800">
-                    <div className="relative group w-full max-w-4xl">
-                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus-within:bg-white focus-within:border-[#5c9a38]/30 focus-within:ring-4 focus-within:ring-[#5c9a38]/5 rounded-2xl transition-all px-3 sm:px-4 py-1.5 sm:py-1">
-                            <div className="flex items-center flex-1 gap-3">
-                                <Search className="w-5 h-5 text-gray-400 group-focus-within:text-[#5c9a38] transition-colors" />
-                                <input
-                                    type="text"
-                                    placeholder="Tên sản phẩm..."
-                                    className="flex-1 bg-transparent border-none outline-none text-xs sm:text-sm py-2 sm:py-3 text-gray-800 dark:text-gray-200 placeholder:text-gray-400"
-                                    value={searchQuery}
-                                    onChange={(e) => {
-                                        setSearchQuery(e.target.value)
-                                        setShowResults(true)
-                                    }}
-                                    onFocus={() => setShowResults(true)}
-                                    onBlur={() => setTimeout(() => setShowResults(false), 200)}
-                                />
-                            </div>
-                            <div className="hidden sm:block h-6 w-px bg-gray-200 dark:bg-neutral-700 mx-1"></div>
-                            <button
-                                onClick={() => setShowAddModal(true)}
-                                className="flex items-center justify-center gap-2 bg-[#5c9a38]/10 text-[#5c9a38] px-4 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider hover:bg-[#5c9a38]/20 transition-all border border-[#5c9a38]/20"
-                            >
-                                <PlusCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Thêm nhanh
-                            </button>
+            {/* ── SEARCH BAR (Integrated) ── */}
+            <div className="px-4 sm:px-6 py-4 bg-white dark:bg-neutral-900 border-b border-gray-100 dark:border-neutral-800">
+                <div className="relative group w-full max-w-4xl">
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 bg-gray-50 dark:bg-neutral-800 border-2 border-transparent focus-within:bg-white focus-within:border-[#5c9a38]/30 focus-within:ring-4 focus-within:ring-[#5c9a38]/5 rounded-2xl transition-all px-3 sm:px-4 py-1.5 sm:py-1">
+                        <div className="flex items-center flex-1 gap-3">
+                            <Search className="w-5 h-5 text-gray-400 group-focus-within:text-[#5c9a38] transition-colors" />
+                            <input
+                                type="text"
+                                placeholder="Tên sản phẩm..."
+                                className="flex-1 bg-transparent border-none outline-none text-xs sm:text-sm py-2 sm:py-3 text-gray-800 dark:text-gray-200 placeholder:text-gray-400"
+                                value={searchQuery}
+                                onChange={(e) => {
+                                    setSearchQuery(e.target.value)
+                                    setShowResults(true)
+                                }}
+                                onFocus={() => setShowResults(true)}
+                                onBlur={() => setTimeout(() => setShowResults(false), 200)}
+                            />
                         </div>
+                        <div className="hidden sm:block h-6 w-px bg-gray-200 dark:bg-neutral-700 mx-1"></div>
+                        <button
+                            onClick={() => setShowAddModal(true)}
+                            className="flex items-center justify-center gap-2 bg-[#5c9a38]/10 text-[#5c9a38] px-4 py-2 rounded-xl text-[10px] sm:text-xs font-black uppercase tracking-wider hover:bg-[#5c9a38]/20 transition-all border border-[#5c9a38]/20"
+                        >
+                            <PlusCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Thêm nhanh
+                        </button>
+                    </div>
 
                     {showResults && searchQuery && (
                         <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-xl shadow-2xl z-50 overflow-hidden">
@@ -530,16 +528,15 @@ export default function ExportOrderDetailPage() {
                     <div className="flex flex-col sm:flex-row lg:flex-col gap-3 w-full sm:w-auto mr-auto">
                         <div className="flex items-center gap-2">
                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Trạng thái</span>
-                            <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${
-                                slip.paymentStatus === 'Đã thanh toán' 
-                                ? 'bg-green-50 text-green-700 border-green-200' 
+                            <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${slip.paymentStatus === 'Đã thanh toán'
+                                ? 'bg-green-50 text-green-700 border-green-200'
                                 : 'bg-red-50 text-red-700 border-red-200'
-                            }`}>
+                                }`}>
                                 {slip.paymentStatus || "Hoàn tất"}
                             </span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Nhân viên</span>
+                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Người thực hiện</span>
                             <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 dark:bg-neutral-800 rounded-full border border-gray-100 dark:border-neutral-700">
                                 <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300">{slip.createdBy}</span>
                             </div>
@@ -566,20 +563,20 @@ export default function ExportOrderDetailPage() {
                 </div>
 
                 <div className="mt-8 flex flex-col sm:flex-row justify-between items-stretch sm:items-center max-w-[1600px] mx-auto border-t border-gray-100 dark:border-neutral-800 pt-6 gap-4">
-                    <button 
-                        onClick={() => navigate("/export-manage")} 
+                    <button
+                        onClick={() => navigate("/export-manage")}
                         className="flex items-center justify-center gap-2 text-gray-400 hover:text-gray-800 dark:hover:text-white text-sm font-bold transition-colors"
                     >
                         <AlertCircle size={18} /> Quay lại danh sách
                     </button>
-                    
+
                     <div className="flex flex-col sm:flex-row gap-3">
                         <button className="flex items-center justify-center gap-2 bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-200 px-6 py-3 rounded-xl text-sm font-black hover:bg-gray-200 transition-all shadow-sm">
                             <Printer size={18} /> IN PHIẾU
                         </button>
                         {isEditing && (
-                            <button 
-                                onClick={handleSaveOrder} 
+                            <button
+                                onClick={handleSaveOrder}
                                 className="bg-[#5c9a38] text-white px-8 py-3 rounded-xl text-sm font-black hover:bg-[#4d822f] shadow-lg shadow-green-500/20 transition-all"
                             >
                                 <Save size={18} /> LƯU THAY ĐỔI

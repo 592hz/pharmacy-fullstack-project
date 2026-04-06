@@ -14,7 +14,7 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { AudioLinesIcon, TerminalIcon, TerminalSquareIcon, BotIcon, FrameIcon, PieChartIcon, MapIcon, LayoutDashboard, Trash2 } from "lucide-react"
+import { AudioLinesIcon, TerminalIcon, TerminalSquareIcon, BotIcon, FrameIcon, PieChartIcon, LayoutDashboard, Trash2, PlusSquare, ShoppingCart } from "lucide-react"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useAuth();
@@ -69,10 +69,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             url: "/product-categories",
           },
           {
-            title: "Danh mục nhóm thu chi",
-            url: "/income-expense-categories",
-          },
-          {
             title: "Danh mục đơn vị tính",
             url: "/units",
           },
@@ -95,27 +91,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             title: "Danh sách phiếu xuất",
             url: "/export-manage",
           },
-          {
-            title: "Khách trả lại",
-            url: "#",
-          },
-          {
-            title: "Quản lý kho",
-            url: "/stock",
-          },
-          ...(isAdmin ? [{
-            title: "Quản lý thu chi",
-            url: "#"
-          }] : [])
         ],
       },
       {
         title: "Nhập hàng",
         url: "/purchase-orders/create",
+        icon: <PlusSquare />,
       },
       {
         title: "Bán hàng",
         url: "/export-manage/create",
+        icon: <ShoppingCart />,
       },
       {
         title: "Ghi chú",
@@ -126,7 +112,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     projects: isAdmin ? [
       {
         name: "Báo cáo doanh thu",
-        url: "#",
+        url: "/reports/revenue",
         icon: <FrameIcon />,
       },
       {
@@ -135,9 +121,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         icon: <PieChartIcon />,
       },
       {
-        name: "Báo cáo kinh doanh",
-        url: "#",
-        icon: <MapIcon />,
+        name: "Báo cáo thu chi",
+        url: "/reports/income-expense",
+        icon: <PieChartIcon />,
       },
       {
         name: "Thùng rác",

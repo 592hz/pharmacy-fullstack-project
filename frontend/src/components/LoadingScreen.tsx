@@ -74,7 +74,7 @@ export function LoadingScreen() {
 
         <div className="flex flex-col items-center gap-2">
           <span className="text-lg font-medium text-gray-700 dark:text-neutral-200 font-cursive animate-pulse">
-            Bé chờ một xíu nhé...
+            Mỹ chờ một xíu nhé...
           </span>
           <div className="flex gap-1.5">
             <div className="h-2 w-2 rounded-full bg-pink-400 animate-jump"></div>
