@@ -12,7 +12,7 @@ import LoadingScreen from "@/components/LoadingScreen"
 const DashboardPage = lazy(() => import("@/pages/DashboardPage"))
 const SuppliersPage = lazy(() => import("@/pages/SuppliersPage"))
 const CustomersPage = lazy(() => import("@/pages/CustomersPage"))
-const IncomeExpenseCategoriesPage = lazy(() => import("@/pages/IncomeExpenseCategoriesPage"))
+const IncomeExpenseReportPage = lazy(() => import("./pages/IncomeExpenseReportPage"))
 const LoginPage = lazy(() => import("@/pages/LoginPage"))
 const SignupPage = lazy(() => import("@/pages/SignupPage"))
 const UnitsPage = lazy(() => import("@/pages/UnitsPage"))
@@ -28,6 +28,7 @@ const CreateExportOrderPage = lazy(() => import("@/pages/CreateExportOrderPage")
 const NotesPage = lazy(() => import("@/pages/NotesPage"))
 const StockManagementPage = lazy(() => import("@/pages/StockManagementPage"))
 const TrashPage = lazy(() => import("@/pages/TrashPage"))
+const RevenueReportPage = lazy(() => import("@/pages/RevenueReportPage"))
 
 
 export function App() {
@@ -52,7 +53,7 @@ export function App() {
               } />
               <Route path="suppliers" element={<SuppliersPage />} />
               <Route path="customers" element={<CustomersPage />} />
-              <Route path="income-expense-categories" element={<IncomeExpenseCategoriesPage />} />
+              <Route path="reports/income-expense" element={<IncomeExpenseReportPage />} />
               <Route path="units" element={<UnitsPage />} />
               <Route path="payment-methods" element={<PaymentMethodsPage />} />
               <Route path="product-categories" element={<ProductCategoriesPage />} />
@@ -65,6 +66,7 @@ export function App() {
               <Route path="purchase-orders/:id" element={<PurchaseOrderDetailPage />} />
               <Route path="notes" element={<NotesPage />} />
               <Route path="stock" element={<StockManagementPage />} />
+              <Route path="reports/revenue" element={<RevenueReportPage />} />
               <Route path="trash" element={<TrashPage />} />
             </Route>
 

@@ -79,7 +79,7 @@ interface InputFieldProps {
 const InputField = ({ label, required, value, onChange, placeholder = "", type = "text", disabled = false }: InputFieldProps) => {
     return (
         <div className="flex flex-col gap-1 w-full">
-            <label className="text-xs font-semibold text-gray-700">
+            <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                 {label} {required && <span className="text-red-500">*</span>}
             </label>
             {type === 'number' ? (
@@ -88,7 +88,7 @@ const InputField = ({ label, required, value, onChange, placeholder = "", type =
                     onChange={(v) => onChange(v)}
                     disabled={disabled}
                     placeholder={placeholder}
-                    className={`w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
+                    className={`w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] ${disabled ? 'bg-gray-100 dark:bg-neutral-800 cursor-not-allowed text-gray-500' : 'bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100'}`}
                 />
             ) : (
                 <input
@@ -97,7 +97,7 @@ const InputField = ({ label, required, value, onChange, placeholder = "", type =
                     disabled={disabled}
                     onChange={(e) => onChange(e.target.value)}
                     placeholder={placeholder}
-                    className={`w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
+                    className={`w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] ${disabled ? 'bg-gray-100 dark:bg-neutral-800 cursor-not-allowed text-gray-500' : 'bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100'}`}
                 />
             )}
         </div>
@@ -364,12 +364,12 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-6 md:p-8">
-            <div className="bg-white w-full h-full max-w-[1400px] flex flex-col rounded shadow-2xl overflow-hidden relative animate-in fade-in zoom-in-95 duration-200">
+            <div className="bg-white dark:bg-neutral-900 w-full h-full max-w-[1400px] flex flex-col rounded shadow-2xl overflow-hidden relative animate-in fade-in zoom-in-95 duration-200">
                 {/* HEADERS & TABS */}
-                <div className="flex flex-col border-b border-gray-200 bg-white pt-2">
+                <div className="flex flex-col border-b border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 pt-2">
                     <div className="flex items-center justify-between px-3 sm:px-4 pb-2">
-                        <h2 className="text-base sm:text-xl font-bold text-gray-800">{initialData ? "Cập nhật thông tin hàng hóa" : "Thêm mới hàng hóa"}</h2>
-                        <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-800 transition-colors">
+                        <h2 className="text-base sm:text-xl font-bold text-gray-800 dark:text-gray-100">{initialData ? "Cập nhật thông tin hàng hóa" : "Thêm mới hàng hóa"}</h2>
+                        <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">
                             <X className="w-5 h-5 sm:w-6 sm:h-6" />
                         </button>
                     </div>
@@ -383,7 +383,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                 </div>
 
                 {/* SCROLLABLE CONTENT BODY */}
-                <div className="flex-1 overflow-y-auto bg-white p-3 sm:p-4">
+                <div className="flex-1 overflow-y-auto bg-white dark:bg-neutral-900 p-3 sm:p-4">
                     <div className="flex flex-col gap-4 sm:gap-6 w-full mx-auto">
 
                         {/* --- GRID FORM --- */}
@@ -393,9 +393,9 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
 
                             {/* Custom Searchable Select for Supplier */}
                             <div className="flex flex-col gap-1 w-full">
-                                <label className="text-[11px] sm:text-xs font-semibold text-gray-700">Nhà cung cấp</label>
+                                <label className="text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-gray-300">Nhà cung cấp</label>
                                 <select
-                                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white h-[34px]"
+                                    className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 h-[34px]"
                                     value={formData.supplierId}
                                     onChange={(e) => handleInputChange('supplierId', e.target.value)}
                                 >
@@ -409,9 +409,9 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                             {/* Row 2 */}
                             {/* Custom Searchable Select for Category */}
                             <div className="flex flex-col gap-1 w-full">
-                                <label className="text-[11px] sm:text-xs font-semibold text-gray-700">Nhóm hàng hóa <span className="text-red-500">*</span></label>
+                                <label className="text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-gray-300">Nhóm hàng hóa <span className="text-red-500">*</span></label>
                                 <select
-                                    className="w-full border border-blue-500 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white h-[34px]"
+                                    className="w-full border border-blue-500 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 h-[34px]"
                                     value={formData.categoryId}
                                     onChange={(e) => handleInputChange('categoryId', e.target.value)}
                                 >
@@ -423,17 +423,17 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                             </div>
                             <div className="grid grid-cols-2 gap-2 sm:gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-[11px] sm:text-xs font-medium text-gray-500 uppercase tracking-tight">%VAT</label>
+                                    <label className="text-[11px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-tight">%VAT</label>
                                     <NumericInput
-                                        className="h-[34px] text-xs sm:text-sm"
+                                        className="h-[34px] text-xs sm:text-sm bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-neutral-700"
                                         value={formData.vatPercent}
                                         onChange={(v) => handleInputChange('vatPercent', v)}
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[11px] sm:text-xs font-medium text-gray-500 uppercase tracking-tight">%CK</label>
+                                    <label className="text-[11px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-tight">%CK</label>
                                     <NumericInput
-                                        className="h-[34px] text-xs sm:text-sm"
+                                        className="h-[34px] text-xs sm:text-sm bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-neutral-700"
                                         value={formData.discountPercent}
                                         onChange={(v) => handleInputChange('discountPercent', v)}
                                     />
@@ -446,20 +446,20 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                             {/* Inventory Section */}
                             <div className="grid grid-cols-2 gap-2 sm:gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-[11px] sm:text-xs font-semibold text-gray-700">Tồn kho hiện tại</label>
+                                    <label className="text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-gray-300">Tồn kho hiện tại</label>
                                     <NumericInput
-                                        className="h-[34px] text-xs sm:text-sm font-bold text-blue-600"
+                                        className="h-[34px] text-xs sm:text-sm font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-700"
                                         value={formData.initialQuantity}
                                         onChange={(v) => handleInputChange('initialQuantity', v)}
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[11px] sm:text-xs font-semibold text-gray-700">Đơn vị cơ bản</label>
+                                    <label className="text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-gray-300">Đơn vị cơ bản</label>
                                     <input
                                         type="text"
                                         value={formData.baseUnitName}
                                         onChange={(e) => handleInputChange('baseUnitName', e.target.value)}
-                                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white"
+                                        className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100"
                                         placeholder="Viên, Chai..."
                                     />
                                 </div>
@@ -468,22 +468,22 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                             {/* Batch & Expiry Section */}
                             <div className="grid grid-cols-2 gap-2 sm:gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-[11px] sm:text-xs font-semibold text-gray-700">Số lô {initialData && "(Lô mới)"}</label>
+                                    <label className="text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-gray-300">Số lô {initialData && "(Lô mới)"}</label>
                                     <input
                                         type="text"
                                         value={formData.batchNumber}
                                         onChange={(e) => handleInputChange('batchNumber', e.target.value)}
-                                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white font-mono"
+                                        className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-mono"
                                         placeholder="Nhập số lô..."
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[11px] sm:text-xs font-semibold text-gray-700 truncate">Hạn dùng (DD-MM-YYYY)</label>
+                                    <label className="text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-gray-300 truncate">Hạn dùng (DD-MM-YYYY)</label>
                                     <input
                                         type="text"
                                         value={formData.expiryDate}
                                         onChange={(e) => handleInputChange('expiryDate', e.target.value)}
-                                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white font-mono"
+                                        className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-mono"
                                         placeholder="31-12-2025"
                                     />
                                 </div>
@@ -497,27 +497,27 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                     <span className="w-1 h-3 sm:w-1.5 sm:h-4 bg-[#5c9a38] rounded-full"></span>
                                     Quản lý lô hàng hiện tại
                                 </h3>
-                                <div className="border border-gray-200 rounded-lg overflow-x-auto bg-gray-50/30">
+                                <div className="border border-gray-200 dark:border-neutral-800 rounded-lg overflow-x-auto bg-gray-50/30 dark:bg-neutral-800/20">
                                     <table className="w-full text-[10px] sm:text-xs text-left min-w-[500px]">
-                                        <thead className="bg-gray-100 text-gray-700 font-bold uppercase tracking-wider">
+                                        <thead className="bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 font-bold uppercase tracking-wider">
                                             <tr>
-                                                <th className="px-3 sm:px-4 py-2 border-r border-gray-200">Số lô</th>
-                                                <th className="px-3 sm:px-4 py-2 border-r border-gray-200 text-center">Hạn dùng</th>
+                                                <th className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700">Số lô</th>
+                                                <th className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700 text-center">Hạn dùng</th>
                                                 <th className="px-3 sm:px-4 py-2 text-right">Số lượng tồn</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="divide-y divide-gray-200 bg-white">
+                                        <tbody className="divide-y divide-gray-200 dark:divide-neutral-800 bg-white dark:bg-neutral-900">
                                             {formData.batches.map((batch, idx) => (
-                                                <tr key={`${batch.batchNumber}-${idx}`} className="hover:bg-gray-50 transition-colors">
-                                                    <td className="px-3 sm:px-4 py-2 border-r border-gray-200 font-medium text-gray-700">
+                                                <tr key={`${batch.batchNumber}-${idx}`} className="hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors">
+                                                    <td className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700 font-medium text-gray-700 dark:text-gray-300">
                                                         {batch.batchNumber}
                                                     </td>
-                                                    <td className="px-3 sm:px-4 py-2 border-r border-gray-200">
+                                                    <td className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700">
                                                         <input
                                                             type="text"
                                                             value={batch.expiryDate || ""}
                                                             onChange={(e) => handleBatchExpiryChange(batch.batchNumber, e.target.value)}
-                                                            className="w-full border border-gray-300 rounded px-2 py-1 text-center focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white font-mono"
+                                                            className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1 text-center focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-mono"
                                                             placeholder="DD-MM-YYYY"
                                                         />
                                                     </td>
@@ -525,7 +525,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                                         <NumericInput
                                                             value={batch.quantity / (initialData.conversionRate || 1)}
                                                             onChange={(v) => handleBatchQuantityChange(batch.batchNumber, v)}
-                                                            className="w-[80px] sm:w-[100px] ml-auto text-right border border-gray-300 rounded px-2 py-1 focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] font-bold text-blue-600 bg-white"
+                                                            className="w-[80px] sm:w-[100px] ml-auto text-right border border-gray-300 dark:border-neutral-700 rounded px-2 py-1 focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-neutral-900"
                                                         />
                                                     </td>
                                                 </tr>
@@ -546,10 +546,10 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                             </button>
                         </div>
                         {/* --- UNITS TABLE --- */}
-                        <div className="mt-2 border-t border-gray-200 pt-2 lg:pt-4">
-                            <div className="border border-gray-200 rounded-lg overflow-x-auto bg-white shadow-sm">
+                        <div className="mt-2 border-t border-gray-200 dark:border-neutral-800 pt-2 lg:pt-4">
+                            <div className="border border-gray-200 dark:border-neutral-800 rounded-lg overflow-x-auto bg-white dark:bg-neutral-900 shadow-sm">
                                 <table className="w-full text-[10px] sm:text-sm text-left min-w-[700px]">
-                                    <thead className="bg-gray-50 text-gray-700 font-bold border-b border-gray-200">
+                                    <thead className="bg-gray-50 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 font-bold border-b border-gray-200 dark:border-neutral-700">
                                         <tr>
                                             <th className="px-3 sm:px-4 py-3">Tên đơn vị tính</th>
                                             <th className="px-1 sm:px-4 py-3 text-center">Tỉ lệ quy<br />đổi</th>
@@ -560,7 +560,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                             <th className="w-8 sm:w-10"></th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-100">
+                                    <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
                                         {formData.units.map((unit) => (
                                             <tr key={unit.id} className="hover:bg-gray-50/50">
                                                 <td className="px-3 sm:px-4 py-2">
@@ -569,7 +569,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                                         value={unit.unitName}
                                                         list={`unit-list-${unit.id}`}
                                                         onChange={(e) => handleUnitChange(unit.id, 'unitName', e.target.value)}
-                                                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[32px] sm:h-[34px] bg-white"
+                                                        className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[32px] sm:h-[34px] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100"
                                                         placeholder="Vỉ, Hộp..."
                                                     />
                                                     <datalist id={`unit-list-${unit.id}`}>
@@ -596,7 +596,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                                     <NumericInput
                                                         value={unit.retailPrice}
                                                         onChange={(v) => handleUnitChange(unit.id, 'retailPrice', v)}
-                                                        className="w-[80px] sm:w-[120px] mx-auto text-center border-transparent hover:border-gray-200 focus:border-[#5c9a38] focus:bg-white bg-transparent rounded px-1 py-1 text-xs sm:text-sm outline-none font-bold block text-gray-800"
+                                                        className="w-[80px] sm:w-[120px] mx-auto text-center border-transparent hover:border-gray-200 dark:hover:border-neutral-700 focus:border-[#5c9a38] focus:bg-white dark:focus:bg-neutral-900 bg-transparent rounded px-1 py-1 text-xs sm:text-sm outline-none font-bold block text-gray-800 dark:text-gray-100"
                                                     />
                                                 </td>
                                                 <td className="px-1 sm:px-4 py-2">
@@ -637,10 +637,10 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                 </div>
 
                 {/* FOOTER ACTIONS */}
-                <div className="flex flex-wrap items-center justify-end px-3 sm:px-4 py-2 sm:py-3 border-t border-gray-200 bg-gray-50 gap-2">
+                <div className="flex flex-wrap items-center justify-end px-3 sm:px-4 py-2 sm:py-3 border-t border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900/50 gap-2">
                     <button
                         onClick={() => handleSubmit('save_new')}
-                        className="bg-white hover:bg-gray-100 text-[#5c9a38] border border-[#5c9a38] px-3 sm:px-4 py-2 rounded text-[11px] sm:text-sm font-bold transition-all active:scale-95 flex-1 sm:flex-none"
+                        className="bg-white dark:bg-neutral-800 hover:bg-gray-100 dark:hover:bg-neutral-700 text-[#5c9a38] border border-[#5c9a38] px-3 sm:px-4 py-2 rounded text-[11px] sm:text-sm font-bold transition-all active:scale-95 flex-1 sm:flex-none"
                     >
                         ✓ Lưu & Thêm mới
                     </button>
@@ -652,7 +652,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                     </button>
                     <button
                         onClick={onClose}
-                        className="text-gray-500 hover:bg-gray-100 px-3 sm:px-4 py-2 rounded text-[11px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 flex-1 sm:flex-none border border-transparent hover:border-gray-200"
+                        className="text-gray-500 hover:bg-gray-100 dark:hover:bg-neutral-800 px-3 sm:px-4 py-2 rounded text-[11px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 flex-1 sm:flex-none border border-transparent hover:border-gray-200 dark:hover:border-neutral-700"
                     >
                         <X className="w-4 h-4" /> Thoát
                     </button>

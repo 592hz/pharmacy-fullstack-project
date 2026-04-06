@@ -12,6 +12,25 @@ import { supplierService } from "@/services/supplier.service"
 import { useDebounce } from "@/hooks/use-debounce"
 import { getErrorMessage } from "@/lib/utils"
 
+const getExpiryStatus = (dateStr: string | undefined | null) => {
+    if (!dateStr || dateStr === "." || dateStr === "") return { isNearExpiry: false, dateObject: null };
+    const parts = dateStr.split(/[-/]/);
+    if (parts.length !== 3) return { isNearExpiry: false, dateObject: null };
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[2], 10);
+    const expiryDate = new Date(year, month, day);
+    if (isNaN(expiryDate.getTime())) return { isNearExpiry: false, dateObject: null };
+    
+    const sixMonthsFromNow = new Date();
+    sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
+    
+    return {
+        isNearExpiry: expiryDate <= sixMonthsFromNow,
+        dateObject: expiryDate
+    };
+};
+
 export default function ProductsPage() {
     const [products, setProducts] = useState<Product[]>([])
     const [categories, setCategories] = useState<ProductCategory[]>([])
@@ -97,17 +116,12 @@ export default function ProductsPage() {
         if (stockFilter === "Hết hàng" && stockCount > 0) return false
         
         if (stockFilter === "Cận date") {
-            if (!product.batches || product.batches.length === 0) return false
-            const sixMonthsFromNow = new Date()
-            sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6)
-            
-            const hasNearExpiryBatch = product.batches.some(batch => {
-                if (!batch.expiryDate) return false
-                const expiryDate = new Date(batch.expiryDate)
-                return expiryDate <= sixMonthsFromNow && expiryDate >= new Date()
-            })
-            
-            if (!hasNearExpiryBatch) return false
+            const hasNearExpiryBatch = (product.batches || []).some(batch => 
+                batch.quantity > 0 && getExpiryStatus(batch.expiryDate).isNearExpiry
+            );
+            const isProductNearExpiry = (!product.batches || product.batches.length === 0) && getExpiryStatus(product.expiryDate).isNearExpiry;
+
+            if (!hasNearExpiryBatch && !isProductNearExpiry) return false;
         }
         // 3. Category Filter
         if (categoryFilter !== "Tất cả" && prodCategoryId !== categoryFilter) return false
@@ -490,7 +504,7 @@ export default function ProductsPage() {
                                         </div>
                                     </td>
 
-                                    <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 text-center text-xs">{product.unit}</td>
+                                    <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 text-center text-xs text-gray-700 dark:text-gray-300">{product.unit}</td>
 
                                     <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 text-right text-xs font-bold text-[#5c9a38]">
                                         {formatCurrency(product.retailPrice)}
@@ -513,52 +527,26 @@ export default function ProductsPage() {
                                         })()}
                                     </td>
 
-                                    <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 text-center text-xs text-gray-500 hidden sm:table-cell">
+                                    <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 text-center text-xs text-gray-500 dark:text-gray-400 hidden sm:table-cell">
                                         {(() => {
-                                            if (product.batches && product.batches.length > 0) {
-                                                const activeOtherBatches = product.batches.filter(b => b.quantity > 0 && b.batchNumber !== "LÔ ĐẦU")
-                                                let targetBatch = null
-                                                
-                                                if (activeOtherBatches.length > 0) {
-                                                    const sorted = [...activeOtherBatches].sort((a, b) => (a.expiryDate || "").localeCompare(b.expiryDate || ""))
-                                                    targetBatch = sorted[0]
-                                                } else {
-                                                    const activeBatches = product.batches.filter(b => b.quantity > 0)
-                                                    if (activeBatches.length > 0) {
-                                                        const sorted = [...activeBatches].sort((a, b) => (a.expiryDate || "").localeCompare(b.expiryDate || ""))
-                                                        targetBatch = sorted[0]
-                                                    } else {
-                                                        const otherBatches = product.batches.filter(b => b.batchNumber !== "LÔ ĐẦU")
-                                                        if (otherBatches.length > 0) {
-                                                            const sorted = [...otherBatches].sort((a, b) => (a.expiryDate || "").localeCompare(b.expiryDate || ""))
-                                                            targetBatch = sorted[0]
-                                                        } else {
-                                                            const sorted = [...product.batches].sort((a, b) => (a.expiryDate || "").localeCompare(b.expiryDate || ""))
-                                                            targetBatch = sorted[0]
-                                                        }
-                                                    }
-                                                }
-                                                
-                                                const dateStr = targetBatch?.expiryDate || "."
-                                                if (dateStr !== ".") {
-                                                    const expiryDate = new Date(dateStr)
-                                                    const sixMonthsFromNow = new Date()
-                                                    sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6)
-                                                    
-                                                    const isNearExpiry = expiryDate <= sixMonthsFromNow
-                                                    return <span className={isNearExpiry ? 'text-red-500 font-bold' : ''}>{dateStr}</span>
-                                                }
-                                                return "."
+                                            const activeBatches = (product.batches || []).filter(b => b.quantity > 0);
+                                            let targetDate = product.expiryDate;
+                                            
+                                            if (activeBatches.length > 0) {
+                                                const sorted = [...activeBatches].sort((a, b) => {
+                                                    const da = getExpiryStatus(a.expiryDate).dateObject;
+                                                    const db = getExpiryStatus(b.expiryDate).dateObject;
+                                                    if (!da) return 1;
+                                                    if (!db) return -1;
+                                                    return da.getTime() - db.getTime();
+                                                });
+                                                targetDate = sorted[0].expiryDate;
                                             }
-                                            const soloDate = product.expiryDate || "."
-                                            if (soloDate !== ".") {
-                                                const expiryDate = new Date(soloDate)
-                                                const sixMonthsFromNow = new Date()
-                                                sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6)
-                                                const isNearExpiry = expiryDate <= sixMonthsFromNow
-                                                return <span className={isNearExpiry ? 'text-red-500 font-bold' : ''}>{soloDate}</span>
-                                            }
-                                            return "."
+                                            
+                                            const { isNearExpiry, dateObject } = getExpiryStatus(targetDate);
+                                            const displayDate = targetDate || ".";
+                                            
+                                            return <span className={isNearExpiry && dateObject ? 'text-red-500 font-bold' : ''}>{displayDate}</span>;
                                         })()}
                                     </td>
 

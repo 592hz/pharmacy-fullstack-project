@@ -20,6 +20,7 @@ import noteRoutes from './routes/note.routes.js';
 import productCategoryRoutes from './routes/product-category.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import authRoutes from './routes/auth.routes.js';
+import reportRoutes from './routes/report.routes.js';
 
 
 const app = express();
@@ -42,6 +43,7 @@ app.use('/api/notes', noteRoutes);
 app.use('/api/product-categories', productCategoryRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/reports', reportRoutes);
 
 app.get('/', (req, res) => {
     res.send('Pharmacy API is running...');

@@ -425,7 +425,7 @@ export default function CreatePurchaseOrderPage() {
                                     setSupplierId(e.target.value)
                                     setSupplierName(s?.name || "")
                                 }}
-                                className="w-full bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
+                                className="w-full bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
                             >
                                 <option value="">Chọn nhà cung cấp...</option>
                                 {allSuppliers.map(s => (
@@ -460,7 +460,7 @@ export default function CreatePurchaseOrderPage() {
                             placeholder="Số hóa đơn..."
                             value={invoiceNumber}
                             onChange={(e) => setInvoiceNumber(e.target.value)}
-                            className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
+                            className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
                         />
                     </div>
                     <div className="flex flex-col gap-1.5">
@@ -477,7 +477,7 @@ export default function CreatePurchaseOrderPage() {
                         <select
                             value={paymentMethod}
                             onChange={(e) => setPaymentMethod(e.target.value)}
-                            className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
+                            className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500"
                         >
                             {allPaymentMethods.map(m => (
                                 <option key={m.id || m.name} value={m.name}>{m.name}</option>
@@ -624,11 +624,11 @@ export default function CreatePurchaseOrderPage() {
                             ) : (
                                 items.map((item) => (
                                     <tr key={item.id} className="hover:bg-green-50/20 dark:hover:bg-green-900/5 transition-colors group border-b dark:border-neutral-700">
-                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-gray-500 font-medium">{item.code}</td>
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-gray-500 dark:text-gray-400 font-medium">{item.code}</td>
                                         <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800">
                                             <div className="font-semibold text-gray-800 dark:text-gray-100 max-w-[200px] truncate" title={item.name}>{item.name}</div>
                                         </td>
-                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-center text-gray-600 font-medium">{item.unit}</td>
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-center text-gray-600 dark:text-gray-300 font-medium">{item.unit}</td>
                                         <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800">
                                             <input
                                                 type="text"
@@ -668,7 +668,7 @@ export default function CreatePurchaseOrderPage() {
                                                 onChange={(v) => updateItemField(item.id!, 'retailPrice', v)}
                                             />
                                         </td>
-                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right font-semibold text-gray-600">{vnd(item.totalAmount)}</td>
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right font-semibold text-gray-600 dark:text-gray-300">{vnd(item.totalAmount)}</td>
                                         <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right">
                                             <NumericInput
                                                 className="w-full bg-transparent border-none text-right outline-none p-0 font-medium"
@@ -676,7 +676,7 @@ export default function CreatePurchaseOrderPage() {
                                                 onChange={(v) => updateItemField(item.id!, 'discountPercent', v)}
                                             />
                                         </td>
-                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right text-gray-400 font-medium">{vnd(item.discountAmount)}</td>
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right text-gray-400 dark:text-gray-500 font-medium">{vnd(item.discountAmount)}</td>
                                         <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right">
                                             <NumericInput
                                                 className="w-full bg-transparent border-none text-right outline-none p-0 font-medium"
@@ -684,12 +684,12 @@ export default function CreatePurchaseOrderPage() {
                                                 onChange={(v) => updateItemField(item.id!, 'vatPercent', v)}
                                             />
                                         </td>
-                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right text-gray-400 font-medium">{vnd(item.vatAmount)}</td>
+                                        <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right text-gray-400 dark:text-gray-500 font-medium">{vnd(item.vatAmount)}</td>
                                         <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right font-bold text-green-700 dark:text-green-400">{vnd(item.remainingAmount)}</td>
                                         <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-center">
                                             <input
                                                 type="text"
-                                                className="w-full bg-transparent border-none px-1 py-0.5 text-center text-[11px] font-medium outline-none text-gray-500"
+                                                className="w-full bg-transparent border-none px-1 py-0.5 text-center text-[11px] font-medium outline-none text-gray-500 dark:text-gray-400"
                                                 value={item.registrationNumber || ""}
                                                 placeholder="-"
                                                 onChange={(e) => updateItemField(item.id!, 'registrationNumber', e.target.value)}
@@ -720,7 +720,7 @@ export default function CreatePurchaseOrderPage() {
                             placeholder="Nhập ghi chú thêm..."
                             value={notes}
                             onChange={(e) => setNotes(e.target.value)}
-                            className="w-full bg-gray-50/50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 px-3 py-2 rounded-xl text-xs min-h-[50px] lg:min-h-[80px] outline-none focus:ring-2 focus:ring-green-500/10 focus:border-green-500 transition-all resize-none italic"
+                            className="w-full bg-gray-50/50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 px-3 py-2 rounded-xl text-xs dark:text-gray-100 min-h-[50px] lg:min-h-[80px] outline-none focus:ring-2 focus:ring-green-500/10 focus:border-green-500 transition-all resize-none italic"
                         />
                     </div>
 
