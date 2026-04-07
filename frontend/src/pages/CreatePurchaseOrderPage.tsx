@@ -12,7 +12,10 @@ import { productService } from "@/services/product.service"
 import { supplierService } from "@/services/supplier.service"
 import { purchaseOrderService } from "@/services/purchase-order.service"
 import { paymentMethodService } from "@/services/payment-method.service"
-import { type Product, type PurchaseOrderItem, type PurchaseOrder, type Supplier, type PaymentMethod } from "@/lib/schemas"
+import { type IProduct } from "@/types/product"
+import { type ISupplier } from "@/types/supplier"
+import { type IPurchaseOrder, type IPurchaseOrderItem } from "@/types/purchase-order"
+import { type PaymentMethod } from "@/lib/schemas"
 import { useDebounce } from "@/hooks/use-debounce"
 import { cacheService } from "@/services/cache.service"
 
@@ -26,7 +29,7 @@ export default function CreatePurchaseOrderPage() {
     const [supplierName, setSupplierName] = useState("")
     const [invoiceNumber, setInvoiceNumber] = useState("")
     const [notes, setNotes] = useState("")
-    const [items, setItems] = useState<PurchaseOrderItem[]>([])
+    const [items, setItems] = useState<IPurchaseOrderItem[]>([])
 
     const generateOrderId = () => {
         const now = new Date();
@@ -51,8 +54,8 @@ export default function CreatePurchaseOrderPage() {
     const [showResults, setShowResults] = useState(false)
     const debouncedSearchQuery = useDebounce(searchQuery, 300)
     const [selectedIndex, setSelectedIndex] = useState(-1)
-    const [allProducts, setAllProducts] = useState<Product[]>(() => cacheService.get("products") || [])
-    const [allSuppliers, setAllSuppliers] = useState<Supplier[]>(() => cacheService.get("suppliers") || [])
+    const [allProducts, setAllProducts] = useState<IProduct[]>(() => cacheService.get("products") || [])
+    const [allSuppliers, setAllSuppliers] = useState<ISupplier[]>(() => cacheService.get("suppliers") || [])
 
     // Draft handling
     const [hasRestoredDraft, setHasRestoredDraft] = useState(false)
@@ -146,14 +149,14 @@ export default function CreatePurchaseOrderPage() {
         ).slice(0, 10)
     }, [debouncedSearchQuery, allProducts])
 
-    const handleQuickAdd = useCallback((product: Product) => {
+    const handleQuickAdd = useCallback((product: IProduct) => {
         const qty = 1
         const importPrice = product.importPrice || 0
         const total = qty * importPrice
         const vatPct = 5
         const vatAmt = Math.round(total * vatPct / 100)
 
-        const newItem: PurchaseOrderItem = {
+        const newItem: IPurchaseOrderItem = {
             id: `new-${Date.now()}-${Math.random()}`,
             code: product.id || "",
             name: product.name || "",
@@ -200,7 +203,7 @@ export default function CreatePurchaseOrderPage() {
         }
     }
 
-    const handleProductSaved = useCallback((savedProduct: Product, formData: ProductFormData) => {
+    const handleProductSaved = useCallback((savedProduct: IProduct, formData: ProductFormData) => {
         // Add to the search list immediately
         setAllProducts(prev => [savedProduct, ...prev])
 
@@ -214,7 +217,7 @@ export default function CreatePurchaseOrderPage() {
         const discountAmt = Math.round(total * discountPct / 100)
         const vatAmt = Math.round((total - discountAmt) * vatPct / 100)
 
-        const newItem: PurchaseOrderItem = {
+        const newItem: IPurchaseOrderItem = {
             id: `new-${Date.now()}-${Math.random()}`,
             code: savedProduct.id || formData.productCode || "",
             name: savedProduct.name || formData.productName,
@@ -235,12 +238,12 @@ export default function CreatePurchaseOrderPage() {
         setItems(prev => [...prev, newItem])
     }, [])
 
-    const handleQuickSupplierAdded = useCallback(async (newSupplier: Supplier) => {
+    const handleQuickSupplierAdded = useCallback(async (newSupplier: ISupplier) => {
         try {
             const data = await supplierService.create(newSupplier)
             setAllSuppliers(prev => [data, ...prev])
-            setSupplierId(data.id)
-            setSupplierName(data.name)
+            setSupplierId(data.id || "")
+            setSupplierName(data.name || "")
             toast.success("Đã thêm nhanh nhà cung cấp và tự động chọn!")
         } catch (error: unknown) {
             toast.error(`Lỗi khi thêm nhà cung cấp: ${getErrorMessage(error)}`)
@@ -256,7 +259,7 @@ export default function CreatePurchaseOrderPage() {
         return Math.round((num + Number.EPSILON) * 1000) / 1000
     }
 
-    const updateItemField = useCallback((id: string, field: keyof PurchaseOrderItem, value: string | number | boolean) => {
+    const updateItemField = useCallback((id: string, field: keyof IPurchaseOrderItem, value: string | number | boolean) => {
         setItems(prev => prev.map(item => {
             if (item.id !== id) return item
 
@@ -335,7 +338,7 @@ export default function CreatePurchaseOrderPage() {
             return
         }
 
-        const newOrder: PurchaseOrder = {
+        const newOrder: IPurchaseOrder = {
             id: orderId,
             importDate,
             supplierId,
@@ -358,7 +361,7 @@ export default function CreatePurchaseOrderPage() {
             clearDraft()
             toast.success("Đã tạo phiếu nhập mới thành công")
             navigate("/purchase-orders")
-        } catch (error: any) {
+        } catch (error: unknown) {
             const errorMsg = getErrorMessage(error);
             if (errorMsg.includes("E11000") || errorMsg.includes("duplicate key")) {
                 toast.error("Lỗi: Mã phiếu này đã tồn tại trong hệ thống. Đang tự động làm mới mã...");

@@ -8,13 +8,19 @@ import {
     bulkCreateProducts,
     getDeletedProducts,
     restoreProduct,
-    permanentlyDeleteProduct
+    permanentlyDeleteProduct,
+    bulkRestoreProducts,
+    bulkPermanentlyDeleteProducts,
+    emptyProductTrash
 } from '../controllers/product.controller.js';
 
 const router = Router();
 
 router.get('/', getProducts);
 router.get('/trash', getDeletedProducts);
+router.put('/trash/restore-bulk', bulkRestoreProducts);
+router.delete('/trash/permanent-bulk', bulkPermanentlyDeleteProducts);
+router.delete('/trash/empty', emptyProductTrash);
 router.get('/:id', getProductById);
 router.post('/', createProduct);
 router.post('/bulk', bulkCreateProducts);

@@ -15,7 +15,7 @@ export const getProducts: RequestHandler = async (req, res) => {
 export const getProductById: RequestHandler = async (req, res) => {
     try {
         const id = req.params.id as string;
-        const product = await Product.findOne({ id, isDeleted: { $ne: true } } as any).populate('categoryId').populate('supplierId');
+        const product = await Product.findOne({ id }).populate('categoryId').populate('supplierId');
         if (!product) return res.status(404).json({ message: 'Product not found' });
         res.status(200).json(product);
     } catch (error) {
@@ -36,7 +36,7 @@ export const createProduct: RequestHandler = async (req, res) => {
 export const updateProduct: RequestHandler = async (req, res) => {
     try {
         const id = req.params.id as string;
-        const updatedProduct = await Product.findOneAndUpdate({ id } as any, req.body, { new: true });
+        const updatedProduct = await Product.findOneAndUpdate({ id }, req.body, { new: true });
         if (!updatedProduct) return res.status(404).json({ message: 'Product not found' });
         res.status(200).json(updatedProduct);
     } catch (error) {
@@ -48,7 +48,7 @@ export const deleteProduct: RequestHandler = async (req, res) => {
     try {
         const id = req.params.id as string;
         const deletedProduct = await Product.findOneAndUpdate(
-            { id } as any,
+            { id },
             { isDeleted: true, deletedAt: new Date() },
             { new: true }
         );
@@ -75,7 +75,7 @@ export const restoreProduct: RequestHandler = async (req, res) => {
     try {
         const { id } = req.params;
         const product = await Product.findOneAndUpdate(
-            { id } as any,
+            { id: id as string },
             { isDeleted: false, deletedAt: null },
             { new: true }
         );
@@ -89,7 +89,7 @@ export const restoreProduct: RequestHandler = async (req, res) => {
 export const permanentlyDeleteProduct: RequestHandler = async (req, res) => {
     try {
         const { id } = req.params;
-        const result = await Product.findOneAndDelete({ id } as any);
+        const result = await Product.findOneAndDelete({ id: id as string });
         if (!result) return res.status(404).json({ message: 'Product not found' });
         res.status(200).json({ message: 'Product permanently deleted' });
     } catch (error) {
@@ -99,7 +99,7 @@ export const permanentlyDeleteProduct: RequestHandler = async (req, res) => {
 
 export const bulkCreateProducts: RequestHandler = async (req, res) => {
     try {
-        const productsRaw = req.body.products as any[];
+        const productsRaw = req.body.products as Record<string, unknown>[];
         if (!Array.isArray(productsRaw)) {
             return res.status(400).json({ message: 'Products should be an array' });
         }
@@ -125,23 +125,26 @@ export const bulkCreateProducts: RequestHandler = async (req, res) => {
         for (const prodData of productsRaw) {
             try {
                 // Check for duplicates
-                const existing = await Product.findOne({ id: prodData.id });
+                const prodId = prodData.id as string;
+                const existing = await Product.findOne({ id: prodId });
                 if (existing) {
                     results.skipped++;
                     continue;
                 }
 
                 // Handle Category ID mapping (if only name is provided)
-                if (prodData.categoryName && !prodData.categoryId) {
-                    const category = await ProductCategory.findOne({ name: new RegExp(prodData.categoryName, 'i') });
+                const categoryName = prodData.categoryName as string;
+                if (categoryName && !prodData.categoryId) {
+                    const category = await ProductCategory.findOne({ name: new RegExp(categoryName, 'i') });
                     if (category) {
                         prodData.categoryId = category._id;
                     }
                 }
 
                 // Handle Supplier ID mapping/default
-                if (prodData.supplierName && !prodData.supplierId) {
-                    const supplier = await Supplier.findOne({ name: new RegExp(prodData.supplierName, 'i') });
+                const supplierName = prodData.supplierName as string;
+                if (supplierName && !prodData.supplierId) {
+                    const supplier = await Supplier.findOne({ name: new RegExp(supplierName, 'i') });
                     if (supplier) {
                         prodData.supplierId = supplier._id;
                     } else {
@@ -165,6 +168,48 @@ export const bulkCreateProducts: RequestHandler = async (req, res) => {
         }
 
         res.status(200).json(results);
+    } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+export const bulkRestoreProducts = async (req: Request, res: Response) => {
+    try {
+        const { ids } = req.body;
+        if (!ids || !Array.isArray(ids)) {
+            return res.status(400).json({ message: 'IDs array is required' });
+        }
+
+        const result = await Product.updateMany(
+            { id: { $in: ids } },
+            { isDeleted: false, deletedAt: null }
+        );
+
+        res.status(200).json({ message: `${result.modifiedCount} products restored` });
+    } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+export const bulkPermanentlyDeleteProducts = async (req: Request, res: Response) => {
+    try {
+        const { ids } = req.body;
+        if (!ids || !Array.isArray(ids)) {
+            return res.status(400).json({ message: 'IDs array is required' });
+        }
+
+        const result = await Product.deleteMany({ id: { $in: ids } });
+
+        res.status(200).json({ message: `${result.deletedCount} products permanently deleted` });
+    } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
+export const emptyProductTrash = async (_req: Request, res: Response) => {
+    try {
+        const result = await Product.deleteMany({ isDeleted: true });
+        res.status(200).json({ message: `${result.deletedCount} products permanently deleted` });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }

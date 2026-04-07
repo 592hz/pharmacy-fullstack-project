@@ -2,7 +2,7 @@ const CACHE_PREFIX = "pharmacy_cache_"
 const DEFAULT_EXPIRY = 24 * 60 * 60 * 1000 // 24 hours
 
 export const cacheService = {
-  set: (key: string, data: any, expiry: number = DEFAULT_EXPIRY) => {
+  set: (key: string, data: unknown, expiry: number = DEFAULT_EXPIRY) => {
     try {
       const item = {
         data,

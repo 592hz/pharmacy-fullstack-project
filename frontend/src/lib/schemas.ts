@@ -65,7 +65,7 @@ export const customerSchema = z.object({
     notes: z.string().optional(),
 })
 
-export type Customer = z.infer<typeof customerSchema> & { id: string }
+export type Customer = z.infer<typeof customerSchema> & { id?: string; _id?: string }
 
 // ─── SUPPLIER ───
 export const supplierSchema = z.object({
@@ -84,7 +84,7 @@ export const supplierSchema = z.object({
     debt: z.number().min(0, "Công nợ không được âm").default(0),
 })
 
-export type Supplier = z.infer<typeof supplierSchema> & { id: string }
+export type Supplier = z.infer<typeof supplierSchema> & { id?: string; _id?: string }
 
 // ─── PRODUCT ───
 export const productUnitSchema = z.object({
@@ -137,7 +137,25 @@ export type Product = z.infer<typeof productSchema> & {
     registrationNo?: string;
     manufacturer?: string;
     isDQG?: boolean;
+    batches?: { batchNumber: string; expiryDate: string; quantity: number }[];
+    expiryDate?: string;
 }
+
+export const productExcelSchema = z.object({
+    id: z.string().min(1, "Thiếu mã sản phẩm"),
+    name: z.string().min(1, "Thiếu tên sản phẩm"),
+    unit: z.string().min(1, "Thiếu đơn vị tính"),
+    importPrice: z.number().nonnegative(),
+    retailPrice: z.number().nonnegative(),
+    wholesalePrice: z.number().nonnegative(),
+    registrationNo: z.string().optional(),
+    manufacturer: z.string().optional(),
+    categoryName: z.string().optional(),
+    supplierName: z.string().optional(),
+    baseQuantity: z.number().nonnegative().default(0),
+});
+
+export type ProductExcel = z.infer<typeof productExcelSchema>;
 
 export const productCategorySchema = z.object({
     id: z.string().optional(),
@@ -146,7 +164,7 @@ export const productCategorySchema = z.object({
     notes: z.string().optional(),
 })
 
-export type ProductCategory = z.infer<typeof productCategorySchema> & { id?: string }
+export type ProductCategory = z.infer<typeof productCategorySchema> & { id?: string; _id?: string }
 
 export const categorySchema = z.object({
     id: z.string().optional(),

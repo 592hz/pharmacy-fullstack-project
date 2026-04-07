@@ -228,7 +228,7 @@ export default function IncomeExpenseReportPage() {
                                         <Tooltip 
                                             cursor={{ fill: 'rgba(0,0,0,0.02)' }}
                                             contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                                            formatter={(value: any) => vnd(Number(value))}
+                                            formatter={(value: unknown) => vnd(Number(value))}
                                         />
                                         <Bar dataKey="income" name="Thu" fill="#22c55e" radius={[4, 4, 0, 0]} barSize={20} />
                                         <Bar dataKey="expense" name="Chi" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={20} />

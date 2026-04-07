@@ -5,7 +5,7 @@ import { useRef } from "react"
 import * as XLSX from "xlsx"
 import { AddProductModal } from "@/components/add-product-modal"
 import { toast } from "sonner"
-import { type Product, type ProductCategory, type Supplier } from "@/lib/schemas"
+import { type Product, type ProductCategory, type Supplier, productExcelSchema, type ProductExcel } from "@/lib/schemas"
 import { productService } from "@/services/product.service"
 import { productCategoryService } from "@/services/product-category.service"
 import { supplierService } from "@/services/supplier.service"
@@ -49,9 +49,9 @@ export default function ProductsPage() {
                 productCategoryService.getAll(),
                 supplierService.getAll()
             ])
-            setProducts(productsData)
-            setCategories(categoriesData)
-            setSuppliers(suppliersData)
+            setProducts(productsData as unknown as Product[])
+            setCategories(categoriesData as unknown as ProductCategory[])
+            setSuppliers(suppliersData as unknown as Supplier[])
         } catch (error: unknown) {
             toast.error("Không thể tải dữ liệu sản phẩm: " + getErrorMessage(error))
         } finally {
@@ -205,56 +205,72 @@ export default function ProductsPage() {
                 const wb = XLSX.read(bstr, { type: 'binary' })
                 const wsname = wb.SheetNames[0]
                 const ws = wb.Sheets[wsname]
-                const data = XLSX.utils.sheet_to_json(ws) as any[]
+                const rawData = XLSX.utils.sheet_to_json(ws) as Record<string, unknown>[]
 
-                if (data.length === 0) {
+                if (rawData.length === 0) {
                     toast.error("File Excel không có dữ liệu!")
                     return
                 }
 
-                console.log("Dữ liệu dòng đầu tiên từ Excel:", data[0])
-
-                // Improved header mapping logic
                 const normalizeHeader = (h: string) => {
                     if (!h) return "";
                     return h.toString().toLowerCase().trim()
-                        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Remove accents
-                        .replace(/[^a-z0-9\s]/g, "") // Remove special chars
-                        .replace(/\s+/g, " "); // Normalize spaces
+                        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                        .replace(/[^a-z0-9\s]/g, "")
+                        .replace(/\s+/g, " ");
                 };
 
-                const findHeader = (row: any, variants: string[]) => {
+                const findHeader = (row: Record<string, unknown>, variants: string[]): string => {
                     const keys = Object.keys(row);
                     for (const v of variants) {
                         const normalizedVariant = normalizeHeader(v);
                         const match = keys.find(k => normalizeHeader(k) === normalizedVariant);
-                        if (match) return row[match];
+                        if (match) return String(row[match] || "");
                     }
                     return "";
                 };
 
-                const mappedProducts = data.map(row => {
-                    const id = findHeader(row, ["MA_SP", "Mã Sản Phẩm", "Mã SP", "Mã thuốc", "Mã hàng", "Mã", "SKU", "Barcode", "id", "Code"]);
-                    const name = findHeader(row, ["TEN_SP", "Tên Sản Phẩm", "Tên SP", "Tên thuốc", "Tên hàng", "Tên", "name", "Product name", "Product"]);
-                    const unit = findHeader(row, ["DVT", "Đơn Vị Tính", "ĐVT", "Đơn vị", "unit", "UOM"]);
-                    const importPrice = Number(findHeader(row, ["GIA_NHAP", "Giá Nhập", "Giá mua", "Giá vốn", "importPrice", "Purchase Price"]) || 0);
-                    const retailPrice = Number(findHeader(row, ["GIA_BAN_LE", "Giá Lẻ", "Giá bán lẻ", "Giá bán", "retailPrice", "Retail Price"]) || 0);
-                    const wholesalePrice = Number(findHeader(row, ["GIA_BAN_BUON", "Giá Sỉ", "Giá bán sỉ", "wholesalePrice", "Wholesale Price"]) || 0);
-                    const registrationNo = findHeader(row, ["Số Đăng Ký", "SĐK", "registrationNo", "Reg No"]);
-                    const manufacturer = findHeader(row, ["Nhà Sản Xuất", "Hãng sản xuất", "Xưởng", "manufacturer", "Producer"]);
-                    const categoryName = findHeader(row, ["NHOM_SP", "Nhóm Sản Phẩm", "Nhóm thuốc", "Loại", "categoryName", "Category"]);
-                    const supplierName = findHeader(row, ["NHA_CUNG_CAP", "Nhà Cung Cấp", "NCC", "supplierName", "Supplier"]);
-                    const baseQuantity = Number(findHeader(row, ["Số Lượng Tồn", "Số lượng", "Tồn kho", "Tồn", "baseQuantity", "Stock", "Quantity"]) || 0);
+                const mappedProducts: ProductExcel[] = [];
+                const errors: string[] = [];
 
-                    return { id, name, unit, importPrice, retailPrice, wholesalePrice, registrationNo, manufacturer, categoryName, supplierName, baseQuantity };
-                }).filter(p => p.id && p.name);
+                rawData.forEach((row, index) => {
+                    try {
+                        const id = findHeader(row, ["MA_SP", "Mã Sản Phẩm", "Mã SP", "Mã thuốc", "Mã hàng", "Mã", "SKU", "Barcode", "id", "Code"]);
+                        const name = findHeader(row, ["TEN_SP", "Tên Sản Phẩm", "Tên SP", "Tên thuốc", "Tên hàng", "Tên", "name", "Product name", "Product"]);
+                        const unit = findHeader(row, ["DVT", "Đơn Vị Tính", "ĐVT", "Đơn vị", "unit", "UOM"]);
+                        const importPrice = Number(findHeader(row, ["GIA_NHAP", "Giá Nhập", "Giá mua", "Giá vốn", "importPrice", "Purchase Price"]) || 0);
+                        const retailPrice = Number(findHeader(row, ["GIA_BAN_LE", "Giá Lẻ", "Giá bán lẻ", "Giá bán", "retailPrice", "Retail Price"]) || 0);
+                        const wholesalePrice = Number(findHeader(row, ["GIA_BAN_BUON", "Giá Sỉ", "Giá bán sỉ", "wholesalePrice", "Wholesale Price"]) || 0);
+                        const registrationNo = findHeader(row, ["Số Đăng Ký", "SĐK", "registrationNo", "Reg No"]);
+                        const manufacturer = findHeader(row, ["Nhà Sản Xuất", "Hãng sản xuất", "Xưởng", "manufacturer", "Producer"]);
+                        const categoryName = findHeader(row, ["NHOM_SP", "Nhóm Sản Phẩm", "Nhóm thuốc", "Loại", "categoryName", "Category"]);
+                        const supplierName = findHeader(row, ["NHA_CUNG_CAP", "Nhà Cung Cấp", "NCC", "supplierName", "Supplier"]);
+                        const baseQuantity = Number(findHeader(row, ["Số Lượng Tồn", "Số lượng", "Tồn kho", "Tồn", "baseQuantity", "Stock", "Quantity"]) || 0);
+
+                        const productData = { 
+                            id, name, unit, importPrice, retailPrice, wholesalePrice, 
+                            registrationNo, manufacturer, categoryName, supplierName, baseQuantity 
+                        };
+
+                        const validated = productExcelSchema.safeParse(productData);
+                        if (validated.success) {
+                            mappedProducts.push(validated.data);
+                        } else {
+                            const errorMsgs = validated.error.issues.map(e => e.message).join(", ");
+                            errors.push(`Dòng ${index + 2}: ${errorMsgs}`);
+                        }
+                    } catch (err) {
+                        errors.push(`Dòng ${index + 2}: Lỗi xử lý dữ liệu`);
+                    }
+                });
+
+                if (errors.length > 0) {
+                    console.error("Lỗi dữ liệu Excel:", errors);
+                    toast.error(`Có ${errors.length} dòng dữ liệu không hợp lệ. Vui lòng kiểm tra lại!`);
+                    if (mappedProducts.length === 0) return;
+                }
 
                 console.log("Dữ liệu sau khi map:", mappedProducts)
-
-                if (mappedProducts.length === 0) {
-                    toast.error("Không tìm thấy dữ liệu sản phẩm hợp lệ trong file Excel!")
-                    return
-                }
 
                 const loadingToast = toast.loading(`Đang nhập ${mappedProducts.length} sản phẩm...`)
                 
@@ -264,7 +280,7 @@ export default function ProductsPage() {
                 
                 if (result.success > 0 || result.skipped > 0) {
                     toast.success(`Nhập thành công ${result.success} sản phẩm! (Bỏ qua ${result.skipped} mã trùng)`)
-                    fetchData() // Refresh list
+                    fetchData()
                 } else if (result.errors && result.errors.length > 0) {
                     toast.error("Lỗi khi nhập dữ liệu: " + result.errors[0])
                 }

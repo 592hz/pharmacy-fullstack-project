@@ -1,12 +1,9 @@
 import { createContext } from 'react';
 import { type Login, type Signup } from '../lib/schemas';
 
-export type User = {
-    id: string;
-    username: string;
-    role: string;
-    [key: string]: unknown;
-} | null;
+import type { IUser } from '../types/auth';
+
+export type User = IUser | null;
 
 export interface AuthContextType {
     user: User;

@@ -2,21 +2,21 @@ import { useState, useEffect } from "react"
 import { Download, Upload, SlidersHorizontal, FileText, Plus } from "lucide-react"
 import { toast } from "sonner"
 import AddSupplierModal from "@/components/add-supplier-modal"
-import { type Supplier } from "@/lib/schemas"
+import { type ISupplier } from "@/types/supplier"
 import { supplierService } from "@/services/supplier.service"
 import { getErrorMessage } from "@/lib/utils"
 import { useDebounce } from "@/hooks/use-debounce"
 
 export default function SuppliersPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-    const [suppliers, setSuppliers] = useState<Supplier[]>([])
+    const [suppliers, setSuppliers] = useState<ISupplier[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchTerm, setSearchTerm] = useState('')
     const debouncedSearchTerm = useDebounce(searchTerm, 300)
     const [currentPage, setCurrentPage] = useState(1)
     const [itemsPerPage, setItemsPerPage] = useState(10)
-    const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null)
-    const [supplierToDelete, setSupplierToDelete] = useState<Supplier | null>(null)
+    const [editingSupplier, setEditingSupplier] = useState<ISupplier | null>(null)
+    const [supplierToDelete, setSupplierToDelete] = useState<ISupplier | null>(null)
     const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
 
     const fetchSuppliers = async () => {
@@ -49,7 +49,7 @@ export default function SuppliersPage() {
     const startIndex = (currentPage - 1) * itemsPerPage
     const displayedSuppliers = filteredSuppliers.slice(startIndex, startIndex + itemsPerPage)
 
-    const handleDeleteClick = (supplier: Supplier) => {
+    const handleDeleteClick = (supplier: ISupplier) => {
         setSupplierToDelete(supplier)
         setDeleteConfirmCount(1)
     }
@@ -78,7 +78,7 @@ export default function SuppliersPage() {
         setDeleteConfirmCount(0)
     }
 
-    const handleAddSupplier = async (newSupplier: Supplier) => {
+    const handleAddSupplier = async (newSupplier: ISupplier) => {
         try {
             const data = await supplierService.create(newSupplier)
             setSuppliers([data, ...suppliers])
@@ -88,10 +88,11 @@ export default function SuppliersPage() {
         }
     }
 
-    const handleEditSupplier = async (updatedSupplier: Supplier) => {
+    const handleEditSupplier = async (updatedSupplier: ISupplier) => {
         try {
-            if (!updatedSupplier.id) return;
-            const data = await supplierService.update(updatedSupplier.id, updatedSupplier)
+            const id = updatedSupplier.id || updatedSupplier._id;
+            if (!id) return;
+            const data = await supplierService.update(id, updatedSupplier)
             setSuppliers(suppliers.map(s => s.id === data.id ? data : s))
             toast.success("Cập nhật thông tin nhà cung cấp thành công!")
         } catch (error: unknown) {

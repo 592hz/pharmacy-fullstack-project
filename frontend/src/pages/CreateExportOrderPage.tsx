@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { Search, PlusCircle, Trash2, Save, X, User, CreditCard, TrendingUp, Plus } from "lucide-react"
 import { toast } from "sonner"
-import { type ExportOrder, type ExportOrderItem, type Product, type Customer, exportOrderSchema } from "@/lib/schemas"
+import { type ExportOrder, type ExportOrderItem, type Customer, exportOrderSchema } from "@/lib/schemas"
 import { exportSlipService } from "@/services/export-slip.service"
 import { productService } from "@/services/product.service"
 import { customerService } from "@/services/customer.service"
@@ -12,9 +12,11 @@ import AddCustomerModal from "@/components/add-customer-modal"
 import { parseFloatSafe, getErrorMessage } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { type PaymentMethod } from "@/lib/schemas"
+import type { IProduct } from "@/types/product"
 import { useDebounce } from "@/hooks/use-debounce"
 import { cacheService } from "@/services/cache.service"
 import { Calendar as CalendarIcon } from "lucide-react"
+import { sortBatchesFEFO } from "@/lib/utils"
 
 // Helper functions for date conversion
 const formatDateTimeToVN = (isoString: string) => {
@@ -54,7 +56,7 @@ export default function CreateExportOrderPage() {
     const [customerName, setCustomerName] = useState("Khách lẻ")
     const [symptoms, setSymptoms] = useState("")
 
-    const [allProducts, setAllProducts] = useState<Product[]>(() => cacheService.get("products") || [])
+    const [allProducts, setAllProducts] = useState<IProduct[]>(() => cacheService.get("products") || [])
     const [allCustomers, setAllCustomers] = useState<Customer[]>(() => cacheService.get("customers") || [])
     const [isLoading, setIsLoading] = useState(!allProducts.length)
 
@@ -116,36 +118,100 @@ export default function CreateExportOrderPage() {
         ).slice(0, 10)
     }, [debouncedSearchQuery, allProducts])
 
-    const handleQuickAdd = useCallback((product: Product) => {
-        const qty = 1
-        const retailPrice = product.retailPrice || 0
-        const importPrice = product.importPrice || 0
-        const total = qty * retailPrice
+    // Customer search state
+    const debouncedCustomerName = useDebounce(customerName, 300)
+    const [showCustomerResults, setShowCustomerResults] = useState(false)
+    const [selectedCustomerIndex, setSelectedCustomerIndex] = useState(-1)
 
-        // Try to pick the first available batch with stock
-        const firstValidBatch = product.batches?.find(b => b.quantity > 0) || product.batches?.[0];
+    const filteredCustomers = useMemo(() => {
+        if (!debouncedCustomerName.trim() || customerName === "Khách lẻ") return []
+        const query = debouncedCustomerName.toLowerCase()
+        return allCustomers.filter(c =>
+            (c.name && c.name.toLowerCase().includes(query)) ||
+            (c.phone && c.phone.includes(query)) ||
+            (c.id && c.id.toLowerCase().includes(query))
+        ).slice(0, 8)
+    }, [debouncedCustomerName, allCustomers])
 
-        const newItem: ExportOrderItem = {
-            id: `new-${Date.now()}-${Math.random()}`,
-            code: product.id || "",
-            name: product.name || "",
-            unit: product.unit || product.baseUnitName || "",
-            batchNumber: firstValidBatch?.batchNumber || "",
-            expiryDate: firstValidBatch?.expiryDate || "",
-            quantity: qty,
-            retailPrice: retailPrice,
-            importPrice: importPrice,
-            totalAmount: total,
-            discountPercent: 0,
-            discountAmount: 0,
-            remainingAmount: total,
-        }
+    const handleSelectCustomer = useCallback((customer: Customer) => {
+        setCustomerId(customer.id || "")
+        setCustomerName(customer.name)
+        setShowCustomerResults(false)
+        setSelectedCustomerIndex(-1)
+        toast.success(`Đã chọn khách hàng: ${customer.name}`)
+    }, [])
 
-        setItems(prev => [newItem, ...prev])
+    const handleQuickAdd = useCallback((product: IProduct) => {
+        setItems(prev => {
+            const existingQty = prev.filter(i => i.code === product.id).reduce((sum, curr) => sum + curr.quantity, 0)
+            const newTotalQty = existingQty + 1;
+
+            const sortedBatches = sortBatchesFEFO(product.batches?.filter(b => b.quantity > 0) || [])
+
+            const retailPrice = product.retailPrice || 0
+            const importPrice = product.importPrice || 0
+            const unit = product.unit || product.baseUnitName || ""
+
+            const newRows: ExportOrderItem[] = [];
+            let remaining = newTotalQty;
+
+            if (sortedBatches.length > 0) {
+                for (const batch of sortedBatches) {
+                    if (remaining <= 0) break;
+                    const qtyFromBatch = Math.min(batch.quantity, remaining);
+                    newRows.push({
+                        id: `new-${Date.now()}-${Math.random()}`,
+                        code: product.id || "",
+                        name: product.name || "",
+                        unit,
+                        batchNumber: batch.batchNumber,
+                        expiryDate: batch.expiryDate || "",
+                        quantity: qtyFromBatch,
+                        retailPrice,
+                        importPrice,
+                        totalAmount: qtyFromBatch * retailPrice,
+                        discountPercent: 0,
+                        discountAmount: 0,
+                        remainingAmount: qtyFromBatch * retailPrice
+                    });
+                    remaining -= qtyFromBatch;
+                }
+            }
+
+            if (remaining > 0) {
+                if (newRows.length > 0) {
+                    const last = newRows[newRows.length - 1];
+                    last.quantity += remaining;
+                    last.totalAmount = last.quantity * last.retailPrice;
+                    last.remainingAmount = last.quantity * last.retailPrice;
+                } else {
+                    const defaultBatch = product.batches?.[0]
+                    newRows.push({
+                        id: `new-${Date.now()}-${Math.random()}`,
+                        code: product.id || "",
+                        name: product.name || "",
+                        unit,
+                        batchNumber: defaultBatch?.batchNumber || "",
+                        expiryDate: defaultBatch?.expiryDate || "",
+                        quantity: remaining,
+                        retailPrice,
+                        importPrice,
+                        totalAmount: remaining * retailPrice,
+                        discountPercent: 0,
+                        discountAmount: 0,
+                        remainingAmount: remaining * retailPrice
+                    });
+                }
+            }
+
+            const otherItems = prev.filter(i => i.code !== product.id)
+            return [...newRows, ...otherItems];
+        })
+
         setSearchQuery("")
         setShowResults(false)
         setSelectedIndex(-1)
-        toast.success(`Đã thêm nhanh: ${product.name}`)
+        toast.success(`Đã thêm: ${product.name}`)
     }, [])
 
     const handleSearchKeyDown = (e: React.KeyboardEvent) => {
@@ -169,7 +235,28 @@ export default function CreateExportOrderPage() {
         }
     }
 
-    const handleProductSaved = useCallback((savedProduct: Product, formData: ProductFormData) => {
+    const handleCustomerSearchKeyDown = (e: React.KeyboardEvent) => {
+        if (!showCustomerResults || filteredCustomers.length === 0) return
+
+        if (e.key === "ArrowDown") {
+            e.preventDefault()
+            setSelectedCustomerIndex(prev => (prev < filteredCustomers.length - 1 ? prev + 1 : prev))
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault()
+            setSelectedCustomerIndex(prev => (prev > 0 ? prev - 1 : prev))
+        } else if (e.key === "Enter") {
+            e.preventDefault()
+            const selected = selectedCustomerIndex >= 0 ? filteredCustomers[selectedCustomerIndex] : filteredCustomers[0]
+            if (selected) {
+                handleSelectCustomer(selected)
+            }
+        } else if (e.key === "Escape") {
+            setShowCustomerResults(false)
+            setSelectedCustomerIndex(-1)
+        }
+    }
+
+    const handleProductSaved = useCallback((savedProduct: IProduct, formData: ProductFormData) => {
         // Add to the search list immediately
         setAllProducts(prev => [savedProduct, ...prev])
 
@@ -233,6 +320,71 @@ export default function CreateExportOrderPage() {
             return updatedItem
         }))
     }, [])
+
+    const handleQuantityBlur = useCallback((code: string) => {
+        setItems(prev => {
+            const productItems = prev.filter(i => i.code === code)
+            if (productItems.length === 0) return prev
+
+            const product = allProducts.find(p => p.id === code)
+            if (!product || !product.batches || product.batches.length === 0) return prev
+
+            const totalQty = productItems.reduce((acc, item) => acc + Number(item.quantity), 0)
+            const templateItem = productItems[0]
+
+            const sortedBatches = sortBatchesFEFO(product.batches.filter(b => b.quantity > 0))
+            if (sortedBatches.length === 0) return prev
+
+            let remaining = totalQty;
+            const newRows: ExportOrderItem[] = [];
+
+            for (const batch of sortedBatches) {
+                if (remaining <= 0) break;
+
+                const qtyFromBatch = Math.min(batch.quantity, remaining);
+
+                const newItem: ExportOrderItem = {
+                    ...templateItem,
+                    id: `fefo-${Date.now()}-${Math.random()}`,
+                    batchNumber: batch.batchNumber,
+                    expiryDate: batch.expiryDate || "",
+                    quantity: qtyFromBatch,
+                    totalAmount: qtyFromBatch * templateItem.retailPrice,
+                    discountAmount: (qtyFromBatch * templateItem.retailPrice) * (templateItem.discountPercent / 100),
+                    remainingAmount: (qtyFromBatch * templateItem.retailPrice) * (1 - templateItem.discountPercent / 100)
+                };
+
+                newRows.push(newItem);
+                remaining -= qtyFromBatch;
+            }
+
+            if (remaining > 0) {
+                if (newRows.length > 0) {
+                    const last = newRows[newRows.length - 1];
+                    last.quantity += remaining;
+                    last.totalAmount = last.quantity * last.retailPrice;
+                    last.discountAmount = last.totalAmount * (last.discountPercent / 100);
+                    last.remainingAmount = last.totalAmount - last.discountAmount;
+                } else {
+                    const fallbackItem: ExportOrderItem = {
+                        ...templateItem,
+                        id: `fefo-${Date.now()}-${Math.random()}`,
+                        quantity: remaining,
+                        totalAmount: remaining * templateItem.retailPrice,
+                        discountAmount: (remaining * templateItem.retailPrice) * (templateItem.discountPercent / 100),
+                        remainingAmount: (remaining * templateItem.retailPrice) * (1 - templateItem.discountPercent / 100)
+                    };
+                    newRows.push(fallbackItem);
+                }
+            }
+
+            const firstIndex = prev.findIndex(i => i.code === code)
+            const remainingPrev = prev.filter(i => i.code !== code)
+            remainingPrev.splice(firstIndex, 0, ...newRows)
+
+            return remainingPrev
+        })
+    }, [allProducts])
 
     const handleSaveOrder = async () => {
         const vnDate = dateValue
@@ -379,17 +531,61 @@ export default function CreateExportOrderPage() {
                     {/* Customer Info */}
                     <div className="sm:col-span-2 lg:col-span-3 flex flex-col gap-1.5">
                         <label className="text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1"><User size={10} /> Khách hàng *</label>
-                        <div className="flex gap-1">
-                            <input
-                                type="text"
-                                value={customerName}
-                                onChange={(e) => setCustomerName(e.target.value)}
-                                placeholder="Tên khách hàng..."
-                                className="flex-1 bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all font-semibold"
-                            />
+                        <div className="flex gap-1 relative">
+                            <div className="flex-1 relative">
+                                <input
+                                    type="text"
+                                    value={customerName}
+                                    onChange={(e) => {
+                                        setCustomerName(e.target.value)
+                                        setShowCustomerResults(true)
+                                        setSelectedCustomerIndex(-1)
+                                        if (customerId && customerId !== "KHLE") {
+                                            setCustomerId("") // Reset ID if user starts typing a new name
+                                        }
+                                    }}
+                                    onFocus={() => setShowCustomerResults(true)}
+                                    onBlur={() => setTimeout(() => setShowCustomerResults(false), 200)}
+                                    onKeyDown={handleCustomerSearchKeyDown}
+                                    placeholder="Tên khách hàng..."
+                                    className="w-full bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all font-semibold"
+                                />
+
+                                {showCustomerResults && filteredCustomers.length > 0 && (
+                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-lg shadow-xl z-[60] overflow-hidden max-h-[300px] overflow-y-auto">
+                                        {filteredCustomers.map((customer, index) => (
+                                            <button
+                                                key={customer.id}
+                                                onMouseDown={(e) => {
+                                                    e.preventDefault()
+                                                    handleSelectCustomer(customer)
+                                                }}
+                                                className={`w-full flex flex-col items-start p-2.5 transition-colors border-b last:border-0 border-gray-50 dark:border-neutral-700/50 ${selectedCustomerIndex === index ? "bg-green-50 dark:bg-green-900/20" : "hover:bg-gray-50 dark:hover:bg-neutral-700/30"
+                                                    }`}
+                                            >
+                                                <div className="flex items-center justify-between w-full">
+                                                    <span className="font-bold text-gray-800 dark:text-gray-100 text-xs sm:text-sm">
+                                                        {customer.name}
+                                                    </span>
+                                                    <span className="text-[10px] bg-gray-100 dark:bg-neutral-700 px-1.5 py-0.5 rounded font-mono text-gray-500">
+                                                        {customer.id}
+                                                    </span>
+                                                </div>
+                                                {customer.phone && (
+                                                    <div className="text-[10px] sm:text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
+                                                        <span>SĐT: {customer.phone}</span>
+                                                        {customer.address && <span className="opacity-30">•</span>}
+                                                        {customer.address && <span className="truncate max-w-[150px]">{customer.address}</span>}
+                                                    </div>
+                                                )}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
                             <button
                                 onClick={() => setShowAddCustomerModal(true)}
-                                className="p-1.5 sm:p-2 bg-green-50 dark:bg-green-900/20 text-[#5c9a38] rounded border border-green-200 dark:border-green-800/50 hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors"
+                                className="p-1.5 sm:p-2 bg-green-50 dark:bg-green-900/20 text-[#5c9a38] rounded border border-green-200 dark:border-green-800/50 hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors h-[34px] sm:h-[40px] flex items-center justify-center"
                                 title="Thêm khách hàng mới"
                             >
                                 <Plus className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -411,13 +607,13 @@ export default function CreateExportOrderPage() {
                         <div className="flex justify-between items-center px-1">
                             <label className="text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1"><CalendarIcon size={10} /> Ngày bán</label>
                             <div className="flex gap-1.5">
-                                <button 
+                                <button
                                     onClick={() => setDateValue(formatDateTimeToVN(new Date().toISOString()))}
                                     className="text-[9px] font-black text-[#5c9a38] hover:underline uppercase"
                                 >
                                     Bây giờ
                                 </button>
-                                <button 
+                                <button
                                     onClick={() => {
                                         const morning = new Date()
                                         morning.setHours(8, 0, 0, 0)
@@ -440,7 +636,7 @@ export default function CreateExportOrderPage() {
                                 placeholder="dd/mm/yyyy HH:mm"
                                 className={`w-full bg-white dark:bg-neutral-900 border ${dateError ? 'border-red-500' : 'border-gray-300 dark:border-neutral-700'} px-2 py-1.5 sm:py-2 pr-8 rounded text-[10px] sm:text-[11px] text-gray-800 dark:text-gray-200 font-mono focus:ring-2 focus:ring-[#5c9a38]/20 focus:border-[#5c9a38] outline-none transition-all shadow-sm`}
                             />
-                            <button 
+                            <button
                                 onClick={() => dateInputRef.current?.showPicker()}
                                 className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#5c9a38] transition-colors"
                             >
@@ -607,98 +803,99 @@ export default function CreateExportOrderPage() {
 
             {/* ── PRODUCTS TABLE ── */}
             <div className="flex-1 overflow-auto p-4 bg-gray-50/30 dark:bg-neutral-900">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-[11px] sm:text-[12px] text-left border-collapse whitespace-nowrap lg:whitespace-normal">
-                            <thead className="bg-[#5c9a38]/5 dark:bg-[#5c9a38]/10 text-[#5c9a38] font-bold uppercase tracking-wider border-b border-gray-200 dark:border-neutral-700 sticky top-0 z-10">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-[11px] sm:text-[12px] text-left border-collapse whitespace-nowrap lg:whitespace-normal">
+                        <thead className="bg-[#5c9a38]/5 dark:bg-[#5c9a38]/10 text-[#5c9a38] font-bold uppercase tracking-wider border-b border-gray-200 dark:border-neutral-700 sticky top-0 z-10">
+                            <tr>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 w-16 sm:w-24">Mã SP</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 min-w-[150px] sm:min-w-[200px]">Tên sản phẩm</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 w-12 sm:w-20 text-center">ĐVT</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 w-20 text-center">Số lô</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 text-center w-32">Hạn dùng</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 text-right w-16 sm:w-24">Số lượng</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 text-right w-24 sm:w-32 bg-gray-50/50 dark:bg-neutral-800/50 hidden lg:table-cell">Giá nhập</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 text-right w-24 sm:w-32 bg-green-50/30 dark:bg-green-900/10">Giá bán</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 text-right w-24 sm:w-32 font-bold">Thành tiền</th>
+                                <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 text-right w-24 sm:w-32 font-bold text-blue-600 dark:text-blue-400 hidden xl:table-cell">Lợi nhuận</th>
+                                <th className="px-2 py-3 sm:py-4 text-center w-10 sm:w-12">#</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
+                            {items.length === 0 ? (
                                 <tr>
-                                    <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 w-16 sm:w-24">Mã SP</th>
-                                    <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 min-w-[150px] sm:min-w-[200px]">Tên sản phẩm</th>
-                                    <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 w-12 sm:w-20 text-center">ĐVT</th>
-                                    <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 w-20 text-center">Số lô</th>
-                                    <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 text-center w-24">Hạn dùng</th>
-                                    <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 text-right w-16 sm:w-24">Số lượng</th>
-                                    <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 text-right w-24 sm:w-32 bg-gray-50/50 dark:bg-neutral-800/50 hidden lg:table-cell">Giá nhập</th>
-                                    <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 text-right w-24 sm:w-32 bg-green-50/30 dark:bg-green-900/10">Giá bán</th>
-                                    <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 text-right w-24 sm:w-32 font-bold">Thành tiền</th>
-                                    <th className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-200 dark:border-neutral-700 text-right w-24 sm:w-32 font-bold text-blue-600 dark:text-blue-400 hidden xl:table-cell">Lợi nhuận</th>
-                                    <th className="px-2 py-3 sm:py-4 text-center w-10 sm:w-12">#</th>
+                                    <td colSpan={11} className="py-12 sm:py-24 text-center">
+                                        <div className="flex flex-col items-center gap-3 opacity-20">
+                                            <Search className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400" />
+                                            <p className="text-sm sm:text-base font-medium text-gray-500">Tìm & Chọn sản phẩm để bắt đầu</p>
+                                        </div>
+                                    </td>
                                 </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
-                                {items.length === 0 ? (
-                                    <tr>
-                                        <td colSpan={11} className="py-12 sm:py-24 text-center">
-                                            <div className="flex flex-col items-center gap-3 opacity-20">
-                                                <Search className="w-12 h-12 sm:w-16 sm:h-16 text-gray-400" />
-                                                <p className="text-sm sm:text-base font-medium text-gray-500">Tìm & Chọn sản phẩm để bắt đầu</p>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    items.map((item) => {
-                                        const profitPerItem = item.remainingAmount - (item.quantity * item.importPrice)
-                                        return (
-                                            <tr key={item.id} className="hover:bg-green-50/20 dark:hover:bg-green-900/5 transition-colors group">
-                                                <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 font-mono text-gray-400 dark:text-gray-500 text-[10px] group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">{item.code}</td>
-                                                <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800">
-                                                    <div className="font-bold text-gray-800 dark:text-gray-100 text-xs sm:text-sm">{item.name}</div>
-                                                </td>
-                                                <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 text-gray-600 dark:text-gray-300 text-xs sm:text-sm text-center">{item.unit}</td>
-                                                <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800">
-                                                    <input
-                                                        type="text"
-                                                        className="w-full bg-transparent border border-transparent hover:border-gray-300 dark:hover:border-neutral-600 px-1 py-1 rounded text-center outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-[#5c9a38] text-xs sm:text-sm font-semibold text-gray-800 dark:text-gray-200 transition-all"
-                                                        value={item.batchNumber || ""}
-                                                        onChange={(e) => updateItemField(item.id!, 'batchNumber', e.target.value)}
-                                                    />
-                                                </td>
-                                                <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800">
-                                                    <input
-                                                        type="text"
-                                                        className="w-full bg-transparent border border-transparent hover:border-gray-300 dark:hover:border-neutral-600 px-1 py-1 rounded text-center outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-[#5c9a38] text-[10px] sm:text-xs font-semibold text-gray-800 dark:text-gray-200 transition-all"
-                                                        value={item.expiryDate || ""}
-                                                        onChange={(e) => updateItemField(item.id!, 'expiryDate', e.target.value)}
-                                                    />
-                                                </td>
-                                                <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800">
-                                                    <NumericInput
-                                                        className="w-full bg-blue-50/50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-1 py-1 rounded text-right outline-none focus:ring-2 focus:ring-[#5c9a38]/20 focus:border-[#5c9a38] font-black text-blue-600 dark:text-blue-400 text-xs sm:text-sm transition-all"
-                                                        value={Number(item.quantity)}
-                                                        onChange={(v) => updateItemField(item.id!, 'quantity', v)}
-                                                    />
-                                                </td>
-                                                <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 text-right text-gray-400 font-medium italic bg-gray-50/30 dark:bg-neutral-800/20 hidden lg:table-cell">
-                                                    {vnd(item.importPrice)}
-                                                </td>
-                                                <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 bg-green-50/10 dark:bg-green-900/5">
-                                                    <NumericInput
-                                                        className="w-full bg-transparent border border-transparent hover:border-green-300 dark:hover:border-green-600/50 px-1 py-1 rounded text-right outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-[#5c9a38] font-black text-[#5c9a38] text-xs sm:text-sm transition-all"
-                                                        value={Number(item.retailPrice)}
-                                                        onChange={(v) => updateItemField(item.id!, 'retailPrice', v)}
-                                                    />
-                                                </td>
-                                                <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 text-right font-black text-gray-700 dark:text-gray-200 text-xs sm:text-sm">
-                                                    {vnd(item.totalAmount)}
-                                                </td>
-                                                <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 text-right font-black text-blue-600 dark:text-blue-400 bg-blue-50/5 dark:bg-blue-900/5 hidden xl:table-cell">
-                                                    {vnd(profitPerItem)}
-                                                </td>
-                                                <td className="px-2 py-3 sm:py-4 text-center">
-                                                    <button
-                                                        onClick={() => removeItem(item.id!)}
-                                                        className="text-gray-300 hover:text-red-500 p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all"
-                                                        title="Xóa sản phẩm"
-                                                    >
-                                                        <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                                                    </button>
-                                                </td>
-                                            </tr>
-                                        )
-                                    })
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
+                            ) : (
+                                items.map((item) => {
+                                    const profitPerItem = item.remainingAmount - (item.quantity * item.importPrice)
+                                    return (
+                                        <tr key={item.id} className="hover:bg-green-50/20 dark:hover:bg-green-900/5 transition-colors group">
+                                            <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 font-mono text-gray-400 dark:text-gray-500 text-[10px] group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">{item.code}</td>
+                                            <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800">
+                                                <div className="font-bold text-gray-800 dark:text-gray-100 text-xs sm:text-sm">{item.name}</div>
+                                            </td>
+                                            <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 text-gray-600 dark:text-gray-300 text-xs sm:text-sm text-center">{item.unit}</td>
+                                            <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800">
+                                                <input
+                                                    type="text"
+                                                    className="w-full bg-transparent border border-transparent hover:border-gray-300 dark:hover:border-neutral-600 px-1 py-1 rounded text-center outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-[#5c9a38] text-xs sm:text-sm font-semibold text-gray-800 dark:text-gray-200 transition-all"
+                                                    value={item.batchNumber || ""}
+                                                    onChange={(e) => updateItemField(item.id!, 'batchNumber', e.target.value)}
+                                                />
+                                            </td>
+                                            <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800">
+                                                <input
+                                                    type="text"
+                                                    className="w-full bg-transparent border border-transparent hover:border-gray-300 dark:hover:border-neutral-600 px-1 py-1 rounded text-center outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-[#5c9a38] text-[10px] sm:text-xs font-semibold text-gray-800 dark:text-gray-200 transition-all"
+                                                    value={item.expiryDate || ""}
+                                                    onChange={(e) => updateItemField(item.id!, 'expiryDate', e.target.value)}
+                                                />
+                                            </td>
+                                            <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800">
+                                                <NumericInput
+                                                    className="w-full bg-blue-50/50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-1 py-1 rounded text-right outline-none focus:ring-2 focus:ring-[#5c9a38]/20 focus:border-[#5c9a38] font-black text-blue-600 dark:text-blue-400 text-xs sm:text-sm transition-all"
+                                                    value={Number(item.quantity)}
+                                                    onChange={(v) => updateItemField(item.id!, 'quantity', v)}
+                                                    onBlur={() => handleQuantityBlur(item.code)}
+                                                />
+                                            </td>
+                                            <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 text-right text-gray-400 font-medium italic bg-gray-50/30 dark:bg-neutral-800/20 hidden lg:table-cell">
+                                                {vnd(item.importPrice)}
+                                            </td>
+                                            <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 bg-green-50/10 dark:bg-green-900/5">
+                                                <NumericInput
+                                                    className="w-full bg-transparent border border-transparent hover:border-green-300 dark:hover:border-green-600/50 px-1 py-1 rounded text-right outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-[#5c9a38] font-black text-[#5c9a38] text-xs sm:text-sm transition-all"
+                                                    value={Number(item.retailPrice)}
+                                                    onChange={(v) => updateItemField(item.id!, 'retailPrice', v)}
+                                                />
+                                            </td>
+                                            <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 text-right font-black text-gray-700 dark:text-gray-200 text-xs sm:text-sm">
+                                                {vnd(item.totalAmount)}
+                                            </td>
+                                            <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 text-right font-black text-blue-600 dark:text-blue-400 bg-blue-50/5 dark:bg-blue-900/5 hidden xl:table-cell">
+                                                {vnd(profitPerItem)}
+                                            </td>
+                                            <td className="px-2 py-3 sm:py-4 text-center">
+                                                <button
+                                                    onClick={() => removeItem(item.id!)}
+                                                    className="text-gray-300 hover:text-red-500 p-1.5 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-full transition-all"
+                                                    title="Xóa sản phẩm"
+                                                >
+                                                    <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    )
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* ── FOOTER TOTALS ── */}

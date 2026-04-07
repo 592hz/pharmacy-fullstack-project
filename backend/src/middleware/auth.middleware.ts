@@ -2,8 +2,16 @@ import jwt from 'jsonwebtoken';
 import { Request, Response, NextFunction } from 'express';
 import User from '../models/user.model.js';
 
+import { type IUser } from '../models/user.model.js';
+
 interface AuthRequest extends Request {
-    user?: any;
+    user?: IUser | null;
+}
+
+interface DecodedToken {
+    id: string;
+    iat: number;
+    exp: number;
 }
 
 export const protect = async (req: AuthRequest, res: Response, next: NextFunction) => {
@@ -16,7 +24,7 @@ export const protect = async (req: AuthRequest, res: Response, next: NextFunctio
 
             // Giải mã token
             const secret = (process.env.JWT_SECRET as string) || 'secret';
-            const decoded = jwt.verify(token as string, secret) as any;
+            const decoded = jwt.verify(token as string, secret) as DecodedToken;
 
             // Lấy thông tin user từ ID trong token
             req.user = await User.findById(decoded.id).select('-password');
