@@ -34,3 +34,21 @@ export function getErrorMessage(error: unknown): string {
     }
     return "Đã xảy ra lỗi không xác định"
 }
+
+export function parseExpiryDate(dateStr: string | undefined): number {
+    if (!dateStr) return Infinity; // Không có hạn dùng => ưu tiên dùng sau hoặc để cuối
+    const parts = dateStr.split(/[-/]/);
+    if (parts.length === 3) {
+        const day = parseInt(parts[0], 10);
+        const month = parseInt(parts[1], 10) - 1;
+        const year = parseInt(parts[2], 10);
+        return new Date(year, month, day).getTime();
+    }
+    return Infinity;
+}
+
+export function sortBatchesFEFO<T extends { expiryDate?: string }>(batches: T[]): T[] {
+    return [...batches].sort((a, b) => {
+        return parseExpiryDate(a.expiryDate) - parseExpiryDate(b.expiryDate);
+    });
+}

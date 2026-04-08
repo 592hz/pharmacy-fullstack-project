@@ -1,10 +1,16 @@
-import { api } from './api';
-import { type PurchaseOrder } from '@/lib/schemas';
+import { purchaseOrdersApi } from './api';
+import type { IPurchaseOrder } from '../types/purchase-order';
 
 export const purchaseOrderService = {
-    getAll: () => api.get<PurchaseOrder[]>('/purchase-orders'),
-    getById: (id: string) => api.get<PurchaseOrder>(`/purchase-orders/${id}`),
-    create: (data: PurchaseOrder) => api.post<PurchaseOrder>('/purchase-orders', data),
-    update: (id: string, data: Partial<PurchaseOrder>) => api.put<PurchaseOrder>(`/purchase-orders/${id}`, data),
-    delete: (id: string) => api.delete(`/purchase-orders/${id}`),
+    getAll: () => purchaseOrdersApi.getOrders(),
+    getDeleted: () => purchaseOrdersApi.getDeletedOrders(),
+    getById: (id: string) => purchaseOrdersApi.getOrderById(id),
+    create: (data: Partial<IPurchaseOrder>) => purchaseOrdersApi.createOrder(data),
+    update: (id: string, data: Partial<IPurchaseOrder>) => purchaseOrdersApi.updateOrder(id, data),
+    delete: (id: string) => purchaseOrdersApi.deleteOrder(id),
+    restore: (id: string) => purchaseOrdersApi.restoreOrder(id),
+    permanentDelete: (id: string) => purchaseOrdersApi.permanentDeleteOrder(id),
+    bulkRestore: (ids: string[]) => purchaseOrdersApi.bulkRestoreOrders(ids),
+    bulkPermanentDelete: (ids: string[]) => purchaseOrdersApi.bulkPermanentDeleteOrders(ids),
+    emptyTrash: () => purchaseOrdersApi.emptyOrderTrash()
 };

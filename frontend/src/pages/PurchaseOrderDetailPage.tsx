@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { AlertCircle, Search, PlusCircle, Trash2, Save, X } from "lucide-react"
 import { toast } from "sonner"
-import { type PurchaseOrder, type PurchaseOrderItem, type Product, purchaseOrderSchema, type PaymentMethod } from "@/lib/schemas"
+import { type PurchaseOrder, type PurchaseOrderItem, purchaseOrderSchema, type PaymentMethod } from "@/lib/schemas"
 import { purchaseOrderService } from "@/services/purchase-order.service"
 import { productService } from "@/services/product.service"
 import { paymentMethodService } from "@/services/payment-method.service"
@@ -10,6 +10,7 @@ import { AddProductModal, type ProductFormData } from "@/components/add-product-
 import { parseFloatSafe, getErrorMessage } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { useDebounce } from "@/hooks/use-debounce"
+import { type IProduct } from "@/types/product"
 
 export default function PurchaseOrderDetailPage() {
     const { id } = useParams<{ id: string }>()
@@ -21,7 +22,7 @@ export default function PurchaseOrderDetailPage() {
     const [order, setOrder] = useState<PurchaseOrder | null>(null)
     const [items, setItems] = useState<PurchaseOrderItem[]>([])
     const [isLoading, setIsLoading] = useState(true)
-    const [allProducts, setAllProducts] = useState<Product[]>([])
+    const [allProducts, setAllProducts] = useState<IProduct[]>([])
     const [showAddModal, setShowAddModal] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
     const [invoiceNumber, setInvoiceNumber] = useState("")
@@ -69,7 +70,7 @@ export default function PurchaseOrderDetailPage() {
         ).slice(0, 10)
     }, [debouncedSearchQuery, allProducts])
 
-    const handleQuickAdd = useCallback((product: Product) => {
+    const handleQuickAdd = useCallback((product: IProduct) => {
         const qty = 1
         const importPrice = product.importPrice || 0
         const total = qty * importPrice
@@ -102,7 +103,7 @@ export default function PurchaseOrderDetailPage() {
     }, [])
 
     // Handler when AddProductModal saves a new product → convert to PurchaseOrderItem
-    const handleProductSaved = useCallback((savedProduct: Product, formData: ProductFormData) => {
+    const handleProductSaved = useCallback((savedProduct: IProduct, formData: ProductFormData) => {
         const firstUnit = formData.units?.[0]
         const qty = 1
         const importPrice = firstUnit?.importPrice || 0
@@ -457,7 +458,7 @@ export default function PurchaseOrderDetailPage() {
                 key={showAddModal ? "open" : "closed"}
                 isOpen={showAddModal}
                 onClose={() => setShowAddModal(false)}
-                onSuccess={handleProductSaved}
+                onSuccess={handleProductSaved as any}
             />
 
             {/* ── LINE ITEMS DATA GRID ── */}

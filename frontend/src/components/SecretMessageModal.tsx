@@ -35,7 +35,6 @@ const RoseIcon = ({ className }: { className?: string }) => (
     </svg>
 )
 
-const petals = Array.from({ length: 30 })
 const petalColors = [
     'text-rose-400/60',
     'text-pink-300/60',
@@ -47,6 +46,17 @@ const petalColors = [
 
 export function SecretMessageModal({ isOpen, onClose }: SecretMessageModalProps) {
     const [mounted, setMounted] = useState(false)
+    const [petalData] = useState(() => 
+        Array.from({ length: 30 }).map(() => ({
+            size: 20 + Math.random() * 30,
+            duration: 15 + Math.random() * 20,
+            delay: Math.random() * 15,
+            driftDuration: 4 + Math.random() * 4,
+            left: Math.random() * 100,
+            blur: Math.random() > 0.7 ? 'blur-[1px]' : '',
+            colorClass: petalColors[Math.floor(Math.random() * petalColors.length)]
+        }))
+    )
 
     useEffect(() => {
         if (isOpen) {
@@ -69,35 +79,26 @@ export function SecretMessageModal({ isOpen, onClose }: SecretMessageModalProps)
 
             {/* Animated Rose Petals */}
             <div className="absolute inset-0 pointer-events-none overflow-hidden">
-                {petals.map((_, i) => {
-                    const size = 20 + Math.random() * 30;
-                    const duration = 15 + Math.random() * 20;
-                    const delay = Math.random() * 15;
-                    const driftDuration = 4 + Math.random() * 4;
-                    const blur = Math.random() > 0.7 ? 'blur-[1px]' : '';
-                    const colorClass = petalColors[Math.floor(Math.random() * petalColors.length)];
-
-                    return (
-                        <div
-                            key={i}
-                            className={`absolute animate-petal opacity-0 ${blur}`}
+                {petalData.map((data, i) => (
+                    <div
+                        key={i}
+                        className={`absolute animate-petal opacity-0 ${data.blur}`}
+                        style={{
+                            left: `${data.left}%`,
+                            animationDelay: `${data.delay}s`,
+                            animationDuration: `${data.duration}s`,
+                            width: `${data.size}px`,
+                            height: `${data.size}px`,
+                        }}
+                    >
+                        <RosePetal
+                            className={`${data.colorClass} animate-drift`}
                             style={{
-                                left: `${Math.random() * 100}%`,
-                                animationDelay: `${delay}s`,
-                                animationDuration: `${duration}s`,
-                                width: `${size}px`,
-                                height: `${size}px`,
+                                animationDuration: `${data.driftDuration}s`,
                             }}
-                        >
-                            <RosePetal
-                                className={`${colorClass} animate-drift`}
-                                style={{
-                                    animationDuration: `${driftDuration}s`,
-                                }}
-                            />
-                        </div>
-                    );
-                })}
+                        />
+                    </div>
+                ))}
             </div>
 
             {/* Content Container */}

@@ -33,6 +33,8 @@ export interface IPurchaseOrder extends Document {
     invoiceNumber: string;
     paymentMethod?: string;
     items: IPurchaseOrderItem[];
+    isDeleted: boolean;
+    deletedAt?: Date;
 }
 
 const PurchaseOrderItemSchema = new Schema({
@@ -67,7 +69,9 @@ const PurchaseOrderSchema: Schema = new Schema({
     createdBy: { type: String, required: true },
     invoiceNumber: { type: String },
     paymentMethod: { type: String },
-    items: [PurchaseOrderItemSchema]
+    items: [PurchaseOrderItemSchema],
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date }
 }, { timestamps: true });
 
 export default mongoose.model<IPurchaseOrder>('PurchaseOrder', PurchaseOrderSchema);

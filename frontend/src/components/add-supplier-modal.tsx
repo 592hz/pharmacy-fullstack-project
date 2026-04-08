@@ -1,14 +1,15 @@
 import { useState, useEffect } from "react"
 import { X } from "lucide-react"
 import { toast } from "sonner"
-import { supplierSchema, type Supplier } from "@/lib/schemas"
+import { supplierSchema } from "@/lib/schemas"
+import { type ISupplier } from "@/types/supplier"
 
 interface AddSupplierModalProps {
     isOpen: boolean
     onClose: () => void
-    onAdd?: (supplier: Supplier) => void
-    onEdit?: (supplier: Supplier) => void
-    initialData?: Supplier | null
+    onAdd?: (supplier: ISupplier) => void
+    onEdit?: (supplier: ISupplier) => void
+    initialData?: ISupplier | null
 }
 
 export default function AddSupplierModal({ isOpen, onClose, onAdd, onEdit, initialData }: AddSupplierModalProps) {
@@ -66,8 +67,11 @@ export default function AddSupplierModal({ isOpen, onClose, onAdd, onEdit, initi
             return
         }
 
-        const supplierData: Supplier = {
+        const supplierData: ISupplier = {
             ...result.data,
+            isNational: result.data.isNational ?? true,
+            isDefaultImport: result.data.isDefaultImport ?? false,
+            debt: result.data.debt ?? 0,
             id: initialData?.id || `NCC${Date.now()}`
         }
 

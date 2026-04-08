@@ -6,13 +6,19 @@ import {
     deleteProductCategory,
     getDeletedProductCategories,
     restoreProductCategory,
-    permanentlyDeleteProductCategory
+    permanentlyDeleteProductCategory,
+    bulkRestoreProductCategories,
+    bulkPermanentlyDeleteProductCategories,
+    emptyProductCategoryTrash
 } from '../controllers/product-category.controller.js';
 
 const router = Router();
 
 router.get('/', getProductCategories);
 router.get('/trash', getDeletedProductCategories);
+router.put('/trash/restore-bulk', bulkRestoreProductCategories);
+router.delete('/trash/permanent-bulk', bulkPermanentlyDeleteProductCategories);
+router.delete('/trash/empty', emptyProductCategoryTrash);
 router.post('/', createProductCategory);
 router.put('/:id', updateProductCategory);
 router.put('/:id/restore', restoreProductCategory);

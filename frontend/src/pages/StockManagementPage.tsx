@@ -1,14 +1,15 @@
 import { useState, useEffect, useMemo } from "react"
-import { Search, Filter, RefreshCw, AlertTriangle, Package, Calendar } from "lucide-react"
+import { Search, Filter, RefreshCw, AlertTriangle, Package, Calendar, Trash2, EyeOff } from "lucide-react"
 import { toast } from "sonner"
-import { type Product, type ProductCategory } from "@/lib/schemas"
+import { type ProductCategory } from "@/lib/schemas"
+import { type IProduct, type IProductBatch } from "@/types/product"
 import { productService } from "@/services/product.service"
 import { productCategoryService } from "@/services/product-category.service"
 import { getErrorMessage } from "@/lib/utils"
 import { useDebounce } from "@/hooks/use-debounce"
 
 export default function StockManagementPage() {
-    const [products, setProducts] = useState<Product[]>([])
+    const [products, setProducts] = useState<IProduct[]>([])
     const [categories, setCategories] = useState<ProductCategory[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
@@ -16,6 +17,7 @@ export default function StockManagementPage() {
     const [stockFilter, setStockFilter] = useState("Tất cả")
     const [categoryFilter, setCategoryFilter] = useState("Tất cả")
     const [displayLimit, setDisplayLimit] = useState(10)
+    const [hideEmptyBatches, setHideEmptyBatches] = useState(false)
 
     const fetchData = async () => {
         setIsLoading(true)
@@ -33,6 +35,29 @@ export default function StockManagementPage() {
         }
     }
 
+    const handleDeleteBatch = async (product: IProduct, batchNumber: string) => {
+        if (!confirm(`Bạn có chắc chắn muốn xóa lô "${batchNumber}" này không?\nLưu ý: Chỉ nên xóa nếu lô này nhập sai hoặc không còn cần theo dõi.`)) return
+
+        try {
+            const updatedBatches = (product.batches || []).filter(b => b.batchNumber !== batchNumber).map(b => ({
+                batchNumber: b.batchNumber,
+                expiryDate: b.expiryDate || "",
+                quantity: b.quantity
+            }))
+            const newTotalQty = updatedBatches.reduce((sum, b) => sum + b.quantity, 0)
+            
+            await productService.update(product.id, { 
+                batches: updatedBatches,
+                baseQuantity: newTotalQty
+            })
+            
+            toast.success(`Đã xóa lô ${batchNumber}`)
+            fetchData()
+        } catch (error: unknown) {
+            toast.error("Lỗi khi xóa lô: " + getErrorMessage(error))
+        }
+    }
+
     useEffect(() => {
         fetchData()
     }, [])
@@ -46,8 +71,8 @@ export default function StockManagementPage() {
     const filteredProducts = useMemo(() => {
         return products.filter(product => {
             const query = debouncedSearchQuery.toLowerCase().trim()
-            const name = product.name || product.productName || ""
-            const code = product.id || product.productCode || ""
+            const name = product.name || ""
+            const code = product.id || ""
 
             const matchesQuery = !query ||
                 name.toLowerCase().includes(query) ||
@@ -56,12 +81,14 @@ export default function StockManagementPage() {
             if (!matchesQuery) return false
 
             // Category Filter
-            const prodCategoryId = typeof product.categoryId === 'object' ? (product.categoryId as any).id : product.categoryId
+            const prodCategoryId = typeof product.categoryId === 'object' && product.categoryId !== null 
+                ? product.categoryId.id
+                : product.categoryId
             if (categoryFilter !== "Tất cả" && prodCategoryId !== categoryFilter) return false
 
             // Stock Filter logic
             const totalQty = product.batches && product.batches.length > 0
-                ? product.batches.reduce((sum: number, b: any) => sum + b.quantity, 0)
+                ? product.batches.reduce((sum: number, b: IProductBatch) => sum + b.quantity, 0)
                 : (product.baseQuantity || 0)
 
             const unitType = (product.unit || "").toLowerCase()
@@ -69,7 +96,7 @@ export default function StockManagementPage() {
             const lowStockThreshold = unitType === "viên" ? 50 : 1
 
             // Check if any batch is near expiry (within 6 months / 180 days)
-            const hasNearExpiry = product.batches && product.batches.some((b: any) => {
+            const hasNearExpiry = product.batches && product.batches.some((b: IProductBatch) => {
                 if (!b.expiryDate || b.expiryDate === ".") return false
                 try {
                     const [d, m, y] = b.expiryDate.split(/[-/]/).map(Number)
@@ -92,6 +119,17 @@ export default function StockManagementPage() {
 
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('vi-VN').format(value)
+    }
+
+    const parseBatchDate = (dateStr: string) => {
+        if (!dateStr || dateStr === "." || dateStr === "") return new Date(9999, 11, 31)
+        try {
+            const [d, m, y] = dateStr.split(/[-/]/).map(Number)
+            const date = new Date(y, m - 1, d)
+            return isNaN(date.getTime()) ? new Date(9999, 11, 31) : date
+        } catch {
+            return new Date(9999, 11, 31)
+        }
     }
 
     return (
@@ -137,7 +175,7 @@ export default function StockManagementPage() {
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sắp hết hàng</p>
                             <p className="text-xl font-bold text-orange-600">{products.filter(p => {
                                 const qty = p.baseQuantity || 0
-                                return qty > 0 && qty <= (p.unit === "Viên" ? 50 : 5)
+                                return qty > 0 && qty <= (p.unit?.toLowerCase() === "viên" ? 50 : 5)
                             }).length}</p>
                         </div>
                     </div>
@@ -195,6 +233,18 @@ export default function StockManagementPage() {
                         <option value="Hết hàng">🚫 Đã hết hàng</option>
                         <option value="Còn hàng">✅ Còn hàng</option>
                     </select>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-neutral-800 rounded-xl border border-gray-200 dark:border-neutral-700 select-none cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors"
+                     onClick={() => setHideEmptyBatches(!hideEmptyBatches)}>
+                    <input 
+                        type="checkbox" 
+                        checked={hideEmptyBatches}
+                        onChange={() => {}} // Controlled by div click
+                        className="w-4 h-4 accent-[#5c9a38] rounded"
+                    />
+                    <span className="text-xs font-bold text-gray-600 dark:text-gray-300 flex items-center gap-1.5">
+                        <EyeOff size={14} /> Ẩn lô hết hàng
+                    </span>
                 </div>
             </div>
 
@@ -259,7 +309,10 @@ export default function StockManagementPage() {
                                             <td className="px-6 py-5">
                                                 <div className="grid gap-2 min-w-[280px]">
                                                     {p.batches && p.batches.length > 0 ? (
-                                                        p.batches.map((b, i) => {
+                                                        p.batches
+                                                        .filter(b => !hideEmptyBatches || b.quantity > 0)
+                                                        .sort((a, b) => parseBatchDate(a.expiryDate || "").getTime() - parseBatchDate(b.expiryDate || "").getTime())
+                                                        .map((b, i) => {
                                                             let isNearExpiry = false
                                                             try {
                                                                 if (b.expiryDate) {
@@ -271,7 +324,7 @@ export default function StockManagementPage() {
                                                             } catch { }
 
                                                             return (
-                                                                <div key={i} className={`flex items-center justify-between p-2 rounded-xl border ${isNearExpiry ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/40' : 'bg-white dark:bg-neutral-800 border-gray-100 dark:border-neutral-700'} shadow-sm`}>
+                                                                <div key={i} className={`flex items-center justify-between p-2 rounded-xl border ${isNearExpiry ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/40' : 'bg-white dark:bg-neutral-800 border-gray-100 dark:border-neutral-700'} shadow-sm group/batch`}>
                                                                     <div className="flex items-center gap-2">
                                                                         <div className={`w-2 h-2 rounded-full ${isNearExpiry ? 'bg-red-500 animate-pulse' : 'bg-green-400'}`}></div>
                                                                         <span className="font-mono text-[11px] text-gray-500 font-bold">{b.batchNumber}</span>
@@ -281,6 +334,16 @@ export default function StockManagementPage() {
                                                                             <Calendar size={12} /> {b.expiryDate}
                                                                         </span>
                                                                         <span className="text-xs font-black text-gray-800 dark:text-gray-200 w-8 text-right italic">{b.quantity}</span>
+                                                                        
+                                                                        {b.quantity === 0 && (
+                                                                            <button 
+                                                                                onClick={() => handleDeleteBatch(p, b.batchNumber)}
+                                                                                className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all opacity-0 group-hover/batch:opacity-100"
+                                                                                title="Xóa lô trống"
+                                                                            >
+                                                                                <Trash2 size={12} />
+                                                                            </button>
+                                                                        )}
                                                                     </div>
                                                                 </div>
                                                             )

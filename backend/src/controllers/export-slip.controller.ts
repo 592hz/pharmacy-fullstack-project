@@ -53,9 +53,15 @@ export const createExportSlip = async (req: Request, res: Response) => {
                 if (remainingToSubtract > 0) {
                     // Sort batches by expiry date (earliest first - FEFO)
                     product.batches.sort((a, b) => {
-                        if (!a.expiryDate) return 1;
-                        if (!b.expiryDate) return -1;
-                        return a.expiryDate.localeCompare(b.expiryDate);
+                        const parseDate = (d: string | undefined) => {
+                            if (!d) return Infinity;
+                            const parts = d.split(/[-/]/);
+                            if (parts.length === 3) {
+                                return new Date(parseInt(parts[2] || "0", 10), parseInt(parts[1] || "1", 10) - 1, parseInt(parts[0] || "1", 10)).getTime();
+                            }
+                            return Infinity;
+                        };
+                        return parseDate(a.expiryDate) - parseDate(b.expiryDate);
                     });
 
                     for (const batch of product.batches) {

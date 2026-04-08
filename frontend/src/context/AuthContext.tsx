@@ -4,8 +4,9 @@ import { authService } from '../services/auth.service';
 import { type Login, type Signup } from '../lib/schemas';
 import { AuthContext, type User } from './auth-context-type';
 
+
 // Helper to obfuscate data in localStorage
-const encodeData = (data: any) => btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+const encodeData = (data: unknown) => btoa(unescape(encodeURIComponent(JSON.stringify(data))));
 const decodeData = (str: string | null) => {
     if (!str) return null;
     try {

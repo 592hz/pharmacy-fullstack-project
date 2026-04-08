@@ -146,6 +146,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavUser user={{
           name: typeof user?.name === 'string' ? user.name : "User",
           email: typeof user?.username === 'string' ? user.username : "",
+          // thay đổi avata. hạn chế lưu ảnh để tiết kiệm cơ sở dữ liệu
           avatar: "/avata.jpg"
         }} />
         <div className="px-4 py-2 text-[10px] text-gray-400 dark:text-neutral-500 font-medium text-center border-t border-gray-100 dark:border-neutral-800">

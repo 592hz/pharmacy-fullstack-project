@@ -3,12 +3,15 @@ import { PlusCircle, X } from "lucide-react"
 import { toast } from "sonner"
 import { parseFloatSafe } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
-import { type Product, type ProductCategory, type Supplier, type Unit, productSchema } from "@/lib/schemas"
+import { type Product, type Unit, productSchema } from "@/lib/schemas"
 import { getErrorMessage } from "@/lib/utils"
 import { supplierService } from "@/services/supplier.service"
 import { productCategoryService } from "@/services/product-category.service"
 import { productService } from "@/services/product.service"
 import { unitService } from "@/services/unit.service"
+import type { IProduct } from "@/types/product"
+import type { ISupplier } from "@/types/supplier"
+import type { IProductCategory } from "@/types/category"
 
 // dữ liệu được lấy từ database 
 export interface ProductUnit {
@@ -23,7 +26,7 @@ export interface ProductUnit {
 
 export interface Batch {
     batchNumber: string
-    expiryDate?: string
+    expiryDate: string
     quantity: number
 }
 
@@ -114,10 +117,10 @@ const generateInitialFormData = (data?: Product | null): ProductFormData => {
         const firstBatch = data.batches?.[0]
         return {
             productName: data.name || "",
-            supplierId: typeof data.supplierId === 'object' 
+            supplierId: (data.supplierId && typeof data.supplierId === 'object') 
                 ? ((data.supplierId as unknown as PopulatedEntity)._id || (data.supplierId as unknown as PopulatedEntity).id || "") 
                 : (data.supplierId || data.manufacturer || ""),
-            categoryId: typeof data.categoryId === 'object' 
+            categoryId: (data.categoryId && typeof data.categoryId === 'object') 
                 ? ((data.categoryId as unknown as PopulatedEntity)._id || (data.categoryId as unknown as PopulatedEntity).id || "") 
                 : (data.categoryId || ""),
             productCode: data.id || "",
@@ -168,8 +171,8 @@ const generateInitialFormData = (data?: Product | null): ProductFormData => {
 export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: AddProductModalProps) {
     const [formData, setFormData] = useState<ProductFormData>(() => generateInitialFormData(initialData))
 
-    const [categories, setCategories] = useState<ProductCategory[]>([])
-    const [suppliers, setSuppliers] = useState<Supplier[]>([])
+    const [categories, setCategories] = useState<IProductCategory[]>([])
+    const [suppliers, setSuppliers] = useState<ISupplier[]>([])
     const [availableUnits, setAvailableUnits] = useState<Unit[]>([])
 
     useEffect(() => {
@@ -182,7 +185,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                         unitService.getAll()
                     ])
                     setCategories(cats)
-                    setSuppliers(sups)
+                    setSuppliers(sups as ISupplier[])
                     setAvailableUnits(unts)
                 } catch {
                     console.error("Error fetching data")
@@ -338,20 +341,20 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                     ]
             }
 
-            let savedProduct: Product
+            let savedProduct: IProduct
             if (initialData) {
-                savedProduct = await productService.update(initialData.id, productData as Product)
+                savedProduct = await productService.update(initialData.id, productData as unknown as IProduct)
                 toast.success("Cập nhật sản phẩm thành công!")
             } else {
-                savedProduct = await productService.create(productData as Product)
+                savedProduct = await productService.create(productData as unknown as IProduct)
                 toast.success("Thêm mới sản phẩm thành công!")
             }
 
             if (action === 'save') {
-                onSuccess(savedProduct, formData)
+                onSuccess(savedProduct as unknown as Product, formData)
                 onClose()
             } else if (action === 'save_new') {
-                onSuccess(savedProduct, formData)
+                onSuccess(savedProduct as unknown as Product, formData)
                 // Use the helper to generate a completely fresh state with a new ID
                 setFormData(generateInitialFormData())
             }
@@ -401,7 +404,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                 >
                                     <option value="">Chọn nhà cung cấp...</option>
                                     {suppliers.map(s => (
-                                        <option key={s.id} value={s.id}>{s.name}</option>
+                                        <option key={s.id || s._id} value={s.id || s._id}>{s.name}</option>
                                     ))}
                                 </select>
                             </div>
@@ -417,7 +420,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                 >
                                     <option value="">Chọn nhóm...</option>
                                     {categories.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name}</option>
+                                        <option key={c.id || c._id} value={c.id || c._id}>{c.name}</option>
                                     ))}
                                 </select>
                             </div>

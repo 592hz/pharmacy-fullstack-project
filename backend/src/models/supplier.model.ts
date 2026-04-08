@@ -13,6 +13,8 @@ export interface ISupplier extends Document {
     isNational: boolean;
     isDefaultImport: boolean;
     debt: number;
+    isDeleted: boolean;
+    deletedAt?: Date;
 }
 
 const SupplierSchema: Schema = new Schema({
@@ -27,11 +29,13 @@ const SupplierSchema: Schema = new Schema({
     notes: { type: String },
     isNational: { type: Boolean, default: true },
     isDefaultImport: { type: Boolean, default: false },
-    debt: { type: Number, default: 0 }
+    debt: { type: Number, default: 0 },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date }
 }, { 
     timestamps: true,
     toJSON: {
-        transform: function(doc, ret: any) {
+        transform: function(_doc, ret: Record<string, unknown>) {
             ret.id = ret._id;
             delete ret._id;
             delete ret.__v;

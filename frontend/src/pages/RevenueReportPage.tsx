@@ -195,7 +195,7 @@ export default function RevenueReportPage() {
                                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} tickFormatter={(val) => `${val/1000000}tr`} />
                                 <Tooltip 
                                     contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                                    formatter={(val: any) => formatCurrency(Number(val) || 0)}
+                                    formatter={(val: unknown) => formatCurrency(Number(val) || 0)}
                                 />
                                 <Legend verticalAlign="top" height={36}/>
                                 <Area type="monotone" name="Doanh thu" dataKey="revenue" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
