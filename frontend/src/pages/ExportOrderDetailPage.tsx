@@ -2,13 +2,14 @@ import { useState, useMemo, useCallback, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { AlertCircle, Search, PlusCircle, Trash2, Save, Printer, Calendar, User, FileText, LayoutDashboard, CreditCard, ChevronLeft } from "lucide-react"
 import { toast } from "sonner"
-import { type ExportOrder, type ExportOrderItem, type Product, exportOrderSchema } from "@/lib/schemas"
+import { type ExportOrder, type ExportOrderItem, exportOrderSchema } from "@/lib/schemas"
 import { exportSlipService } from "@/services/export-slip.service"
 import { productService } from "@/services/product.service"
 import { paymentMethodService } from "@/services/payment-method.service"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
 import { parseFloatSafe, getErrorMessage } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
+import { type IProduct } from "@/types/product"
 import { type PaymentMethod } from "@/lib/schemas"
 import { useDebounce } from "@/hooks/use-debounce"
 
@@ -23,7 +24,7 @@ export default function ExportOrderDetailPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [showAddModal, setShowAddModal] = useState(false)
     const [isEditing, setIsEditing] = useState(false)
-    const [allProducts, setAllProducts] = useState<Product[]>([])
+    const [allProducts, setAllProducts] = useState<IProduct[]>([])
     const [notes, setNotes] = useState("")
     const [paymentMethod, setPaymentMethod] = useState("")
     const [symptoms, setSymptoms] = useState("")
@@ -65,12 +66,12 @@ export default function ExportOrderDetailPage() {
         if (!debouncedSearchQuery.trim()) return []
         const query = debouncedSearchQuery.toLowerCase()
         return allProducts.filter(p =>
-            (p.productName || p.name || "").toLowerCase().includes(query) ||
-            ((p.id || p.productCode || "")).toLowerCase().includes(query)
+            (p.name || "").toLowerCase().includes(query) ||
+            (p.id || "").toLowerCase().includes(query)
         ).slice(0, 10)
     }, [allProducts, debouncedSearchQuery])
 
-    const handleQuickAdd = useCallback((product: Product) => {
+    const handleQuickAdd = useCallback((product: IProduct) => {
         const qty = 1
         const retailPrice = product.retailPrice || 0
         const importPrice = product.importPrice || 0
@@ -87,11 +88,11 @@ export default function ExportOrderDetailPage() {
 
         const newItem: ExportOrderItem = {
             id: `new-${Date.now()}-${Math.random()}`,
-            code: product.productCode || product.id || "",
-            name: product.productName || product.name || "",
+            code: product.id || "",
+            name: product.name || "",
             unit: product.baseUnitName || product.unit || "",
             batchNumber: firstBatch?.batchNumber || "",
-            expiryDate: firstBatch?.expiryDate || product.expiryDate || "",
+            expiryDate: firstBatch?.expiryDate || "",
             quantity: qty,
             retailPrice,
             importPrice,
@@ -108,7 +109,7 @@ export default function ExportOrderDetailPage() {
     }, [])
 
 
-    const handleProductSaved = useCallback((savedProduct: Product, formData: ProductFormData) => {
+    const handleProductSaved = useCallback((savedProduct: IProduct, formData: ProductFormData) => {
         const firstUnit = formData.units?.[0]
         const qty = 1
         const retailPrice = firstUnit?.retailPrice || 0
@@ -451,7 +452,7 @@ export default function ExportOrderDetailPage() {
                 key={showAddModal ? "open" : "closed"}
                 isOpen={showAddModal}
                 onClose={() => setShowAddModal(false)}
-                onSuccess={handleProductSaved}
+                onSuccess={handleProductSaved as any}
             />
 
             {/* ── PRODUCTS TABLE ── */}

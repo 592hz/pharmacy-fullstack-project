@@ -5,7 +5,8 @@ import { useRef } from "react"
 import * as XLSX from "xlsx"
 import { AddProductModal } from "@/components/add-product-modal"
 import { toast } from "sonner"
-import { type Product, type ProductCategory, type Supplier, productExcelSchema, type ProductExcel } from "@/lib/schemas"
+import { type ProductCategory, type Supplier, productExcelSchema, type ProductExcel } from "@/lib/schemas"
+import { type IProduct } from "@/types/product"
 import { productService } from "@/services/product.service"
 import { productCategoryService } from "@/services/product-category.service"
 import { supplierService } from "@/services/supplier.service"
@@ -32,12 +33,12 @@ const getExpiryStatus = (dateStr: string | undefined | null) => {
 };
 
 export default function ProductsPage() {
-    const [products, setProducts] = useState<Product[]>([])
+    const [products, setProducts] = useState<IProduct[]>([])
     const [categories, setCategories] = useState<ProductCategory[]>([])
     const [suppliers, setSuppliers] = useState<Supplier[]>([])
     const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-    const [editingProduct, setEditingProduct] = useState<Product | null>(null)
-    const [productToDelete, setProductToDelete] = useState<Product | null>(null)
+    const [editingProduct, setEditingProduct] = useState<IProduct | null>(null)
+    const [productToDelete, setProductToDelete] = useState<IProduct | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -49,9 +50,9 @@ export default function ProductsPage() {
                 productCategoryService.getAll(),
                 supplierService.getAll()
             ])
-            setProducts(productsData as unknown as Product[])
-            setCategories(categoriesData as unknown as ProductCategory[])
-            setSuppliers(suppliersData as unknown as Supplier[])
+            setProducts(productsData)
+            setCategories(categoriesData)
+            setSuppliers(suppliersData)
         } catch (error: unknown) {
             toast.error("Không thể tải dữ liệu sản phẩm: " + getErrorMessage(error))
         } finally {
@@ -91,8 +92,8 @@ export default function ProductsPage() {
         const category = categories.find(c => c.id === prodCategoryId)
         const supplier = suppliers.find(s => s.id === prodSupplierId)
 
-        const productName = product.name || product.productName || ""
-        const productCode = product.id || product.productCode || ""
+        const productName = product.name || ""
+        const productCode = product.id || ""
 
         const matchesQuery = !query ||
             productName.toLowerCase().includes(query) ||
@@ -119,7 +120,7 @@ export default function ProductsPage() {
             const hasNearExpiryBatch = (product.batches || []).some(batch => 
                 batch.quantity > 0 && getExpiryStatus(batch.expiryDate).isNearExpiry
             );
-            const isProductNearExpiry = (!product.batches || product.batches.length === 0) && getExpiryStatus(product.expiryDate).isNearExpiry;
+            const isProductNearExpiry = false;
 
             if (!hasNearExpiryBatch && !isProductNearExpiry) return false;
         }
@@ -158,7 +159,7 @@ export default function ProductsPage() {
         setCurrentPage(1) // Reset to first page on search
     }
 
-    const handleDeleteClick = (product: Product) => {
+    const handleDeleteClick = (product: IProduct) => {
         setProductToDelete(product)
     }
 
@@ -180,7 +181,7 @@ export default function ProductsPage() {
         setProductToDelete(null)
     }
 
-    const handleSaveProduct = async (savedProduct: Product) => {
+    const handleSaveProduct = async (savedProduct: IProduct) => {
         try {
             if (editingProduct) {
                 setProducts(products.map(p => p.id === savedProduct.id ? savedProduct : p))
@@ -307,8 +308,8 @@ export default function ProductsPage() {
                     setIsAddModalOpen(false)
                     setEditingProduct(null)
                 }}
-                initialData={editingProduct}
-                onSuccess={handleSaveProduct}
+                initialData={editingProduct as any}
+                onSuccess={handleSaveProduct as any}
             />
 
             {/* LEFT SIDEBAR: Filters */}
@@ -546,7 +547,7 @@ export default function ProductsPage() {
                                     <td className="px-3 py-3 border-r border-gray-100 dark:border-neutral-800 text-center text-xs text-gray-500 dark:text-gray-400 hidden sm:table-cell">
                                         {(() => {
                                             const activeBatches = (product.batches || []).filter(b => b.quantity > 0);
-                                            let targetDate = product.expiryDate;
+                                            let targetDate = "";
                                             
                                             if (activeBatches.length > 0) {
                                                 const sorted = [...activeBatches].sort((a, b) => {
