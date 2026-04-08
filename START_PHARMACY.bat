@@ -23,9 +23,13 @@ echo Vui long kien nhan cho mot chut de he thong sang sang.
 timeout /t 30 /nobreak
 
 echo.
-echo DANG KET NOI VOI INTERNET (Dung cong 3000)...
+echo DANG KET NOI VOI INTERNET (Tunnel Cloudflare)...
 echo --------------------------------------------------
-:: Ép dùng 127.0.0.1 và cổng 3000
-cloudflared tunnel --url http://127.0.0.1:3000
+:: Su dung file cloudflared.exe cuc bo neu co, neu khong thi dung lenh he thong
+if exist "cloudflared.exe" (
+    .\cloudflared.exe tunnel --url http://127.0.0.1:3000
+) else (
+    cloudflared tunnel --url http://127.0.0.1:3000
+)
 
 pause

@@ -41,7 +41,11 @@ export default function CreatePurchaseOrderPage() {
 
     // Metadata (some auto-generated/fixed)
     const [orderId, setOrderId] = useState(generateOrderId)
-    const [importDate] = useState(() => new Date().toISOString())
+    const [importDate, setImportDate] = useState(() => {
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        return now.toISOString().slice(0, 10);
+    })
     const createdBy = "Quản trị viên"
     const [paymentMethod, setPaymentMethod] = useState("Chuyển khoản")
     const [allPaymentMethods, setAllPaymentMethods] = useState<PaymentMethod[]>(() => cacheService.get("payment_methods") || [])
@@ -67,6 +71,7 @@ export default function CreatePurchaseOrderPage() {
     const saveDraft = useCallback(() => {
         const draftData = {
             orderId,
+            importDate,
             supplierId,
             supplierName,
             invoiceNumber,
@@ -76,14 +81,14 @@ export default function CreatePurchaseOrderPage() {
             timestamp: new Date().getTime()
         }
         localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData))
-    }, [orderId, supplierId, supplierName, invoiceNumber, notes, items, paymentMethod])
+    }, [orderId, importDate, supplierId, supplierName, invoiceNumber, notes, items, paymentMethod])
 
     // Auto-save useEffect
     useEffect(() => {
         if (items.length > 0 || supplierId || invoiceNumber || notes) {
             saveDraft()
         }
-    }, [items, supplierId, supplierName, invoiceNumber, notes, paymentMethod, saveDraft])
+    }, [items, supplierId, supplierName, invoiceNumber, notes, paymentMethod, importDate, saveDraft])
 
     useEffect(() => {
         const fetchData = async () => {
@@ -109,6 +114,7 @@ export default function CreatePurchaseOrderPage() {
                         const parsed = JSON.parse(savedDraft)
                         // Only restore if it's "fresh" enough (optional, let's just restore)
                         setOrderId(parsed.orderId)
+                        if (parsed.importDate) setImportDate(parsed.importDate)
                         setSupplierId(parsed.supplierId)
                         setSupplierName(parsed.supplierName)
                         setInvoiceNumber(parsed.invoiceNumber)
@@ -301,7 +307,7 @@ export default function CreatePurchaseOrderPage() {
         // Prepare data for validation
         const orderData = {
             id: orderId,
-            importDate,
+            importDate: importDate ? new Date(importDate).toISOString() : new Date().toISOString(),
             supplierId,
             supplierName,
             totalAmount,
@@ -340,7 +346,7 @@ export default function CreatePurchaseOrderPage() {
 
         const newOrder: IPurchaseOrder = {
             id: orderId,
-            importDate,
+            importDate: importDate ? new Date(importDate).toISOString() : new Date().toISOString(),
             supplierId,
             supplierName,
             totalAmount,
@@ -469,10 +475,10 @@ export default function CreatePurchaseOrderPage() {
                     <div className="flex flex-col gap-1.5">
                         <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1"><Calendar size={10} /> Ngày nhập</label>
                         <input
-                            type="text"
-                            value={new Date(importDate).toLocaleString("vi-VN").replace(/,/g, "")}
-                            disabled
-                            className="bg-gray-50 dark:bg-neutral-900/50 border border-gray-200 dark:border-neutral-800 px-3 py-2 rounded text-sm text-gray-400 font-mono"
+                            type="date"
+                            value={importDate.split('T')[0]}
+                            onChange={(e) => setImportDate(e.target.value)}
+                            className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all font-mono"
                         />
                     </div>
                     <div className="flex flex-col gap-1.5">

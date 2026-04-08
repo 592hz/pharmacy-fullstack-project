@@ -117,10 +117,10 @@ const generateInitialFormData = (data?: Product | null): ProductFormData => {
         const firstBatch = data.batches?.[0]
         return {
             productName: data.name || "",
-            supplierId: typeof data.supplierId === 'object' 
+            supplierId: (data.supplierId && typeof data.supplierId === 'object') 
                 ? ((data.supplierId as unknown as PopulatedEntity)._id || (data.supplierId as unknown as PopulatedEntity).id || "") 
                 : (data.supplierId || data.manufacturer || ""),
-            categoryId: typeof data.categoryId === 'object' 
+            categoryId: (data.categoryId && typeof data.categoryId === 'object') 
                 ? ((data.categoryId as unknown as PopulatedEntity)._id || (data.categoryId as unknown as PopulatedEntity).id || "") 
                 : (data.categoryId || ""),
             productCode: data.id || "",
