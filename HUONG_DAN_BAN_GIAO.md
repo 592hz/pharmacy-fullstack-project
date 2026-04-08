@@ -48,6 +48,32 @@ Nếu khách hàng không muốn dùng link công khai (Cloudflare) mà chỉ mu
 
 ---
 
-## LƯU Ý
-- Hai cửa sổ màn hình đen (CMD của Backend và Frontend) **phải luôn được bật** thì phần mềm mới hoạt động. Có thể thu nhỏ nó xuống thanh Taskbar (Minimize) chứ không được bấm dấu "X" để tắt. Khi nào hết giờ làm việc mới được tắt đi.
-- Database (CSDL) hiện tại của bạn đang nằm trên **MongoDB Atlas** (Cloud), vì vậy khách hàng cần có mạng Internet để phần mềm gọi và lưu dữ liệu. Nếu mất mạng, hệ thống sẽ báo lỗi không lấy được dữ liệu.
+---
+
+## BƯỚC 7: Kết nối với Tài khoản MongoDB mới (Khi muốn dùng Database riêng)
+Để khách hàng có thể hoàn toàn chủ động dữ liệu trên tài khoản của họ, hãy hướng dẫn họ làm theo các bước sau:
+
+### 1. Tạo tài khoản và Cluster trên MongoDB Atlas
+*   Đăng ký tài khoản tại [mongodb.com/atlas](https://www.mongodb.com/atlas).
+*   Tạo một **Cluster** mới (chọn gói **FREE**).
+*   Tại mục **Database Access**: Tạo một User (đặt tên và mật khẩu, ví dụ: `admin/123456`).
+*   Tại mục **Network Access**: Nhấn **Add IP Address** -> Chọn **Allow Access From Anywhere** (địa chỉ `0.0.0.0/0`) để có thể kết nối từ mọi mạng.
+
+### 2. Lấy chuỗi kết nối (Connection String)
+*   Tại màn hình Cluster, nhấn nút **Connect**.
+*   Chọn **Drivers** -> Node.js.
+*   Copy chuỗi có dạng: `mongodb+srv://<username>:<password>@cluster0.xxx.mongodb.net/?retryWrites=true&w=majority`
+
+### 3. Cập nhật vào hệ thống
+*   Vào thư mục dự án -> vào tiếp thư mục **`backend`**.
+*   Tìm file có tên là **`.env`**, click phải chọn Open with Notepad.
+*   Thay dòng `MONGODB_URI=...` bằng chuỗi vừa copy ở Bước 2.
+*   **Lưu ý:** Hãy thay cụm `<password>` bằng mật khẩu thật bạn đã tạo ở Bước 1 (phần Database Access).
+*   Lưu file lại và khởi động lại phần mềm qua file `START_PHARMACY.bat`.
+
+---
+
+## LƯU Ý QUAN TRỌNG KHI BÀN GIAO
+*   **Internet:** Máy chủ cần có mạng ổn định để lưu dữ liệu lên Cloud (MongoDB Atlas).
+*   **Nén file:** Trước khi gửi file cho khách, bạn hãy xóa thư mục `node_modules` ở cả `frontend` và `backend` để file nén nhẹ nhất (chỉ còn vài MB). Khách hàng sẽ dùng file `1-SETUP_LAN_DAU.bat` để tự cài lại thư viện.
+
