@@ -202,9 +202,10 @@ export const noteSchema = z.object({
     content: z.string().min(1, "Vui lòng nhập nội dung ghi chú"),
     date: z.string().optional(),
     color: z.string().optional(),
+    isPinned: z.boolean().optional(),
 })
 
-export type Note = z.infer<typeof noteSchema> & { id: string; date: string }
+export type Note = z.infer<typeof noteSchema> & { id: string; date: string; isPinned?: boolean }
 
 // ─── EXPORT ORDER ───
 export const exportOrderItemSchema = z.object({

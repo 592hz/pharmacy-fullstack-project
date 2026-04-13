@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Plus, Trash2, Search, StickyNote, Calendar, Edit3, X, Save } from "lucide-react"
+import { Plus, Trash2, Search, StickyNote, Calendar, Edit3, X, Save, Pin } from "lucide-react"
 import { toast } from "sonner"
 import type { Note } from "@/lib/schemas"
 import { noteSchema } from "@/lib/schemas"
@@ -29,6 +29,7 @@ export default function NotesPage() {
     const [newTitle, setNewTitle] = useState("")
     const [newContent, setNewContent] = useState("")
     const [selectedColor, setSelectedColor] = useState(COLORS[0])
+    const [newIsPinned, setNewIsPinned] = useState(false)
 
     const fetchNotes = async () => {
         setIsLoading(true)
@@ -46,10 +47,18 @@ export default function NotesPage() {
         fetchNotes()
     }, [])
 
-    const filteredNotes = notes.filter(n =>
-        n.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-        n.content.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
-    )
+    const filteredNotes = notes
+        .filter(n =>
+            n.title.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
+            n.content.toLowerCase().includes(debouncedSearchQuery.toLowerCase())
+        )
+        .sort((a, b) => {
+            // Pinned notes first
+            if (a.isPinned && !b.isPinned) return -1
+            if (!a.isPinned && b.isPinned) return 1
+            // Then by date descending
+            return new Date(b.date).getTime() - new Date(a.date).getTime()
+        })
 
     const handleAddNote = async () => {
         const result = noteSchema.safeParse({
@@ -67,19 +76,22 @@ export default function NotesPage() {
             const newNote = await noteService.create({
                 ...result.data,
                 date: date,
-                color: selectedColor
+                color: selectedColor,
+                isPinned: newIsPinned
             })
 
             const completeNote: Note = {
                 ...newNote,
                 id: newNote.id || `NOTE${Date.now()}`,
-                date: date
+                date: date,
+                isPinned: newIsPinned
             }
 
             setNotes([completeNote, ...notes])
 
             setNewTitle("")
             setNewContent("")
+            setNewIsPinned(false)
             setIsAdding(false)
             toast.success("Đã thêm ghi chú mới")
         } catch (error: unknown) {
@@ -93,6 +105,18 @@ export default function NotesPage() {
             await noteService.delete(id)
             setNotes(notes.filter(n => n.id !== id))
             toast.error("Đã xóa ghi chú")
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
+        }
+    }
+
+    const handleTogglePin = async (note: Note, e: React.MouseEvent) => {
+        e.stopPropagation()
+        try {
+            const updatedNote = { ...note, isPinned: !note.isPinned }
+            const data = await noteService.update(note.id, updatedNote)
+            setNotes(notes.map(n => n.id === data.id ? data : n))
+            toast.success(updatedNote.isPinned ? "Đã ghim ghi chú" : "Đã bỏ ghim ghi chú")
         } catch (error: unknown) {
             toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
@@ -188,12 +212,21 @@ export default function NotesPage() {
                                     />
                                 ))}
                             </div>
-                            <button
-                                onClick={handleAddNote}
-                                className="bg-gray-800 text-white p-2 rounded-lg hover:bg-black transition-colors shadow-md"
-                            >
-                                <Save size={18} />
-                            </button>
+                            <div className="flex items-center gap-2">
+                                <button
+                                    onClick={() => setNewIsPinned(!newIsPinned)}
+                                    className={`p-2 rounded-lg transition-colors ${newIsPinned ? 'bg-yellow-400 text-white' : 'bg-gray-100 text-gray-400 hover:bg-gray-200'}`}
+                                    title={newIsPinned ? "Bỏ ghim" : "Ghim"}
+                                >
+                                    <Pin size={18} fill={newIsPinned ? "currentColor" : "none"} />
+                                </button>
+                                <button
+                                    onClick={handleAddNote}
+                                    className="bg-gray-800 text-white p-2 rounded-lg hover:bg-black transition-colors shadow-md"
+                                >
+                                    <Save size={18} />
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -205,13 +238,21 @@ export default function NotesPage() {
                         className={`group relative rounded-3xl border p-6 transition-all hover:-translate-y-1 hover:shadow-2xl cursor-pointer flex flex-col gap-3 min-h-[220px] ${note.color || 'bg-white dark:bg-neutral-900 border-gray-200 dark:border-neutral-800 text-gray-700 dark:text-gray-300'}`}
                     >
                         <div className="flex justify-between items-start gap-2">
-                            <h3 className="font-bold text-lg leading-tight group-hover:text-current transition-colors line-clamp-2">{note.title}</h3>
-                            <button
-                                onClick={(e) => handleDeleteNote(note.id, e)}
-                                className="opacity-0 group-hover:opacity-100 text-red-500 hover:bg-red-50 p-1.5 rounded-full transition-all"
-                            >
-                                <Trash2 size={16} />
-                            </button>
+                            <h3 className="font-bold text-lg leading-tight group-hover:text-current transition-colors line-clamp-2 pr-6">{note.title}</h3>
+                            <div className="flex items-center gap-1">
+                                <button
+                                    onClick={(e) => handleTogglePin(note, e)}
+                                    className={`p-1.5 rounded-full transition-all ${note.isPinned ? 'text-yellow-500 opacity-100' : 'opacity-0 group-hover:opacity-100 text-gray-400 hover:bg-gray-100'}`}
+                                >
+                                    <Pin size={16} fill={note.isPinned ? "currentColor" : "none"} />
+                                </button>
+                                <button
+                                    onClick={(e) => handleDeleteNote(note.id, e)}
+                                    className="opacity-0 group-hover:opacity-100 text-red-500 hover:bg-red-50 p-1.5 rounded-full transition-all"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
                         </div>
                         <p className="text-sm opacity-80 leading-relaxed line-clamp-4 flex-1">{note.content}</p>
                         <div className="flex items-center gap-2 mt-auto pt-4 border-t border-black/5 opacity-50">
@@ -264,12 +305,21 @@ export default function NotesPage() {
                                     />
                                 ))}
                             </div>
-                            <button
-                                onClick={handleUpdateNote}
-                                className="bg-gray-800 text-white px-8 py-3 rounded-2xl hover:bg-black transition-all shadow-lg font-bold active:scale-95"
-                            >
-                                Lưu thay đổi
-                            </button>
+                            <div className="flex items-center gap-3">
+                                <button
+                                    onClick={() => setEditingNote({ ...editingNote, isPinned: !editingNote.isPinned })}
+                                    className={`p-3 rounded-2xl transition-all border ${editingNote.isPinned ? 'bg-yellow-400 border-yellow-500 text-white' : 'bg-gray-100 border-gray-200 text-gray-500 hover:bg-gray-200'}`}
+                                    title={editingNote.isPinned ? "Bỏ ghim" : "Ghim"}
+                                >
+                                    <Pin size={20} fill={editingNote.isPinned ? "currentColor" : "none"} />
+                                </button>
+                                <button
+                                    onClick={handleUpdateNote}
+                                    className="bg-gray-800 text-white px-8 py-3 rounded-2xl hover:bg-black transition-all shadow-lg font-bold active:scale-95"
+                                >
+                                    Lưu thay đổi
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
