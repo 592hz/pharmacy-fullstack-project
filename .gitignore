@@ -40,6 +40,8 @@ Thumbs.db
 backend/test-db.js
 backend/check-local.js
 backend/test-direct.js
+backend/get-user.js
+backend/src/scripts/
 test-*.js
 cloudflared.exe
 *.exe
