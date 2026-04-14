@@ -43,4 +43,5 @@ backend/test-direct.js
 backend/get-user.js
 backend/src/scripts/
 test-*.js
-DOI_ROLE_ADMIN.bat
+cloudflared.exe
+*.exe
