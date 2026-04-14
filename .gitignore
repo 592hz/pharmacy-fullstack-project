@@ -41,3 +41,4 @@ backend/test-db.js
 backend/check-local.js
 backend/test-direct.js
 test-*.js
+cloudflared.exe
