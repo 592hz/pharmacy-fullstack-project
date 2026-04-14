@@ -147,12 +147,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           name: typeof user?.name === 'string' ? user.name : "User",
           email: typeof user?.username === 'string' ? user.username : "",
           // thay đổi avata. hạn chế lưu ảnh để tiết kiệm cơ sở dữ liệu
-          avatar: "/avata.jpg"
+          avatar: "/369963.jpg"
         }} />
         <div className="px-4 py-2 text-[10px] text-gray-400 dark:text-neutral-500 font-medium text-center border-t border-gray-100 dark:border-neutral-800">
           Created by Ngọc Thái
           <br />
           <span className="text-[#5c9a38] dark:text-[#65a34e]">Chúc bé luôn vui vẻ</span>
+          <br />
+          <span className="text-gray-400 dark:text-neutral-500">0345213147</span>
         </div>
       </SidebarFooter>
       <SidebarRail />
