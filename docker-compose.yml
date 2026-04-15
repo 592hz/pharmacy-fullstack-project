@@ -14,7 +14,7 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "2222:80" # Maps local 2222 to nginx 80
+      - "2222:2222" # Maps local 2222 to nginx 2222
     restart: always
 
   gateway:
@@ -25,7 +25,7 @@ services:
       - "8080:8080"
     environment:
       - BACKEND_URL=http://backend:5000
-      - FRONTEND_URL=http://frontend:80
+      - FRONTEND_URL=http://frontend:2222
     depends_on:
       - backend
       - frontend

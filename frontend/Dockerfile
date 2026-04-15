@@ -1,5 +1,5 @@
-# Stage 1: Build
-FROM node:20-slim AS build
+# Use Node.js 20-slim as base
+FROM node:20-slim
 
 WORKDIR /app
 
@@ -15,16 +15,8 @@ COPY . .
 # Build the application
 RUN npm run build
 
-# Stage 2: Serve with Nginx
-FROM nginx:stable-alpine
+# Expose port 2222
+EXPOSE 2222
 
-# Copy the build artifacts from the build stage
-COPY --from=build /app/dist /usr/share/nginx/html
-
-# Copy custom nginx config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-
-# Expose port 80
-EXPOSE 80
-
-CMD ["nginx", "-g", "daemon off;"]
+# Serve with Vite preview
+CMD ["npx", "vite", "preview", "--host", "--port", "2222"]
