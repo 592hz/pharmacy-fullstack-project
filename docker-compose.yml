@@ -1,0 +1,32 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env
+    restart: always
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "2222:80" # Maps local 2222 to nginx 80
+    restart: always
+
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - BACKEND_URL=http://backend:5000
+      - FRONTEND_URL=http://frontend:80
+    depends_on:
+      - backend
+      - frontend
+    restart: always
