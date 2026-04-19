@@ -1,8 +1,29 @@
-import { useState } from "react"
-import { X } from "lucide-react"
-import { type Category } from "@/lib/mock-data"
-import { NumericInput } from "@/components/ui/numeric-input"
 import { parseFloatSafe } from "@/lib/utils"
+import { useEffect, useState } from "react"
+import { X } from "lucide-react"
+import { type Category, categorySchema } from "@/lib/schemas"
+import { NumericInput } from "@/components/ui/numeric-input"
+
+// Helper functions for date conversion
+const formatDateToVN = (dateStr?: string) => {
+    if (!dateStr) return ""
+    const d = new Date(dateStr)
+    if (isNaN(d.getTime())) return dateStr
+    const day = String(d.getDate()).padStart(2, '0')
+    const month = String(d.getMonth() + 1).padStart(2, '0')
+    const year = d.getFullYear()
+    return `${day}/${month}/${year}`
+}
+
+const parseVNDateToISO = (vnDate: string) => {
+    if (!vnDate) return ""
+    const parts = vnDate.split(/[-/]/)
+    if (parts.length !== 3) return vnDate
+    const day = parts[0].padStart(2, '0')
+    const month = parts[1].padStart(2, '0')
+    const year = parts[2]
+    return `${year}-${month}-${day}`
+}
 
 interface AddCategoryModalProps {
     isOpen: boolean
@@ -20,6 +41,14 @@ export default function AddCategoryModal({
     initialData
 }: AddCategoryModalProps) {
     const [errors, setErrors] = useState<Record<string, string>>({})
+    const [dateValue, setDateValue] = useState("")
+
+    useEffect(() => {
+        if (isOpen) {
+            const initialDate = initialData?.date || new Date().toISOString().split('T')[0]
+            setDateValue(formatDateToVN(initialDate))
+        }
+    }, [isOpen, initialData])
 
     const handleClose = () => {
         setErrors({})
@@ -33,15 +62,43 @@ export default function AddCategoryModal({
         const formData = new FormData(e.currentTarget)
         const newErrors: Record<string, string> = {}
 
-        const name = formData.get("name") as string
+        const name = (formData.get("name") as string).trim()
         const type = formData.get("type") as string
         const amountString = formData.get("amount") as string
         const amount = parseFloatSafe(amountString)
-        const date = formData.get("date") as string
+        const vnDate = dateValue
+        const isoDate = parseVNDateToISO(vnDate)
 
-        if (!name) newErrors.name = "Vui lòng nhập tên nhóm"
-        if (!amount || amount <= 0) newErrors.amount = "Vui lòng nhập số tiền hợp lệ"
-        if (!date) newErrors.date = "Vui lòng chọn ngày"
+        // 1. Basic Schema Validation (Name, Type, Amount)
+        const validation = categorySchema.safeParse({
+            name,
+            type,
+            amount,
+            notes: formData.get("notes") as string,
+            date: isoDate
+        })
+
+        if (!validation.success) {
+            validation.error.issues.forEach(issue => {
+                const path = issue.path[0] as string
+                newErrors[path] = issue.message
+            });
+        }
+        
+        // 2. Strict Date Validation (Check if real date exists, e.g. no 31/02)
+        const dateRegex = /^(\d{1,2})[/](\d{1,2})[/](\d{4})$/
+        if (!vnDate || !dateRegex.test(vnDate)) {
+            newErrors.date = "Ngày không hợp lệ (định dạng: dd/mm/yyyy)"
+        } else {
+            const parts = vnDate.split('/')
+            const d = parseInt(parts[0], 10)
+            const m = parseInt(parts[1], 10) - 1
+            const y = parseInt(parts[2], 10)
+            const checkDate = new Date(y, m, d)
+            if (checkDate.getFullYear() !== y || checkDate.getMonth() !== m || checkDate.getDate() !== d) {
+                newErrors.date = "Ngày tháng này không có trong lịch!"
+            }
+        }
 
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors)
@@ -49,12 +106,12 @@ export default function AddCategoryModal({
         }
 
         const categoryData: Category = {
-            id: initialData?.id || `cat-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            id: initialData?.id,
             name: name,
             type: type as "Thu" | "Chi",
             amount: amount,
             notes: formData.get("notes") as string,
-            date: date,
+            date: isoDate,
         }
 
         if (initialData) {
@@ -131,13 +188,15 @@ export default function AddCategoryModal({
                             <div className="grid grid-cols-2 gap-5">
                                 <div className="space-y-1.5">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                                        Ngày <span className="text-red-500">*</span>
+                                        Ngày (dd/mm/yyyy) <span className="text-red-500">*</span>
                                     </label>
                                     <input
-                                        type="date"
+                                        type="text"
                                         name="date"
-                                        defaultValue={initialData?.date || new Date().toISOString().split('T')[0]}
-                                        className={`w-full rounded-md border ${errors.date ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-neutral-700 focus:ring-[#65a34e]'} bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-1 dark:bg-neutral-950 dark:text-white transition-shadow`}
+                                        value={dateValue}
+                                        onChange={(e) => setDateValue(e.target.value)}
+                                        placeholder="VD: 31/12/2025"
+                                        className={`w-full rounded-md border ${errors.date ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-neutral-700 focus:ring-[#65a34e]'} bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-1 dark:bg-neutral-950 dark:text-white transition-shadow font-mono`}
                                     />
                                     {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
                                 </div>
