@@ -1,11 +1,11 @@
-import { useState, useMemo, useCallback, useEffect } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { Plus, Search, PlusCircle, Trash2, Save, X, Calendar, FileText, CreditCard, AlertCircle } from "lucide-react"
+import { Plus, Search, PlusCircle, Trash2, Save, X, Calendar as CalendarIcon, FileText, CreditCard, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { AddProductModal } from "@/components/add-product-modal"
 import AddSupplierModal from "@/components/add-supplier-modal"
 import { type ProductFormData } from "@/components/add-product-modal"
-import { parseFloatSafe, getErrorMessage } from "@/lib/utils"
+import { parseFloatSafe, getErrorMessage, formatDateInput } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { purchaseOrderSchema } from "@/lib/schemas"
 import { productService } from "@/services/product.service"
@@ -18,6 +18,31 @@ import { type IPurchaseOrder, type IPurchaseOrderItem } from "@/types/purchase-o
 import { type PaymentMethod } from "@/lib/schemas"
 import { useDebounce } from "@/hooks/use-debounce"
 import { cacheService } from "@/services/cache.service"
+import { formatDateTimeInput } from "@/lib/utils"
+
+// Helper functions for date conversion
+const formatDateTimeToVN = (isoString: string) => {
+    if (!isoString) return ""
+    const date = new Date(isoString)
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = date.getFullYear()
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${day}/${month}/${year} ${hours}:${minutes}`
+}
+
+const parseVNDateTimeToISO = (vnString: string) => {
+    if (!vnString) return new Date().toISOString()
+    const regex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s(\d{1,2}):(\d{1,2})$/
+    const match = vnString.match(regex)
+    if (match) {
+        const [, day, month, year, hours, minutes] = match
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes))
+        return date.toISOString()
+    }
+    return new Date().toISOString()
+}
 
 const DRAFT_STORAGE_KEY = "purchase_order_draft"
 
@@ -41,11 +66,9 @@ export default function CreatePurchaseOrderPage() {
 
     // Metadata (some auto-generated/fixed)
     const [orderId, setOrderId] = useState(generateOrderId)
-    const [importDate, setImportDate] = useState(() => {
-        const now = new Date();
-        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-        return now.toISOString().slice(0, 10);
-    })
+    const [dateValue, setDateValue] = useState(() => formatDateTimeToVN(new Date().toISOString()))
+    const [dateError, setDateError] = useState("")
+    const dateInputRef = useRef<HTMLInputElement>(null)
     const createdBy = "Quản trị viên"
     const [paymentMethod, setPaymentMethod] = useState("Chuyển khoản")
     const [allPaymentMethods, setAllPaymentMethods] = useState<PaymentMethod[]>(() => cacheService.get("payment_methods") || [])
@@ -71,7 +94,7 @@ export default function CreatePurchaseOrderPage() {
     const saveDraft = useCallback(() => {
         const draftData = {
             orderId,
-            importDate,
+            importDate: dateValue,
             supplierId,
             supplierName,
             invoiceNumber,
@@ -81,14 +104,14 @@ export default function CreatePurchaseOrderPage() {
             timestamp: new Date().getTime()
         }
         localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData))
-    }, [orderId, importDate, supplierId, supplierName, invoiceNumber, notes, items, paymentMethod])
+    }, [orderId, dateValue, supplierId, supplierName, invoiceNumber, notes, items, paymentMethod])
 
     // Auto-save useEffect
     useEffect(() => {
         if (items.length > 0 || supplierId || invoiceNumber || notes) {
             saveDraft()
         }
-    }, [items, supplierId, supplierName, invoiceNumber, notes, paymentMethod, importDate, saveDraft])
+    }, [items, supplierId, supplierName, invoiceNumber, notes, paymentMethod, dateValue, saveDraft])
 
     useEffect(() => {
         const fetchData = async () => {
@@ -114,7 +137,7 @@ export default function CreatePurchaseOrderPage() {
                         const parsed = JSON.parse(savedDraft)
                         // Only restore if it's "fresh" enough (optional, let's just restore)
                         setOrderId(parsed.orderId)
-                        if (parsed.importDate) setImportDate(parsed.importDate)
+                        if (parsed.importDate) setDateValue(parsed.importDate)
                         setSupplierId(parsed.supplierId)
                         setSupplierName(parsed.supplierName)
                         setInvoiceNumber(parsed.invoiceNumber)
@@ -304,10 +327,18 @@ export default function CreatePurchaseOrderPage() {
     const amountToPay = roundTo3(totalAmount - totalDiscount + totalVat)
 
     const handleSaveOrder = useCallback(async () => {
+        // Validate date
+        const dateRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s(\d{1,2}):(\d{1,2})$/
+        if (!dateValue || !dateRegex.test(dateValue)) {
+            toast.error("Ngày nhập không hợp lệ (định dạng: dd/mm/yyyy HH:mm)")
+            setDateError("Định dạng dd/mm/yyyy HH:mm")
+            return
+        }
+
         // Prepare data for validation
         const orderData = {
             id: orderId,
-            importDate: importDate ? new Date(importDate).toISOString() : new Date().toISOString(),
+            importDate: parseVNDateTimeToISO(dateValue),
             supplierId,
             supplierName,
             totalAmount,
@@ -346,7 +377,7 @@ export default function CreatePurchaseOrderPage() {
 
         const newOrder: IPurchaseOrder = {
             id: orderId,
-            importDate: importDate ? new Date(importDate).toISOString() : new Date().toISOString(),
+            importDate: parseVNDateTimeToISO(dateValue),
             supplierId,
             supplierName,
             totalAmount,
@@ -376,7 +407,7 @@ export default function CreatePurchaseOrderPage() {
                 toast.error("Lỗi khi lưu đơn hàng: " + errorMsg)
             }
         }
-    }, [items, supplierId, invoiceNumber, notes, importDate, createdBy, paymentMethod, navigate, orderId, supplierName, totalAmount, totalDiscount, totalVat, amountToPay])
+    }, [items, supplierId, invoiceNumber, notes, dateValue, createdBy, paymentMethod, navigate, orderId, supplierName, totalAmount, totalDiscount, totalVat, amountToPay])
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-neutral-900 overflow-hidden">
@@ -472,14 +503,38 @@ export default function CreatePurchaseOrderPage() {
                             className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
                         />
                     </div>
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1"><Calendar size={10} /> Ngày nhập</label>
-                        <input
-                            type="date"
-                            value={importDate.split('T')[0]}
-                            onChange={(e) => setImportDate(e.target.value)}
-                            className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all font-mono"
-                        />
+                    <div className="flex flex-col gap-1.5 min-w-[140px]">
+                        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1"><CalendarIcon size={10} /> Ngày nhập</label>
+                        <div className="relative group">
+                            <input
+                                type="text"
+                                value={dateValue}
+                                onChange={(e) => {
+                                    setDateValue(formatDateTimeInput(e.target.value))
+                                    if (dateError) setDateError("")
+                                }}
+                                placeholder="dd/mm/yyyy HH:mm"
+                                className={`w-full bg-white dark:bg-neutral-900 border ${dateError ? 'border-red-500' : 'border-gray-300 dark:border-neutral-700'} px-3 py-2 pr-10 rounded text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all font-mono`}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => dateInputRef.current?.showPicker()}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-green-600 transition-colors"
+                            >
+                                <CalendarIcon size={16} />
+                            </button>
+                            <input
+                                type="datetime-local"
+                                ref={dateInputRef}
+                                className="absolute opacity-0 pointer-events-none"
+                                onChange={(e) => {
+                                    if (e.target.value) {
+                                        setDateValue(formatDateTimeToVN(new Date(e.target.value).toISOString()))
+                                    }
+                                }}
+                            />
+                            {dateError && <span className="absolute -bottom-4 left-0 text-[9px] text-red-500 font-bold">{dateError}</span>}
+                        </div>
                     </div>
                     <div className="flex flex-col gap-1.5">
                         <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1"><CreditCard size={10} /> HTTT</label>
@@ -652,8 +707,10 @@ export default function CreatePurchaseOrderPage() {
                                                 type="text"
                                                 className="w-full bg-blue-50/40 dark:bg-blue-900/10 border border-blue-200/50 dark:border-blue-900/30 px-1 py-1 rounded text-center outline-none focus:ring-1 focus:ring-blue-500 text-[11px] font-semibold text-blue-800 dark:text-blue-300"
                                                 value={item.expiryDate || ""}
-                                                placeholder="MM/YY"
-                                                onChange={(e) => updateItemField(item.id!, 'expiryDate', e.target.value)}
+                                                placeholder="DD/MM/YYYY"
+                                                onChange={(e) => {
+                                                    updateItemField(item.id!, 'expiryDate', formatDateInput(e.target.value));
+                                                }}
                                             />
                                         </td>
                                         <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right">

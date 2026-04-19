@@ -1,16 +1,40 @@
-import { useState, useMemo, useCallback, useEffect } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { AlertCircle, Search, PlusCircle, Trash2, Save, X } from "lucide-react"
+import { AlertCircle, Search, PlusCircle, Trash2, Save, X, Calendar as CalendarIcon, FileText, CreditCard } from "lucide-react"
 import { toast } from "sonner"
 import { type PurchaseOrder, type PurchaseOrderItem, purchaseOrderSchema, type PaymentMethod } from "@/lib/schemas"
 import { purchaseOrderService } from "@/services/purchase-order.service"
 import { productService } from "@/services/product.service"
 import { paymentMethodService } from "@/services/payment-method.service"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
-import { parseFloatSafe, getErrorMessage } from "@/lib/utils"
+import { parseFloatSafe, getErrorMessage, formatDateInput, formatDateTimeInput } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { useDebounce } from "@/hooks/use-debounce"
 import { type IProduct } from "@/types/product"
+
+// Helper functions for date conversion
+const formatDateTimeToVN = (isoString: string) => {
+    if (!isoString) return ""
+    const date = new Date(isoString)
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = date.getFullYear()
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${day}/${month}/${year} ${hours}:${minutes}`
+}
+
+const parseVNDateTimeToISO = (vnString: string) => {
+    if (!vnString) return new Date().toISOString()
+    const regex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s(\d{1,2}):(\d{1,2})$/
+    const match = vnString.match(regex)
+    if (match) {
+        const [, day, month, year, hours, minutes] = match
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes))
+        return date.toISOString()
+    }
+    return new Date().toISOString()
+}
 
 export default function PurchaseOrderDetailPage() {
     const { id } = useParams<{ id: string }>()
@@ -29,6 +53,9 @@ export default function PurchaseOrderDetailPage() {
     const [notes, setNotes] = useState("")
     const [paymentMethod, setPaymentMethod] = useState("")
     const [allPaymentMethods, setAllPaymentMethods] = useState<PaymentMethod[]>([])
+    const [dateValue, setDateValue] = useState("")
+    const [dateError, setDateError] = useState("")
+    const dateInputRef = useRef<HTMLInputElement>(null)
 
     useEffect(() => {
         const fetchData = async () => {
@@ -45,6 +72,7 @@ export default function PurchaseOrderDetailPage() {
                 setInvoiceNumber(orderData.invoiceNumber || "")
                 setNotes(orderData.notes || "")
                 setPaymentMethod(orderData.paymentMethod || "")
+                setDateValue(formatDateTimeToVN(orderData.importDate))
                 setAllProducts(productsData)
                 setAllPaymentMethods(paymentMethodsData)
             } catch (error: unknown) {
@@ -140,6 +168,8 @@ export default function PurchaseOrderDetailPage() {
             setInvoiceNumber(order.invoiceNumber || "")
             setNotes(order.notes || "")
             setPaymentMethod(order.paymentMethod || "")
+            setDateValue(formatDateTimeToVN(order.importDate))
+            setDateError("")
         }
         setIsEditing(false)
         toast.info("Đã hủy thay đổi")
@@ -208,12 +238,21 @@ export default function PurchaseOrderDetailPage() {
             }
         }
 
+        // Validate date
+        const dateRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s(\d{1,2}):(\d{1,2})$/
+        if (!dateValue || !dateRegex.test(dateValue)) {
+            toast.error("Ngày nhập không hợp lệ (định dạng: dd/mm/yyyy HH:mm)")
+            setDateError("Định dạng dd/mm/yyyy HH:mm")
+            return
+        }
+
         try {
-            const updatedOrder = { 
-                ...order, 
+            const updatedOrder = {
+                ...order,
                 invoiceNumber,
                 notes,
                 paymentMethod,
+                importDate: parseVNDateTimeToISO(dateValue),
                 items,
                 totalAmount: roundTo3(totalAmount),
                 discount: roundTo3(totalDiscount),
@@ -273,23 +312,29 @@ export default function PurchaseOrderDetailPage() {
     return (
         <div className="flex flex-col h-full bg-white dark:bg-neutral-900 overflow-hidden">
             {/* ── HEADER SECTION ── */}
-            <div className="flex-none p-3 border-b border-gray-200 dark:border-neutral-800 bg-gray-50/50 dark:bg-neutral-900/50">
-                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                    {/* Supplier Info */}
-                    <div className="w-full sm:flex-1 flex flex-col gap-1">
-                        <label className="text-[10px] sm:text-[11px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">Nhà cung cấp</label>
-                        <div className="flex gap-2">
+            <div className="flex-none px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100 dark:border-neutral-800 bg-gray-50/50 dark:bg-neutral-900/50">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3 sm:gap-4">
+                    {/* Supplier Info Card */}
+                    <div className="lg:col-span-3 bg-white dark:bg-neutral-800 p-3 sm:p-4 rounded-xl border border-gray-100 dark:border-neutral-700 shadow-sm relative overflow-hidden group">
+                        <div className="absolute top-0 right-0 p-3 text-gray-100 dark:text-neutral-700 group-hover:text-gray-200 transition-colors hidden sm:block">
+                            <FileText size={40} />
+                        </div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1 leading-none">Số phiếu</label>
+                        <div className="text-sm sm:text-base font-mono font-bold text-gray-800 dark:text-gray-200">
+                            {order.id}
+                        </div>
+                        <div className="mt-2 flex gap-1.5 pt-2 border-t border-gray-50 dark:border-neutral-700/50">
                             {isEditing ? (
-                                <div className="flex gap-1">
+                                <div className="flex gap-1 w-full">
                                     <button
                                         onClick={handleSaveOrder}
-                                        className="bg-orange-500 hover:bg-orange-600 text-white px-3 sm:px-4 py-1.5 rounded text-xs sm:text-sm font-bold whitespace-nowrap transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                                        className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm transition-all flex items-center justify-center gap-1"
                                     >
-                                        <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> Lưu
+                                        <Save size={12} /> Lưu
                                     </button>
                                     <button
                                         onClick={handleCancelEdit}
-                                        className="bg-gray-400 hover:bg-gray-500 text-white px-2 py-1.5 rounded text-sm font-medium transition-colors flex items-center justify-center shadow-sm"
+                                        className="bg-gray-100 hover:bg-gray-200 dark:bg-neutral-700 dark:hover:bg-neutral-600 text-gray-500 dark:text-gray-300 px-2 py-1.5 rounded-lg transition-all"
                                         title="Hủy"
                                     >
                                         <X size={14} />
@@ -298,73 +343,116 @@ export default function PurchaseOrderDetailPage() {
                             ) : (
                                 <button
                                     onClick={handleToggleEdit}
-                                    className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-3 sm:px-4 py-1.5 rounded text-xs sm:text-sm font-bold whitespace-nowrap transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                                    className="w-full bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white py-1.5 rounded-lg text-[10px] font-black uppercase tracking-wider shadow-sm transition-all flex items-center justify-center gap-1"
                                 >
-                                    Sửa phiếu
+                                    Sửa thông tin phiếu
                                 </button>
                             )}
+                        </div>
+                    </div>
+
+                    {/* Metadata Items */}
+                    <div className="lg:col-span-3 bg-white dark:bg-neutral-800 p-3 sm:p-4 rounded-xl border border-gray-100 dark:border-neutral-700 shadow-sm">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1">Nhà cung cấp</label>
+                        <div className="text-sm font-bold text-gray-800 dark:text-gray-100 truncate mb-1">
+                            {order.supplierName}
+                        </div>
+                        <div className="flex flex-col gap-1.5 mt-2">
+                             <label className="text-[10px] font-bold text-[#5c9a38] uppercase tracking-widest flex items-center gap-1">
+                                <CreditCard size={10} /> Hình thức thanh toán
+                             </label>
+                             {isEditing ? (
+                                <select
+                                    value={paymentMethod}
+                                    onChange={(e) => setPaymentMethod(e.target.value)}
+                                    className="w-full bg-blue-50/50 dark:bg-neutral-900 border border-blue-100 dark:border-blue-900/30 px-2 py-1.5 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500/10 transition-all font-bold text-blue-600"
+                                >
+                                    <option value="">Chọn...</option>
+                                    {allPaymentMethods.map(m => (
+                                        <option key={m.id || m.name} value={m.name}>{m.name}</option>
+                                    ))}
+                                </select>
+                            ) : (
+                                <div className="text-xs font-bold text-gray-600 dark:text-gray-400">
+                                    {paymentMethod || "Tiền mặt / Chuyển khoản"}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Transaction Details */}
+                    <div className="lg:col-span-3 bg-white dark:bg-neutral-800 p-3 sm:p-4 rounded-xl border border-gray-100 dark:border-neutral-700 shadow-sm flex flex-col gap-3">
+                        <div className="flex flex-col gap-1">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                                <CalendarIcon size={10} /> Ngày nhập
+                            </label>
+                            {isEditing ? (
+                                <div className="relative group">
+                                    <input
+                                        type="text"
+                                        value={dateValue}
+                                        onChange={(e) => {
+                                            setDateValue(formatDateTimeInput(e.target.value))
+                                            if (dateError) setDateError("")
+                                        }}
+                                        placeholder="dd/mm/yyyy HH:mm"
+                                        className={`w-full bg-orange-50/50 dark:bg-neutral-900 border ${dateError ? 'border-red-500' : 'border-orange-100 dark:border-orange-900/30'} px-2 py-1.5 pr-8 rounded-lg text-xs text-orange-700 dark:text-orange-400 font-mono focus:ring-2 focus:ring-orange-500/10 outline-none transition-all`}
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => dateInputRef.current?.showPicker()}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 text-orange-400 hover:text-orange-600 transition-colors"
+                                    >
+                                        <CalendarIcon size={14} />
+                                    </button>
+                                    <input
+                                        type="datetime-local"
+                                        ref={dateInputRef}
+                                        className="absolute opacity-0 pointer-events-none"
+                                        onChange={(e) => {
+                                            if (e.target.value) {
+                                                setDateValue(formatDateTimeToVN(new Date(e.target.value).toISOString()))
+                                            }
+                                        }}
+                                    />
+                                    {dateError && <span className="absolute -bottom-4 left-0 text-[8px] text-red-500 font-bold whitespace-nowrap">{dateError}</span>}
+                                </div>
+                            ) : (
+                                <div className="text-xs font-mono font-bold text-gray-800 dark:text-gray-200">
+                                    {dateValue}
+                                </div>
+                            )}
+                        </div>
+                        <div className="flex flex-col gap-1 pt-1 border-t border-gray-50 dark:border-neutral-700/50">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest leading-none">Số hóa đơn</label>
                             <input
                                 type="text"
-                                value={order.supplierName}
-                                disabled
-                                className="flex-1 bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 px-3 py-1.5 rounded text-xs sm:text-sm text-gray-700 dark:text-gray-300 font-semibold outline-none"
+                                value={invoiceNumber}
+                                placeholder="Invoice #"
+                                onChange={(e) => setInvoiceNumber(e.target.value)}
+                                disabled={!isEditing}
+                                className={`w-full text-xs transition-all px-2 py-1 rounded border-b-2 bg-transparent ${isEditing
+                                    ? 'border-blue-200 text-blue-600 font-bold focus:border-blue-500 outline-none'
+                                    : 'border-transparent text-gray-400 italic'
+                                    }`}
                             />
                         </div>
                     </div>
 
-                    {/* Metadata Grid (Quick Info) */}
-                    <div className="w-full sm:w-auto grid grid-cols-2 sm:flex sm:items-center gap-3 sm:gap-6">
-                        <div className="flex flex-col">
-                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter leading-none mb-1">Số phiếu</span>
-                            <span className="text-xs sm:text-sm font-mono font-bold text-gray-800 dark:text-gray-200">{order.id}</span>
+                    {/* Financial Summary Card */}
+                    <div className="lg:col-span-3 bg-blue-600 dark:bg-blue-700 p-3 sm:p-4 rounded-xl shadow-lg shadow-blue-500/20 relative overflow-hidden group h-full flex flex-col justify-center">
+                        <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
+                            <CreditCard size={100} className="text-white" />
                         </div>
-                        <div className="flex flex-col">
-                            <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter leading-none mb-1">Ngày nhập</span>
-                            <span className="text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-200">{new Date(order.importDate).toLocaleDateString("vi-VN")}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-5 gap-3 mt-4 pt-4 border-t border-gray-100 dark:border-neutral-800">
-                    <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider leading-none mb-1">Số khóa đơn</label>
-                        <input
-                            type="text"
-                            value={invoiceNumber}
-                            onChange={(e) => setInvoiceNumber(e.target.value)}
-                            disabled={!isEditing}
-                            className={`w-full ${isEditing ? 'bg-white ring-2 ring-blue-500/10 border-blue-500' : 'bg-gray-50/50 dark:bg-neutral-800/50 text-gray-400 border-gray-200 dark:border-neutral-800'} px-3 py-1.5 rounded text-xs sm:text-sm outline-none transition-all`}
-                        />
-                    </div>
-                    <div className="flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider leading-none mb-1">HTTT</label>
-                        {isEditing ? (
-                            <select
-                                value={paymentMethod}
-                                onChange={(e) => setPaymentMethod(e.target.value)}
-                                className="w-full bg-white border border-blue-500 ring-2 ring-blue-500/10 px-2 py-1.5 rounded text-xs sm:text-sm text-gray-800 outline-none"
-                            >
-                                <option value="">Chọn...</option>
-                                {allPaymentMethods.map(m => (
-                                    <option key={m.id || m.name} value={m.name}>{m.name}</option>
-                                ))}
-                            </select>
-                        ) : (
-                            <div className="px-3 py-1.5 bg-gray-50/50 dark:bg-neutral-800/50 border border-gray-200 dark:border-neutral-800 rounded text-xs sm:text-sm text-gray-400 font-medium">
-                                {paymentMethod || "Chuyển khoản"}
+                        <div className="relative">
+                            <label className="text-[9px] font-black text-blue-100 uppercase tracking-widest block mb-1">Tổng tiền cần trả</label>
+                            <div className="text-xl sm:text-2xl font-black text-white leading-none flex items-baseline gap-1">
+                                {vnd(amountToPay)} <span className="text-xs opacity-80 uppercase tracking-tighter">VND</span>
                             </div>
-                        )}
-                    </div>
-                    <div className="hidden sm:flex flex-col gap-1">
-                        <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider leading-none mb-1">Người tạo</label>
-                        <div className="px-3 py-1.5 bg-gray-50/50 dark:bg-neutral-800/50 border border-gray-200 dark:border-neutral-800 rounded text-xs sm:text-sm text-gray-400 truncate">
-                            {order.createdBy}
-                        </div>
-                    </div>
-                    <div className="col-span-2 sm:col-span-1 lg:col-span-2 flex items-end">
-                        <div className="w-full bg-blue-50 dark:bg-blue-900/10 px-3 py-1.5 rounded-lg border border-blue-100 dark:border-blue-900/30 flex justify-between items-center group">
-                            <span className="text-[9px] font-black text-blue-600 dark:text-blue-400 uppercase tracking-widest leading-none">Thanh toán</span>
-                            <span className="text-sm sm:text-base font-black text-blue-700 dark:text-blue-400 leading-none">{vnd(amountToPay)} đ</span>
+                            <div className="mt-2 text-[10px] text-blue-100/70 border-t border-white/10 pt-2 flex items-center justify-between">
+                                <span>Người tạo:</span>
+                                <span className="font-bold">{order.createdBy}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -517,7 +605,7 @@ export default function PurchaseOrderDetailPage() {
                                                 type="text"
                                                 className="w-full bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 px-1 rounded outline-none text-center"
                                                 value={item.expiryDate}
-                                                onChange={(e) => updateItemField(item.id || "", 'expiryDate', e.target.value)}
+                                                onChange={(e) => updateItemField(item.id || "", 'expiryDate', formatDateInput(e.target.value))}
                                             />
                                         ) : item.expiryDate}
                                     </td>
@@ -610,7 +698,7 @@ export default function PurchaseOrderDetailPage() {
                             className={`w-full ${isEditing ? 'bg-white ring-2 ring-blue-500/10' : 'bg-gray-100/50 dark:bg-neutral-800/50 text-gray-400 cursor-default'} border border-gray-200 dark:border-neutral-700 px-4 py-2 rounded-xl text-sm min-h-[60px] lg:min-h-[100px] outline-none transition-all resize-none font-medium`}
                         />
                     </div>
-                    
+
                     <div className="w-full lg:w-[480px] grid grid-cols-2 sm:grid-cols-3 gap-3">
                         {[
                             { label: "Tổng tiền hàng", value: totalAmount, color: "text-gray-600 dark:text-gray-400" },
@@ -637,8 +725,8 @@ export default function PurchaseOrderDetailPage() {
 
             {/* ── FOOTER ACTIONS ── */}
             <div className="flex-none p-3 border-t border-gray-200 dark:border-neutral-800 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3 bg-white dark:bg-neutral-900">
-                <button 
-                    onClick={() => navigate("/purchase-orders")} 
+                <button
+                    onClick={() => navigate("/purchase-orders")}
                     className="flex items-center justify-center gap-2 border border-gray-300 dark:border-neutral-700 px-4 py-2.5 rounded-lg text-xs sm:text-sm hover:bg-gray-100 dark:hover:bg-neutral-800 transition text-gray-700 dark:text-gray-300 font-bold"
                 >
                     <AlertCircle className="w-4 h-4" /> Quay lại danh sách

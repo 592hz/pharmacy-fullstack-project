@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect } from "react"
-import { PlusCircle, X } from "lucide-react"
+import { useState, useCallback, useEffect, useRef } from "react"
+import { PlusCircle, X, Calendar as CalendarIcon } from "lucide-react"
 import { toast } from "sonner"
-import { parseFloatSafe } from "@/lib/utils"
+import { parseFloatSafe, formatDateInput } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { type Product, type Unit, productSchema } from "@/lib/schemas"
 import { getErrorMessage } from "@/lib/utils"
@@ -117,11 +117,11 @@ const generateInitialFormData = (data?: Product | null): ProductFormData => {
         const firstBatch = data.batches?.[0]
         return {
             productName: data.name || "",
-            supplierId: (data.supplierId && typeof data.supplierId === 'object') 
-                ? ((data.supplierId as unknown as PopulatedEntity)._id || (data.supplierId as unknown as PopulatedEntity).id || "") 
+            supplierId: (data.supplierId && typeof data.supplierId === 'object')
+                ? ((data.supplierId as unknown as PopulatedEntity)._id || (data.supplierId as unknown as PopulatedEntity).id || "")
                 : (data.supplierId || data.manufacturer || ""),
-            categoryId: (data.categoryId && typeof data.categoryId === 'object') 
-                ? ((data.categoryId as unknown as PopulatedEntity)._id || (data.categoryId as unknown as PopulatedEntity).id || "") 
+            categoryId: (data.categoryId && typeof data.categoryId === 'object')
+                ? ((data.categoryId as unknown as PopulatedEntity)._id || (data.categoryId as unknown as PopulatedEntity).id || "")
                 : (data.categoryId || ""),
             productCode: data.id || "",
             vatPercent: 0,
@@ -170,6 +170,8 @@ const generateInitialFormData = (data?: Product | null): ProductFormData => {
 
 export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: AddProductModalProps) {
     const [formData, setFormData] = useState<ProductFormData>(() => generateInitialFormData(initialData))
+    const dateInputRef = useRef<HTMLInputElement>(null)
+    const batchDateInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
     const [categories, setCategories] = useState<IProductCategory[]>([])
     const [suppliers, setSuppliers] = useState<ISupplier[]>([])
@@ -482,13 +484,33 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-gray-300 truncate">Hạn dùng (DD-MM-YYYY)</label>
-                                    <input
-                                        type="text"
-                                        value={formData.expiryDate}
-                                        onChange={(e) => handleInputChange('expiryDate', e.target.value)}
-                                        className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-mono"
-                                        placeholder="31-12-2025"
-                                    />
+                                    <div className="relative group">
+                                        <input
+                                            type="text"
+                                            value={formData.expiryDate}
+                                            onChange={(e) => handleInputChange('expiryDate', formatDateInput(e.target.value))}
+                                            className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1.5 pr-8 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-mono"
+                                            placeholder="DD/MM/YYYY"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => dateInputRef.current?.showPicker()}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#5c9a38] transition-colors"
+                                        >
+                                            <CalendarIcon size={14} />
+                                        </button>
+                                        <input
+                                            type="date"
+                                            ref={dateInputRef}
+                                            className="absolute opacity-0 pointer-events-none"
+                                            onChange={(e) => {
+                                                if (e.target.value) {
+                                                    const d = new Date(e.target.value)
+                                                    handleInputChange('expiryDate', `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`)
+                                                }
+                                            }}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -516,13 +538,33 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                                         {batch.batchNumber}
                                                     </td>
                                                     <td className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700">
-                                                        <input
-                                                            type="text"
-                                                            value={batch.expiryDate || ""}
-                                                            onChange={(e) => handleBatchExpiryChange(batch.batchNumber, e.target.value)}
-                                                            className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1 text-center focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-mono"
-                                                            placeholder="DD-MM-YYYY"
-                                                        />
+                                                        <div className="relative group">
+                                                            <input
+                                                                type="text"
+                                                                value={batch.expiryDate || ""}
+                                                                onChange={(e) => handleBatchExpiryChange(batch.batchNumber, formatDateInput(e.target.value))}
+                                                                className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1 pr-7 text-center focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-mono"
+                                                                placeholder="DD/MM/YYYY"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => batchDateInputRefs.current[idx]?.showPicker()}
+                                                                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#5c9a38] transition-colors"
+                                                            >
+                                                                <CalendarIcon size={12} />
+                                                            </button>
+                                                            <input
+                                                                type="date"
+                                                                ref={(el) => { batchDateInputRefs.current[idx] = el }}
+                                                                className="absolute opacity-0 pointer-events-none"
+                                                                onChange={(e) => {
+                                                                    if (e.target.value) {
+                                                                        const d = new Date(e.target.value)
+                                                                        handleBatchExpiryChange(batch.batchNumber, `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`)
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </div>
                                                     </td>
                                                     <td className="px-3 sm:px-4 py-2 text-right">
                                                         <NumericInput

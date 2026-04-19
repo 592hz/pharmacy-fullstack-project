@@ -9,7 +9,7 @@ import { customerService } from "@/services/customer.service"
 import { paymentMethodService } from "@/services/payment-method.service"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
 import AddCustomerModal from "@/components/add-customer-modal"
-import { parseFloatSafe, getErrorMessage } from "@/lib/utils"
+import { parseFloatSafe, getErrorMessage, formatDateInput, formatDateTimeInput } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { type PaymentMethod } from "@/lib/schemas"
 import type { IProduct } from "@/types/product"
@@ -630,7 +630,7 @@ export default function CreateExportOrderPage() {
                                 type="text"
                                 value={dateValue}
                                 onChange={(e) => {
-                                    setDateValue(e.target.value)
+                                    setDateValue(formatDateTimeInput(e.target.value))
                                     if (dateError) setDateError("")
                                 }}
                                 placeholder="dd/mm/yyyy HH:mm"
@@ -852,8 +852,9 @@ export default function CreateExportOrderPage() {
                                                 <input
                                                     type="text"
                                                     className="w-full bg-transparent border border-transparent hover:border-gray-300 dark:hover:border-neutral-600 px-1 py-1 rounded text-center outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-[#5c9a38] text-[10px] sm:text-xs font-semibold text-gray-800 dark:text-gray-200 transition-all"
+                                                    placeholder="DD/MM/YYYY"
                                                     value={item.expiryDate || ""}
-                                                    onChange={(e) => updateItemField(item.id!, 'expiryDate', e.target.value)}
+                                                    onChange={(e) => updateItemField(item.id!, 'expiryDate', formatDateInput(e.target.value))}
                                                 />
                                             </td>
                                             <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800">
