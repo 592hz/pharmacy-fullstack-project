@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react"
+import { useSearchParams } from "react-router-dom"
 import { Search, Filter, RefreshCw, AlertTriangle, Package, Calendar, Trash2, EyeOff } from "lucide-react"
 import { toast } from "sonner"
 import { type ProductCategory } from "@/lib/schemas"
@@ -9,15 +10,21 @@ import { getErrorMessage } from "@/lib/utils"
 import { useDebounce } from "@/hooks/use-debounce"
 
 export default function StockManagementPage() {
+    const [searchParams] = useSearchParams()
     const [products, setProducts] = useState<IProduct[]>([])
     const [categories, setCategories] = useState<ProductCategory[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [searchQuery, setSearchQuery] = useState("")
     const debouncedSearchQuery = useDebounce(searchQuery, 300)
-    const [stockFilter, setStockFilter] = useState("Tất cả")
+    const [stockFilter, setStockFilter] = useState(() => searchParams.get("filter") || "Tất cả")
     const [categoryFilter, setCategoryFilter] = useState("Tất cả")
     const [displayLimit, setDisplayLimit] = useState(10)
     const [hideEmptyBatches, setHideEmptyBatches] = useState(false)
+
+    useEffect(() => {
+        const filter = searchParams.get("filter")
+        if (filter) setStockFilter(filter)
+    }, [searchParams])
 
     const fetchData = async () => {
         setIsLoading(true)

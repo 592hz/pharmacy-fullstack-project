@@ -63,6 +63,8 @@ export const customerSchema = z.object({
     weight: z.string().regex(/^\d*$/, "Cân nặng phải là số").optional(),
     age: z.string().regex(/^\d*$/, "Tuổi phải là số").optional(),
     notes: z.string().optional(),
+    isDeleted: z.boolean().optional(),
+    deletedAt: z.string().optional(),
 })
 
 export type Customer = z.infer<typeof customerSchema> & { id?: string; _id?: string }

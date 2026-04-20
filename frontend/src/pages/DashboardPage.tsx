@@ -122,7 +122,7 @@ export default function DashboardPage() {
                                 </p>
                                 <p className="text-[9px] sm:text-xs text-muted-foreground">{item.sub}</p>
                             </div>
- 
+
                             <div
                                 className={`flex h-8 w-8 sm:h-11 sm:w-11 items-center justify-center rounded-full shrink-0 ${item.color}`}
                             >
@@ -195,7 +195,10 @@ export default function DashboardPage() {
 
             {/* Các thông tin phụ - 3 thẻ này giờ chiếm trọn hàng */}
             <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-3">
-                <div className="flex items-center space-x-4 rounded-xl border bg-white dark:bg-neutral-900 p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+                <Link
+                    to={`/export-manage?date=${new Date().toISOString().split("T")[0]}&type=Ngày`}
+                    className="flex items-center space-x-4 rounded-xl border bg-white dark:bg-neutral-900 p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50 cursor-pointer"
+                >
                     <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-500 dark:bg-blue-900/40">
                         <ShoppingCart size={22} />
                     </div>
@@ -204,7 +207,7 @@ export default function DashboardPage() {
                         <p className="text-2xl font-bold tracking-tight text-foreground">{statsData.billCountToday}</p>
                         <p className="text-xs text-muted-foreground">Đã thanh toán</p>
                     </div>
-                </div>
+                </Link>
 
                 <div className="flex items-center space-x-4 rounded-xl border bg-white dark:bg-neutral-900 p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
                     <div className="flex min-w-[48px] h-12 w-12 items-center justify-center rounded-full bg-green-100 text-[#65a34e] dark:bg-green-900/40">
@@ -285,7 +288,7 @@ export default function DashboardPage() {
                         </div>
                         {statsData.nearExpiryProducts && statsData.nearExpiryProducts.length > nearExpiryLimit && (
                             <div className="p-3 border-t border-gray-100 dark:border-neutral-800 bg-gray-50/30 text-center">
-                                <button 
+                                <button
                                     onClick={() => setNearExpiryLimit(prev => prev + 10)}
                                     className="text-[11px] font-bold text-red-600 hover:text-red-700 uppercase tracking-tighter"
                                 >
@@ -294,8 +297,8 @@ export default function DashboardPage() {
                             </div>
                         )}
                         <div className="p-4 bg-red-500 hover:bg-red-600 transition-colors text-center">
-                            <Link 
-                                to="/stock" 
+                            <Link
+                                to="/stock?filter=Sắp hết hạn"
                                 className="text-white font-black text-[13px] uppercase tracking-widest flex items-center justify-center gap-2"
                             >
                                 <Flag size={18} />
@@ -350,7 +353,7 @@ export default function DashboardPage() {
                         </div>
                         {statsData.lowStockProducts && statsData.lowStockProducts.length > lowStockLimit && (
                             <div className="p-3 border-t border-gray-100 dark:border-neutral-800 bg-gray-50/30 text-center">
-                                <button 
+                                <button
                                     onClick={() => setLowStockLimit(prev => prev + 10)}
                                     className="text-[11px] font-bold text-orange-600 hover:text-orange-700 uppercase tracking-tighter"
                                 >
@@ -359,8 +362,8 @@ export default function DashboardPage() {
                             </div>
                         )}
                         <div className="p-4 bg-orange-500 hover:bg-orange-600 transition-colors text-center">
-                            <Link 
-                                to="/stock" 
+                            <Link
+                                to="/stock?filter=Sắp hết hàng"
                                 className="text-white font-black text-[13px] uppercase tracking-widest flex items-center justify-center gap-2"
                             >
                                 <ShoppingCart size={18} />

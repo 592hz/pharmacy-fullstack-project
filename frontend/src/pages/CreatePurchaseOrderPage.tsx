@@ -55,6 +55,7 @@ export default function CreatePurchaseOrderPage() {
     const [invoiceNumber, setInvoiceNumber] = useState("")
     const [notes, setNotes] = useState("")
     const [items, setItems] = useState<IPurchaseOrderItem[]>([])
+    const [extraDiscount, setExtraDiscount] = useState(0)
 
     const generateOrderId = () => {
         const now = new Date();
@@ -84,6 +85,11 @@ export default function CreatePurchaseOrderPage() {
     const [allProducts, setAllProducts] = useState<IProduct[]>(() => cacheService.get("products") || [])
     const [allSuppliers, setAllSuppliers] = useState<ISupplier[]>(() => cacheService.get("suppliers") || [])
 
+    // Supplier search state
+    const [showSupplierResults, setShowSupplierResults] = useState(false)
+    const [selectedSupplierIndex, setSelectedSupplierIndex] = useState(-1)
+    const debouncedSupplierName = useDebounce(supplierName, 300)
+
     // Draft handling
     const [hasRestoredDraft, setHasRestoredDraft] = useState(false)
 
@@ -100,6 +106,7 @@ export default function CreatePurchaseOrderPage() {
             invoiceNumber,
             notes,
             items,
+            extraDiscount,
             paymentMethod,
             timestamp: new Date().getTime()
         }
@@ -108,10 +115,10 @@ export default function CreatePurchaseOrderPage() {
 
     // Auto-save useEffect
     useEffect(() => {
-        if (items.length > 0 || supplierId || invoiceNumber || notes) {
+        if (items.length > 0 || supplierId || invoiceNumber || notes || extraDiscount > 0) {
             saveDraft()
         }
-    }, [items, supplierId, supplierName, invoiceNumber, notes, paymentMethod, dateValue, saveDraft])
+    }, [items, supplierId, supplierName, invoiceNumber, notes, paymentMethod, dateValue, extraDiscount, saveDraft])
 
     useEffect(() => {
         const fetchData = async () => {
@@ -143,6 +150,7 @@ export default function CreatePurchaseOrderPage() {
                         setInvoiceNumber(parsed.invoiceNumber)
                         setNotes(parsed.notes)
                         setItems(parsed.items)
+                        setExtraDiscount(parsed.extraDiscount || 0)
                         setPaymentMethod(parsed.paymentMethod)
                         setHasRestoredDraft(true)
                         toast.info("Đã khôi phục bản nháp phiếu nhập trước đó", {
@@ -177,6 +185,23 @@ export default function CreatePurchaseOrderPage() {
             (p.id && p.id.toLowerCase().includes(query))
         ).slice(0, 10)
     }, [debouncedSearchQuery, allProducts])
+
+    const filteredSuppliers = useMemo(() => {
+        if (!debouncedSupplierName.trim()) return []
+        const query = debouncedSupplierName.toLowerCase()
+        return allSuppliers.filter(s =>
+            (s.name && s.name.toLowerCase().includes(query)) ||
+            (s.id && s.id.toLowerCase().includes(query)) ||
+            (s.phone && s.phone.includes(query))
+        ).slice(0, 10)
+    }, [debouncedSupplierName, allSuppliers])
+
+    const handleSelectSupplier = useCallback((supplier: ISupplier) => {
+        setSupplierId(supplier.id || "")
+        setSupplierName(supplier.name || "")
+        setShowSupplierResults(false)
+        setSelectedSupplierIndex(-1)
+    }, [])
 
     const handleQuickAdd = useCallback((product: IProduct) => {
         const qty = 1
@@ -229,6 +254,27 @@ export default function CreatePurchaseOrderPage() {
         } else if (e.key === "Escape") {
             setShowResults(false)
             setSelectedIndex(-1)
+        }
+    }
+
+    const handleSupplierSearchKeyDown = (e: React.KeyboardEvent) => {
+        if (!showSupplierResults || filteredSuppliers.length === 0) return
+
+        if (e.key === "ArrowDown") {
+            e.preventDefault()
+            setSelectedSupplierIndex(prev => (prev < filteredSuppliers.length - 1 ? prev + 1 : prev))
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault()
+            setSelectedSupplierIndex(prev => (prev > 0 ? prev - 1 : prev))
+        } else if (e.key === "Enter") {
+            e.preventDefault()
+            const selected = selectedSupplierIndex >= 0 ? filteredSuppliers[selectedSupplierIndex] : filteredSuppliers[0]
+            if (selected) {
+                handleSelectSupplier(selected)
+            }
+        } else if (e.key === "Escape") {
+            setShowSupplierResults(false)
+            setSelectedSupplierIndex(-1)
         }
     }
 
@@ -322,7 +368,8 @@ export default function CreatePurchaseOrderPage() {
     })
 
     const totalAmount = roundTo3(items.reduce((sum, item) => sum + item.totalAmount, 0))
-    const totalDiscount = roundTo3(items.reduce((sum, item) => sum + item.discountAmount, 0))
+    const itemDiscountsSum = roundTo3(items.reduce((sum, item) => sum + item.discountAmount, 0))
+    const totalDiscount = roundTo3(itemDiscountsSum + extraDiscount)
     const totalVat = roundTo3(items.reduce((sum, item) => sum + item.vatAmount, 0))
     const amountToPay = roundTo3(totalAmount - totalDiscount + totalVat)
 
@@ -457,21 +504,69 @@ export default function CreatePurchaseOrderPage() {
                     {/* Supplier Select */}
                     <div className="col-span-2 flex flex-col gap-1.5">
                         <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Nhà cung cấp *</label>
-                        <div className="flex gap-2">
-                            <select
-                                value={supplierId}
-                                onChange={(e) => {
-                                    const s = allSuppliers.find(x => x.id === e.target.value)
-                                    setSupplierId(e.target.value)
-                                    setSupplierName(s?.name || "")
-                                }}
-                                className="w-full bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
-                            >
-                                <option value="">Chọn nhà cung cấp...</option>
-                                {allSuppliers.map(s => (
-                                    <option key={s.id} value={s.id}>{s.name}</option>
-                                ))}
-                            </select>
+                        <div className="flex gap-2 relative">
+                            <div className="flex-1 relative">
+                                <input
+                                    type="text"
+                                    value={supplierName}
+                                    onChange={(e) => {
+                                        setSupplierName(e.target.value)
+                                        setShowSupplierResults(true)
+                                        setSelectedSupplierIndex(-1)
+                                        if (supplierId) setSupplierId("") // Clear ID when typing
+                                    }}
+                                    onFocus={() => setShowSupplierResults(true)}
+                                    onBlur={() => setTimeout(() => setShowSupplierResults(false), 200)}
+                                    onKeyDown={handleSupplierSearchKeyDown}
+                                    placeholder="Tìm nhà cung cấp..."
+                                    className="w-full bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all font-semibold"
+                                />
+
+                                {showSupplierResults && (
+                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-lg shadow-xl z-50 overflow-hidden max-h-[300px] overflow-y-auto">
+                                        {filteredSuppliers.length > 0 ? (
+                                            filteredSuppliers.map((s, index) => (
+                                                <button
+                                                    key={s.id}
+                                                    onMouseDown={(e) => {
+                                                        e.preventDefault()
+                                                        handleSelectSupplier(s)
+                                                    }}
+                                                    className={`w-full flex flex-col items-start p-2.5 transition-colors border-b last:border-0 border-gray-50 dark:border-neutral-700/50 ${selectedSupplierIndex === index ? "bg-green-50 dark:bg-green-900/20" : "hover:bg-gray-50 dark:hover:bg-neutral-700/30"
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center justify-between w-full">
+                                                        <span className="font-bold text-gray-800 dark:text-gray-100 text-xs sm:text-sm">
+                                                            {s.name}
+                                                        </span>
+                                                        <span className="text-[10px] bg-gray-100 dark:bg-neutral-700 px-1.5 py-0.5 rounded font-mono text-gray-500">
+                                                            {s.id}
+                                                        </span>
+                                                    </div>
+                                                    {s.phone && (
+                                                        <div className="text-[10px] sm:text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
+                                                            <span>SĐT: {s.phone}</span>
+                                                        </div>
+                                                    )}
+                                                </button>
+                                            ))
+                                        ) : (
+                                            <div className="p-4 text-center">
+                                                <div className="text-xs text-gray-500 mb-2">Không thấy nhà cung cấp này</div>
+                                                <button
+                                                    onMouseDown={(e) => {
+                                                        e.preventDefault()
+                                                        setShowAddSupplierModal(true)
+                                                    }}
+                                                    className="text-[11px] font-bold text-green-600 hover:underline flex items-center gap-1 mx-auto"
+                                                >
+                                                    <Plus size={12} /> Thêm mới nhanh
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                             <button
                                 type="button"
                                 onClick={() => setShowAddSupplierModal(true)}
@@ -797,8 +892,22 @@ export default function CreatePurchaseOrderPage() {
                                 <span className="font-bold text-gray-700 dark:text-gray-300 ml-auto">{vnd(totalAmount)}</span>
                             </div>
                             <div className="flex justify-between items-center text-[11px] sm:text-xs">
-                                <span className="text-gray-500 font-medium tracking-tight">Tổng chiết khấu:</span>
-                                <span className="font-bold text-orange-500 ml-auto">-{vnd(totalDiscount)}</span>
+                                <span className="text-gray-500 font-medium tracking-tight">Chiết khấu hàng:</span>
+                                <span className="font-bold text-gray-700 dark:text-gray-300 ml-auto">{vnd(itemDiscountsSum)}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-[11px] sm:text-xs">
+                                <span className="text-gray-500 font-medium tracking-tight">Chiết khấu HĐ:</span>
+                                <div className="ml-auto w-32">
+                                    <NumericInput
+                                        className="w-full bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-900/30 px-2 py-1 rounded text-right outline-none focus:ring-1 focus:ring-orange-500 font-bold text-orange-600 dark:text-orange-400 text-xs"
+                                        value={extraDiscount}
+                                        onChange={(v) => setExtraDiscount(v)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex justify-between items-center text-[11px] sm:text-xs bg-orange-50/50 dark:bg-orange-900/5 p-1 rounded">
+                                <span className="text-orange-700 dark:text-orange-400 font-bold tracking-tight">Tổng chiết khấu:</span>
+                                <span className="font-bold text-orange-600 ml-auto">-{vnd(totalDiscount)}</span>
                             </div>
                             <div className="flex justify-between items-center text-[11px] sm:text-xs">
                                 <span className="text-gray-500 font-medium tracking-tight">Tổng thuế VAT:</span>
