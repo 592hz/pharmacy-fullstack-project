@@ -1,10 +1,17 @@
-import { useState, useCallback } from "react"
-import { X } from "lucide-react"
+import { useState, useCallback, useEffect, useRef } from "react"
+import { PlusCircle, X, Calendar as CalendarIcon, ChevronDown } from "lucide-react"
 import { toast } from "sonner"
-import { mockProductCategories, mockSuppliersList, type Product } from "@/lib/mock-data"
-import { parseFloatSafe } from "@/lib/utils"
+import { parseFloatSafe, formatDateInput } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
-import { productSchema } from "@/lib/schemas"
+import { type Product, type Unit, productSchema } from "@/lib/schemas"
+import { getErrorMessage } from "@/lib/utils"
+import { supplierService } from "@/services/supplier.service"
+import { productCategoryService } from "@/services/product-category.service"
+import { productService } from "@/services/product.service"
+import { unitService } from "@/services/unit.service"
+import type { IProduct } from "@/types/product"
+import type { ISupplier } from "@/types/supplier"
+import type { IProductCategory } from "@/types/category"
 
 // dữ liệu được lấy từ database 
 export interface ProductUnit {
@@ -15,6 +22,12 @@ export interface ProductUnit {
     retailPrice: number
     wholesalePrice: number
     isDefault: boolean
+}
+
+export interface Batch {
+    batchNumber: string
+    expiryDate: string
+    quantity: number
 }
 
 export interface ProductFormData {
@@ -45,52 +58,14 @@ export interface ProductFormData {
     baseUnitName: string
     batchNumber: string
     expiryDate: string
+    batches: Batch[]
 }
-
-const initialFormData: ProductFormData = {
-    productCode: "",
-    productName: "",
-    categoryId: "",
-    supplierId: "",
-    vatPercent: 0,
-    discountPercent: 0,
-    // 6. Đơn vị tính   
-    units: [
-        // Default empty row
-        // 1. Đơn vị tính
-        {
-            id: "1",
-            unitName: "",
-            conversionRate: 1,
-            importPrice: 0,
-            retailPrice: 0,
-            wholesalePrice: 0,
-            isDefault: true
-        }
-    ],
-    initialQuantity: 0,
-    baseUnitName: "Viên",
-    batchNumber: "",
-    expiryDate: "",
-}
-
-// 3. Đơn vị tính
-const mockUnits = [
-    { id: "u1", name: "Viên" },
-    { id: "u2", name: "Vỉ" },
-    { id: "u3", name: "Hộp" },
-    { id: "u4", name: "Lọ" },
-    { id: "u5", name: "Tuýp" },
-    { id: "u6", name: "Gói" },
-    { id: "u7", name: "Chai" },
-    { id: "u8", name: "Ống" }
-]
 
 export interface AddProductModalProps {
     isOpen: boolean
     onClose: () => void
-    onSuccess: (data: ProductFormData) => void
-    initialData?: Product | null // To support editing
+    onSuccess: (savedProduct: Product, formData: ProductFormData) => void
+    initialData?: Product | null
 }
 
 interface InputFieldProps {
@@ -107,7 +82,7 @@ interface InputFieldProps {
 const InputField = ({ label, required, value, onChange, placeholder = "", type = "text", disabled = false }: InputFieldProps) => {
     return (
         <div className="flex flex-col gap-1 w-full">
-            <label className="text-xs font-semibold text-gray-700">
+            <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">
                 {label} {required && <span className="text-red-500">*</span>}
             </label>
             {type === 'number' ? (
@@ -116,7 +91,7 @@ const InputField = ({ label, required, value, onChange, placeholder = "", type =
                     onChange={(v) => onChange(v)}
                     disabled={disabled}
                     placeholder={placeholder}
-                    className={`w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
+                    className={`w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] ${disabled ? 'bg-gray-100 dark:bg-neutral-800 cursor-not-allowed text-gray-500' : 'bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100'}`}
                 />
             ) : (
                 <input
@@ -125,66 +100,200 @@ const InputField = ({ label, required, value, onChange, placeholder = "", type =
                     disabled={disabled}
                     onChange={(e) => onChange(e.target.value)}
                     placeholder={placeholder}
-                    className={`w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] ${disabled ? 'bg-gray-100 cursor-not-allowed' : 'bg-white'}`}
+                    className={`w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] ${disabled ? 'bg-gray-100 dark:bg-neutral-800 cursor-not-allowed text-gray-500' : 'bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100'}`}
                 />
             )}
         </div>
     )
 }
 
-export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: AddProductModalProps) {
-    const [formData, setFormData] = useState<ProductFormData>(() => {
-        if (initialData) {
-            const firstBatch = initialData.batches?.[0]
-            // Mapping from Product (mock-data.ts) to ProductFormData
-            return {
-                productName: initialData.name || "",
-                supplierId: initialData.supplierId || initialData.manufacturer || "",
-                categoryId: initialData.categoryId || "",
-                productCode: initialData.id || "",
-                vatPercent: 10, // Default for mock data
-                discountPercent: 0,
-                units: [{
-                    id: "1",
-                    unitName: initialData.unit || "",
-                    isDefault: true,
-                    conversionRate: initialData.conversionRate || 1,
-                    importPrice: initialData.importPrice || 0,
-                    retailPrice: initialData.retailPrice || 0,
-                    wholesalePrice: initialData.wholesalePrice || 0,
-                }],
-                initialQuantity: firstBatch ? firstBatch.quantity / (initialData.conversionRate || 1) : initialData.baseQuantity / (initialData.conversionRate || 1),
-                baseUnitName: initialData.baseUnitName || "Viên",
-                batchNumber: firstBatch?.batchNumber || "",
-                expiryDate: firstBatch?.expiryDate || initialData.expiryDate || "",
-            }
-        }
+interface PopulatedEntity {
+    _id?: string;
+    id?: string;
+}
 
-        // New random ID for new products
-        // State initializers are allowed to be "impure" as they only run once on mount
-        const newId = "SP" + Math.floor(100000 + Math.random() * 900000).toString()
+const generateInitialFormData = (data?: Product | null): ProductFormData => {
+    if (data) {
+        const firstBatch = data.batches?.[0]
         return {
-            productName: "",
-            supplierId: "",
-            categoryId: "",
-            productCode: newId,
-            vatPercent: 10,
+            productName: data.name || "",
+            supplierId: (data.supplierId && typeof data.supplierId === 'object')
+                ? ((data.supplierId as unknown as PopulatedEntity)._id || (data.supplierId as unknown as PopulatedEntity).id || "")
+                : (data.supplierId || data.manufacturer || ""),
+            categoryId: (data.categoryId && typeof data.categoryId === 'object')
+                ? ((data.categoryId as unknown as PopulatedEntity)._id || (data.categoryId as unknown as PopulatedEntity).id || "")
+                : (data.categoryId || ""),
+            productCode: data.id || "",
+            vatPercent: 0,
             discountPercent: 0,
             units: [{
                 id: "1",
-                unitName: "Viên",
+                unitName: data.unit || "",
                 isDefault: true,
-                conversionRate: 1,
-                importPrice: 0,
-                retailPrice: 0,
-                wholesalePrice: 0,
+                conversionRate: data.conversionRate || 1,
+                importPrice: data.importPrice || 0,
+                retailPrice: data.retailPrice || 0,
+                wholesalePrice: data.wholesalePrice || 0,
             }],
-            initialQuantity: 0,
-            baseUnitName: "Viên",
-            batchNumber: "",
-            expiryDate: "",
+            initialQuantity: firstBatch ? firstBatch.quantity / (data.conversionRate || 1) : (data.baseQuantity || 0) / (data.conversionRate || 1),
+            baseUnitName: data.baseUnitName || "Viên",
+            batchNumber: firstBatch?.batchNumber || "",
+            expiryDate: firstBatch?.expiryDate || data.expiryDate || "",
+            batches: data.batches || []
         }
-    })
+    }
+
+    const newId = "SP" + Math.floor(100000 + Math.random() * 900000).toString()
+    return {
+        productName: "",
+        supplierId: "",
+        categoryId: "",
+        productCode: newId,
+        vatPercent: 0,
+        discountPercent: 0,
+        units: [{
+            id: "1",
+            unitName: "Viên",
+            isDefault: true,
+            conversionRate: 1,
+            importPrice: 0,
+            retailPrice: 0,
+            wholesalePrice: 0,
+        }],
+        initialQuantity: 0,
+        baseUnitName: "Viên",
+        batchNumber: "",
+        expiryDate: "",
+        batches: []
+    }
+}
+
+interface SearchableSelectProps {
+    label: string
+    required?: boolean
+    options: { id: string; name: string }[]
+    value: string
+    onChange: (value: string) => void
+    placeholder?: string
+    error?: boolean
+}
+
+const SearchableSelect = ({ label, required, options, value, onChange, placeholder = "Chọn...", error }: SearchableSelectProps) => {
+    const [isOpen, setIsOpen] = useState(false)
+    const [search, setSearch] = useState("")
+    const dropdownRef = useRef<HTMLDivElement>(null)
+
+    const filteredOptions = options.filter(opt =>
+        opt.name.toLowerCase().includes(search.toLowerCase())
+    )
+
+    const selectedOption = options.find(opt => opt.id === value)
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false)
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside)
+        return () => document.removeEventListener("mousedown", handleClickOutside)
+    }, [])
+
+    return (
+        <div className="flex flex-col gap-1 w-full relative" ref={dropdownRef}>
+            <label className="text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-gray-300">
+                {label} {required && <span className="text-red-500">*</span>}
+            </label>
+            <div
+                className={`w-full border ${error ? 'border-blue-500 ring-1 ring-blue-500' : 'border-gray-300 dark:border-neutral-700'} rounded px-2 py-1.5 text-xs sm:text-sm bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 h-[34px] flex items-center justify-between cursor-pointer focus-within:border-[#5c9a38] focus-within:ring-1 focus-within:ring-[#5c9a38] shadow-sm transition-all`}
+                onClick={() => setIsOpen(!isOpen)}
+            >
+                <span className={`truncate ${!selectedOption ? "text-gray-400" : "font-medium"}`}>
+                    {selectedOption ? selectedOption.name : placeholder}
+                </span>
+                <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </div>
+
+            {isOpen && (
+                <div className="absolute top-[100%] left-0 w-full z-[100] mt-1 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded shadow-2xl animate-in fade-in zoom-in-95 duration-100 overflow-hidden">
+                    <div className="p-2 border-b border-gray-100 dark:border-neutral-800 bg-gray-50/50 dark:bg-neutral-800/50">
+                        <input
+                            autoFocus
+                            type="text"
+                            className="w-full px-2 py-1.5 text-xs sm:text-sm border border-gray-200 dark:border-neutral-700 rounded focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white dark:bg-neutral-900"
+                            placeholder="Nhập để tìm kiếm..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </div>
+                    <div className="max-h-[200px] overflow-y-auto py-1 custom-scrollbar">
+                        {filteredOptions.length > 0 ? (
+                            filteredOptions.map(opt => (
+                                <div
+                                    key={opt.id}
+                                    className={`px-3 py-2 text-xs sm:text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors flex items-center justify-between ${opt.id === value ? 'bg-[#5c9a38]/10 dark:bg-[#5c9a38]/20 font-bold text-[#5c9a38]' : 'text-gray-700 dark:text-gray-300'}`}
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        onChange(opt.id)
+                                        setIsOpen(false)
+                                        setSearch("")
+                                    }}
+                                >
+                                    <span>{opt.name}</span>
+                                    {opt.id === value && <div className="w-1.5 h-1.5 bg-[#5c9a38] rounded-full"></div>}
+                                </div>
+                            ))
+                        ) : (
+                            <div className="px-3 py-6 text-xs text-center text-gray-400 italic">Không tìm thấy kết quả</div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+}
+
+export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: AddProductModalProps) {
+    const [formData, setFormData] = useState<ProductFormData>(() => generateInitialFormData(initialData))
+    const dateInputRef = useRef<HTMLInputElement>(null)
+    const batchDateInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
+
+    const [categories, setCategories] = useState<IProductCategory[]>([])
+    const [suppliers, setSuppliers] = useState<ISupplier[]>([])
+    const [availableUnits, setAvailableUnits] = useState<Unit[]>([])
+
+    useEffect(() => {
+        if (isOpen) {
+            const fetchData = async () => {
+                try {
+                    const [cats, sups, unts] = await Promise.all([
+                        productCategoryService.getAll(),
+                        supplierService.getAll(),
+                        unitService.getAll()
+                    ])
+                    setCategories(cats)
+                    setSuppliers(sups as ISupplier[])
+                    setAvailableUnits(unts)
+
+                    // Mặc định nhóm sản phẩm là "Dược phẩm" khi thêm mới
+                    if (!initialData && cats.length > 0) {
+                        const defaultCat = cats.find(c => c.name === "Dược phẩm");
+                        if (defaultCat) {
+                            setFormData(prev => ({ 
+                                ...prev, 
+                                categoryId: defaultCat.id || defaultCat._id || "" 
+                            }));
+                        }
+                    }
+                } catch {
+                    console.error("Error fetching data")
+                    toast.error("Không thể tải dữ liệu danh mục/nhà cung cấp")
+                }
+            }
+            fetchData()
+        }
+    }, [isOpen])
 
     // Helper to update basic string/number/boolean fields
     // Các hàm hỗ trợ sử lý dữ liệu
@@ -256,7 +365,27 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
             units: prev.units.filter(u => u.id !== id)
         }))
     }
-    const handleSubmit = (action: 'save' | 'save_new') => {
+
+    const handleBatchExpiryChange = (batchNumber: string, newExpiry: string) => {
+        setFormData(prev => ({
+            ...prev,
+            batches: prev.batches.map(b =>
+                b.batchNumber === batchNumber ? { ...b, expiryDate: newExpiry } : b
+            )
+        }))
+    }
+
+    const handleBatchQuantityChange = (batchNumber: string, newQty: number) => {
+        const conversionRate = initialData?.conversionRate || 1
+        setFormData(prev => ({
+            ...prev,
+            batches: prev.batches.map(b =>
+                b.batchNumber === batchNumber ? { ...b, quantity: newQty * conversionRate } : b
+            )
+        }))
+    }
+
+    const handleSubmit = async (action: 'save' | 'save_new') => {
         const validation = productSchema.safeParse(formData)
 
         if (!validation.success) {
@@ -265,15 +394,79 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
             return
         }
 
-        console.log("Saving exactly matching Database Schema:", formData)
-        toast.success(initialData ? "Cập nhật sản phẩm thành công!" : "Thêm mới sản phẩm thành công!")
+        try {
+            const firstUnit = formData.units[0]
+            const conversionRate = firstUnit?.conversionRate || 1
 
-        if (action === 'save') {
-            onSuccess(formData)
-            onClose()
-        } else if (action === 'save_new') {
-            onSuccess(formData)
-            setFormData(initialFormData) 
+            const productData: Omit<Product, "id"> & { id?: string } = {
+                id: formData.productCode,
+                name: formData.productName,
+                productCode: formData.productCode, // Add required field
+                productName: formData.productName, // Add required field
+                unit: firstUnit?.unitName || "",
+                importPrice: Number(firstUnit?.importPrice) || 0,
+                retailPrice: Number(firstUnit?.retailPrice) || 0,
+                wholesalePrice: Number(firstUnit?.wholesalePrice) || 0,
+                registrationNo: initialData?.registrationNo || ".",
+                isDQG: initialData?.isDQG || false,
+                manufacturer: initialData?.manufacturer || ".",
+                categoryId: formData.categoryId,
+                supplierId: formData.supplierId && formData.supplierId.trim() !== "" ? formData.supplierId : undefined,
+                baseQuantity: initialData && formData.batches.length > 0
+                    ? formData.batches.reduce((sum, b) => sum + b.quantity, 0)
+                    : Number(formData.initialQuantity) * conversionRate,
+                baseUnitName: formData.baseUnitName || "",
+                conversionRate: conversionRate,
+                vatPercent: formData.vatPercent,
+                discountPercent: formData.discountPercent,
+                initialQuantity: formData.initialQuantity,
+                units: formData.units.map(u => ({
+                    id: u.id,
+                    unitName: u.unitName,
+                    conversionRate: u.conversionRate,
+                    importPrice: u.importPrice,
+                    retailPrice: u.retailPrice,
+                    wholesalePrice: u.wholesalePrice,
+                    isDefault: u.isDefault
+                })),
+                batches: initialData && formData.batches.length > 0
+                    ? formData.batches
+                    : [
+                        {
+                            batchNumber: formData.batchNumber || (initialData ? "MỚI" : "LÔ ĐẦU"),
+                            expiryDate: (formData.expiryDate && formData.expiryDate !== ".") ? formData.expiryDate : "2099-01-01",
+                            quantity: Number(formData.initialQuantity) * conversionRate
+                        }
+                    ]
+            }
+
+            let savedProduct: IProduct
+            if (initialData) {
+                savedProduct = await productService.update(initialData.id, productData as unknown as IProduct)
+                toast.success("Cập nhật sản phẩm thành công!")
+            } else {
+                savedProduct = await productService.create(productData as unknown as IProduct)
+                toast.success("Thêm mới sản phẩm thành công!")
+            }
+
+            if (action === 'save') {
+                onSuccess(savedProduct as unknown as Product, formData)
+                onClose()
+            } else if (action === 'save_new') {
+                onSuccess(savedProduct as unknown as Product, formData)
+                // Use the helper to generate a completely fresh state with a new ID
+                const freshFormData = generateInitialFormData()
+                
+                // Mặc định nhóm sản phẩm là "Dược phẩm" cho sản phẩm tiếp theo
+                const defaultCat = categories.find(c => c.name === "Dược phẩm")
+                if (defaultCat) {
+                    freshFormData.categoryId = defaultCat.id || defaultCat._id || ""
+                }
+                
+                setFormData(freshFormData)
+            }
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
         }
     }
 
@@ -281,19 +474,18 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-6 md:p-8">
-            <div className="bg-white w-full h-full max-w-[1400px] flex flex-col rounded shadow-2xl overflow-hidden relative animate-in fade-in zoom-in-95 duration-200">
-
+            <div className="bg-white dark:bg-neutral-900 w-full h-full max-w-[1400px] flex flex-col rounded shadow-2xl overflow-hidden relative animate-in fade-in zoom-in-95 duration-200">
                 {/* HEADERS & TABS */}
-                <div className="flex flex-col border-b border-gray-200 bg-white pt-2">
-                    <div className="flex items-center justify-between px-4 pb-2">
-                        <h2 className="text-xl font-bold text-gray-800">{initialData ? "Cập nhật thông tin hàng hóa" : "Thêm mới hàng hóa"}</h2>
-                        <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded text-gray-500 hover:text-gray-800">
-                            <X size={20} />
+                <div className="flex flex-col border-b border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 pt-2">
+                    <div className="flex items-center justify-between px-3 sm:px-4 pb-2">
+                        <h2 className="text-base sm:text-xl font-bold text-gray-800 dark:text-gray-100">{initialData ? "Cập nhật thông tin hàng hóa" : "Thêm mới hàng hóa"}</h2>
+                        <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">
+                            <X className="w-5 h-5 sm:w-6 sm:h-6" />
                         </button>
                     </div>
-                    <div className="flex px-4 gap-1">
+                    <div className="flex px-3 sm:px-4 gap-1">
                         <button
-                            className="px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors bg-[#5c9a38] text-white"
+                            className="px-3 sm:px-4 py-1.5 sm:py-2 text-[11px] sm:text-sm font-semibold rounded-t-lg transition-colors bg-[#5c9a38] text-white"
                         >
                             Thông tin sản phẩm
                         </button>
@@ -301,55 +493,47 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                 </div>
 
                 {/* SCROLLABLE CONTENT BODY */}
-                <div className="flex-1 overflow-y-auto bg-white p-4">
-                    <div className="flex flex-col gap-6 w-full mx-auto">
+                <div className="flex-1 overflow-y-auto bg-white dark:bg-neutral-900 p-3 sm:p-4">
+                    <div className="flex flex-col gap-4 sm:gap-6 w-full mx-auto">
 
                         {/* --- GRID FORM --- */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3 sm:gap-y-4">
                             {/* Row 1 */}
                             <InputField label="Tên hàng hóa" required value={formData.productName} onChange={(v) => handleInputChange('productName', v)} />
 
                             {/* Custom Searchable Select for Supplier */}
-                            <div className="flex flex-col gap-1 w-full">
-                                <label className="text-xs font-semibold text-gray-700">Nhà cung cấp</label>
-                                <select
-                                    className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white h-[34px]"
-                                    value={formData.supplierId}
-                                    onChange={(e) => handleInputChange('supplierId', e.target.value)}
-                                >
-                                    <option value="">Chọn nhà cung cấp...</option>
-                                    {mockSuppliersList.map(s => (
-                                        <option key={s.id} value={s.id}>{s.name}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            <SearchableSelect
+                                label="Nhà cung cấp"
+                                options={suppliers.map(s => ({ id: s.id || s._id || "", name: s.name }))}
+                                value={formData.supplierId}
+                                onChange={(v) => handleInputChange('supplierId', v)}
+                                placeholder="Chọn nhà cung cấp..."
+                            />
 
                             {/* Row 2 */}
                             {/* Custom Searchable Select for Category */}
-                            <div className="flex flex-col gap-1 w-full">
-                                <label className="text-xs font-semibold text-gray-700">Nhóm hàng hóa <span className="text-red-500">*</span></label>
-                                <select
-                                    className="w-full border border-blue-500 rounded px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white h-[34px]"
-                                    value={formData.categoryId}
-                                    onChange={(e) => handleInputChange('categoryId', e.target.value)}
-                                >
-                                    <option value="">Chọn nhóm...</option>
-                                    {mockProductCategories.map(c => (
-                                        <option key={c.id} value={c.id}>{c.name}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <SearchableSelect
+                                label="Nhóm hàng hóa"
+                                required
+                                error // highlight border as it was previously blue
+                                options={categories.map(c => ({ id: c.id || c._id || "", name: c.name }))}
+                                value={formData.categoryId}
+                                onChange={(v) => handleInputChange('categoryId', v)}
+                                placeholder="Chọn nhóm..."
+                            />
+                            <div className="grid grid-cols-2 gap-2 sm:gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-xs font-medium text-gray-500">%VAT</label>
+                                    <label className="text-[11px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-tight">%VAT</label>
                                     <NumericInput
+                                        className="h-[34px] text-xs sm:text-sm bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-neutral-700"
                                         value={formData.vatPercent}
                                         onChange={(v) => handleInputChange('vatPercent', v)}
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-xs font-medium text-gray-500">%CK</label>
+                                    <label className="text-[11px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-tight">%CK</label>
                                     <NumericInput
+                                        className="h-[34px] text-xs sm:text-sm bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-neutral-700"
                                         value={formData.discountPercent}
                                         onChange={(v) => handleInputChange('discountPercent', v)}
                                     />
@@ -360,137 +544,224 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                             <InputField label="Mã hàng hóa" disabled value={formData.productCode} onChange={(v) => handleInputChange('productCode', v)} placeholder="SP000294" />
 
                             {/* Inventory Section */}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-2 sm:gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-gray-700">Số lượng tồn kho</label>
+                                    <label className="text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-gray-300">Tồn kho hiện tại</label>
                                     <NumericInput
+                                        className="h-[34px] text-xs sm:text-sm font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-neutral-900 border-gray-300 dark:border-neutral-700"
                                         value={formData.initialQuantity}
                                         onChange={(v) => handleInputChange('initialQuantity', v)}
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-gray-700">Đơn vị cơ bản (nhỏ nhất)</label>
+                                    <label className="text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-gray-300">Đơn vị cơ bản</label>
                                     <input
                                         type="text"
                                         value={formData.baseUnitName}
                                         onChange={(e) => handleInputChange('baseUnitName', e.target.value)}
-                                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white"
-                                        placeholder="Ví dụ: Viên, Chai..."
+                                        className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100"
+                                        placeholder="Viên, Chai..."
                                     />
                                 </div>
                             </div>
 
                             {/* Batch & Expiry Section */}
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-2 gap-2 sm:gap-4">
                                 <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-gray-700">Số lô</label>
+                                    <label className="text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-gray-300">Số lô {initialData && "(Lô mới)"}</label>
                                     <input
                                         type="text"
                                         value={formData.batchNumber}
                                         onChange={(e) => handleInputChange('batchNumber', e.target.value)}
-                                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white"
+                                        className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-mono"
                                         placeholder="Nhập số lô..."
                                     />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-xs font-semibold text-gray-700">Hạn dùng (DD-MM-YYYY)</label>
-                                    <input
-                                        type="text"
-                                        value={formData.expiryDate}
-                                        onChange={(e) => handleInputChange('expiryDate', e.target.value)}
-                                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white"
-                                        placeholder="Ví dụ: 31-12-2025"
-                                    />
+                                    <label className="text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-gray-300 truncate">Hạn dùng (DD-MM-YYYY)</label>
+                                    <div className="relative group">
+                                        <input
+                                            type="text"
+                                            value={formData.expiryDate}
+                                            onChange={(e) => handleInputChange('expiryDate', formatDateInput(e.target.value))}
+                                            className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1.5 pr-8 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-mono"
+                                            placeholder="DD/MM/YYYY"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => dateInputRef.current?.showPicker()}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#5c9a38] transition-colors"
+                                        >
+                                            <CalendarIcon size={14} />
+                                        </button>
+                                        <input
+                                            type="date"
+                                            ref={dateInputRef}
+                                            className="absolute opacity-0 pointer-events-none"
+                                            onChange={(e) => {
+                                                if (e.target.value) {
+                                                    const d = new Date(e.target.value)
+                                                    handleInputChange('expiryDate', `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`)
+                                                }
+                                            }}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
+                        {/* --- BATCHES TABLE (Only for Edit Mode) --- */}
+                        {initialData && formData.batches && formData.batches.length > 0 && (
+                            <div className="mt-2 border-t border-gray-100 pt-4">
+                                <h3 className="text-xs sm:text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                                    <span className="w-1 h-3 sm:w-1.5 sm:h-4 bg-[#5c9a38] rounded-full"></span>
+                                    Quản lý lô hàng hiện tại
+                                </h3>
+                                <div className="border border-gray-200 dark:border-neutral-800 rounded-lg overflow-x-auto bg-gray-50/30 dark:bg-neutral-800/20">
+                                    <table className="w-full text-[10px] sm:text-xs text-left min-w-[500px]">
+                                        <thead className="bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 font-bold uppercase tracking-wider">
+                                            <tr>
+                                                <th className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700">Số lô</th>
+                                                <th className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700 text-center">Hạn dùng</th>
+                                                <th className="px-3 sm:px-4 py-2 text-right">Số lượng tồn</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-200 dark:divide-neutral-800 bg-white dark:bg-neutral-900">
+                                            {formData.batches.map((batch, idx) => (
+                                                <tr key={`${batch.batchNumber}-${idx}`} className="hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors">
+                                                    <td className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700 font-medium text-gray-700 dark:text-gray-300">
+                                                        {batch.batchNumber}
+                                                    </td>
+                                                    <td className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700">
+                                                        <div className="relative group">
+                                                            <input
+                                                                type="text"
+                                                                value={batch.expiryDate || ""}
+                                                                onChange={(e) => handleBatchExpiryChange(batch.batchNumber, formatDateInput(e.target.value))}
+                                                                className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1 pr-7 text-center focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-mono"
+                                                                placeholder="DD/MM/YYYY"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => batchDateInputRefs.current[idx]?.showPicker()}
+                                                                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#5c9a38] transition-colors"
+                                                            >
+                                                                <CalendarIcon size={12} />
+                                                            </button>
+                                                            <input
+                                                                type="date"
+                                                                ref={(el) => { batchDateInputRefs.current[idx] = el }}
+                                                                className="absolute opacity-0 pointer-events-none"
+                                                                onChange={(e) => {
+                                                                    if (e.target.value) {
+                                                                        const d = new Date(e.target.value)
+                                                                        handleBatchExpiryChange(batch.batchNumber, `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`)
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-3 sm:px-4 py-2 text-right">
+                                                        <NumericInput
+                                                            value={batch.quantity / (initialData.conversionRate || 1)}
+                                                            onChange={(v) => handleBatchQuantityChange(batch.batchNumber, v)}
+                                                            className="w-[80px] sm:w-[100px] ml-auto text-right border border-gray-300 dark:border-neutral-700 rounded px-2 py-1 focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-neutral-900"
+                                                        />
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+
                         {/* --- UNIT ADD --- */}
-                        <div className="flex flex-wrap items-center gap-x-8 gap-y-4 pt-2">
+                        <div className="flex items-center pt-2">
                             <button
                                 onClick={addUnitRow}
-                                className="bg-[#5c9a38] text-white px-6 py-2 rounded text-sm font-medium hover:bg-[#5c9a38]/90 transition-colors"
+                                className="bg-[#5c9a38] text-white px-4 sm:px-6 py-2 rounded text-xs sm:text-sm font-medium hover:bg-[#5c9a38]/90 transition-colors shadow-sm flex items-center gap-2"
                             >
-                                Thêm đơn vị tính
+                                <PlusCircle className="w-4 h-4" /> Thêm đơn vị tính
                             </button>
                         </div>
                         {/* --- UNITS TABLE --- */}
-                        <div className="mt-2 border-t border-gray-200 pt-4">
-                            <div className="border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
-                                <table className="w-full text-sm text-left">
-                                    <thead className="text-gray-700 font-bold border-b border-gray-200">
+                        <div className="mt-2 border-t border-gray-200 dark:border-neutral-800 pt-2 lg:pt-4">
+                            <div className="border border-gray-200 dark:border-neutral-800 rounded-lg overflow-x-auto bg-white dark:bg-neutral-900 shadow-sm">
+                                <table className="w-full text-[10px] sm:text-sm text-left min-w-[700px]">
+                                    <thead className="bg-gray-50 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 font-bold border-b border-gray-200 dark:border-neutral-700">
                                         <tr>
-                                            <th className="px-4 py-3">Tên đơn vị tính</th>
-                                            <th className="px-4 py-3 text-center">Tỉ lệ quy<br />đổi</th>
-                                            <th className="px-4 py-3 text-center">Giá nhập</th>
-                                            <th className="px-4 py-3 text-center">Giá bán lẻ</th>
-                                            <th className="px-4 py-3 text-center">Giá bán buôn</th>
-                                            <th className="px-4 py-3 text-center">Mặc định<br />bán</th>
-                                            <th className="w-10"></th>
+                                            <th className="px-3 sm:px-4 py-3">Tên đơn vị tính</th>
+                                            <th className="px-1 sm:px-4 py-3 text-center">Tỉ lệ quy<br />đổi</th>
+                                            <th className="px-1 sm:px-4 py-3 text-center">Giá nhập</th>
+                                            <th className="px-1 sm:px-4 py-3 text-center">Giá bán lẻ</th>
+                                            <th className="px-1 sm:px-4 py-3 text-center">Giá bán buôn</th>
+                                            <th className="px-1 sm:px-4 py-3 text-center">Mặc định</th>
+                                            <th className="w-8 sm:w-10"></th>
                                         </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-gray-100">
+                                    <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
                                         {formData.units.map((unit) => (
                                             <tr key={unit.id} className="hover:bg-gray-50/50">
-                                                <td className="px-4 py-2">
+                                                <td className="px-3 sm:px-4 py-2">
                                                     <input
                                                         type="text"
                                                         value={unit.unitName}
                                                         list={`unit-list-${unit.id}`}
                                                         onChange={(e) => handleUnitChange(unit.id, 'unitName', e.target.value)}
-                                                        className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white"
-                                                        placeholder="Chọn/Nhập đơn vị tính *"
+                                                        className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[32px] sm:h-[34px] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100"
+                                                        placeholder="Vỉ, Hộp..."
                                                     />
                                                     <datalist id={`unit-list-${unit.id}`}>
-                                                        {mockUnits.map(mu => (
+                                                        {availableUnits.map(mu => (
                                                             <option key={mu.id} value={mu.name} />
                                                         ))}
                                                     </datalist>
                                                 </td>
-                                                <td className="px-4 py-2">
+                                                <td className="px-1 sm:px-4 py-2">
                                                     <NumericInput
                                                         value={unit.conversionRate}
                                                         onChange={(v) => handleUnitChange(unit.id, 'conversionRate', v)}
-                                                        className="w-[80px] mx-auto text-center border border-transparent hover:border-gray-300 focus:border-blue-500 focus:bg-white bg-transparent rounded px-2 py-1 text-sm outline-none block"
+                                                        className="w-[50px] sm:w-[80px] mx-auto text-center border-transparent hover:border-gray-200 focus:border-[#5c9a38] focus:bg-white bg-transparent rounded px-1 py-1 text-xs sm:text-sm outline-none block"
                                                     />
                                                 </td>
-                                                <td className="px-4 py-2">
+                                                <td className="px-1 sm:px-4 py-2">
                                                     <NumericInput
                                                         value={unit.importPrice}
                                                         onChange={(v) => handleUnitChange(unit.id, 'importPrice', v)}
-                                                        className="w-[120px] mx-auto text-center border border-transparent hover:border-gray-300 focus:border-blue-500 focus:bg-white bg-transparent rounded px-2 py-1 text-sm outline-none text-[#5c9a38] font-medium block"
+                                                        className="w-[80px] sm:w-[120px] mx-auto text-center border-transparent hover:border-gray-200 focus:border-[#5c9a38] focus:bg-white bg-transparent rounded px-1 py-1 text-xs sm:text-sm outline-none text-[#5c9a38] font-bold block"
                                                     />
                                                 </td>
-                                                <td className="px-4 py-2">
+                                                <td className="px-1 sm:px-4 py-2">
                                                     <NumericInput
                                                         value={unit.retailPrice}
                                                         onChange={(v) => handleUnitChange(unit.id, 'retailPrice', v)}
-                                                        className="w-[120px] mx-auto text-center border border-transparent hover:border-gray-300 focus:border-blue-500 focus:bg-white bg-transparent rounded px-2 py-1 text-sm outline-none font-semibold block"
+                                                        className="w-[80px] sm:w-[120px] mx-auto text-center border-transparent hover:border-gray-200 dark:hover:border-neutral-700 focus:border-[#5c9a38] focus:bg-white dark:focus:bg-neutral-900 bg-transparent rounded px-1 py-1 text-xs sm:text-sm outline-none font-bold block text-gray-800 dark:text-gray-100"
                                                     />
                                                 </td>
-                                                <td className="px-4 py-2">
+                                                <td className="px-1 sm:px-4 py-2">
                                                     <NumericInput
                                                         value={unit.wholesalePrice}
                                                         onChange={(v) => handleUnitChange(unit.id, 'wholesalePrice', v)}
-                                                        className="w-[120px] mx-auto text-center border border-transparent hover:border-gray-300 focus:border-blue-500 focus:bg-white bg-transparent rounded px-2 py-1 text-sm outline-none font-semibold text-gray-600 block"
+                                                        className="w-[80px] sm:w-[120px] mx-auto text-center border-transparent hover:border-gray-200 focus:border-[#5c9a38] focus:bg-white bg-transparent rounded px-1 py-1 text-xs sm:text-sm outline-none font-medium text-gray-500 block"
                                                     />
                                                 </td>
-                                                <td className="px-4 py-2 text-center">
+                                                <td className="px-1 sm:px-4 py-2 text-center">
                                                     <input
                                                         type="radio"
                                                         checked={unit.isDefault}
                                                         onChange={() => setUnitDefault(unit.id)}
-                                                        className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500 mx-auto block cursor-pointer"
+                                                        className="w-4 h-4 text-[#5c9a38] border-gray-300 focus:ring-[#5c9a38] mx-auto block cursor-pointer accent-[#5c9a38]"
                                                     />
                                                 </td>
-                                                <td className="px-2 py-2 text-center">
+                                                <td className="px-1 sm:px-2 py-2 text-center">
                                                     {formData.units.length > 1 && (
                                                         <button
                                                             onClick={() => removeUnitRow(unit.id)}
-                                                            className="text-red-400 hover:text-red-600 p-1"
+                                                            className="text-red-400 hover:text-red-600 p-1 transition-colors"
                                                             title="Xóa dòng"
                                                         >
-                                                            <X size={16} />
+                                                            <X className="w-4 h-4" />
                                                         </button>
                                                     )}
                                                 </td>
@@ -501,29 +772,29 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                             </div>
                         </div>
                         {/* Empty space at bottom to ensure scroll reaches end smoothly */}
-                        <div className="h-4"></div>
+                        <div className="h-6 sm:h-4"></div>
                     </div>
                 </div>
 
                 {/* FOOTER ACTIONS */}
-                <div className="flex items-center justify-end px-4 py-3 border-t border-gray-200 bg-white gap-2">
+                <div className="flex flex-wrap items-center justify-end px-3 sm:px-4 py-2 sm:py-3 border-t border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900/50 gap-2">
                     <button
                         onClick={() => handleSubmit('save_new')}
-                        className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-4 py-2 rounded text-sm font-medium transition-colors border-l border-white/20"
+                        className="bg-white dark:bg-neutral-800 hover:bg-gray-100 dark:hover:bg-neutral-700 text-[#5c9a38] border border-[#5c9a38] px-3 sm:px-4 py-2 rounded text-[11px] sm:text-sm font-bold transition-all active:scale-95 flex-1 sm:flex-none"
                     >
-                        ✓ Lưu và Thêm mới
+                        ✓ Lưu & Thêm mới
                     </button>
                     <button
                         onClick={() => handleSubmit('save')}
-                        className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-4 py-2 rounded text-sm font-medium transition-colors border-l border-white/20"
+                        className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-4 sm:px-8 py-2 rounded text-[11px] sm:text-sm font-black transition-all active:scale-95 shadow-lg shadow-green-500/10 flex-1 sm:flex-none"
                     >
-                        ✓ Lưu và Đóng
+                        ✓ LƯU HÀNG HÓA
                     </button>
                     <button
                         onClick={onClose}
-                        className="text-[#000000] hover:bg-gray-200 px-4 py-2 rounded text-sm font-bold ml-2 transition-colors flex items-center gap-1"
+                        className="text-gray-500 hover:bg-gray-100 dark:hover:bg-neutral-800 px-3 sm:px-4 py-2 rounded text-[11px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 flex-1 sm:flex-none border border-transparent hover:border-gray-200 dark:hover:border-neutral-700"
                     >
-                        <X size={16} className="text-[#000000]" /> Thoát
+                        <X className="w-4 h-4" /> Thoát
                     </button>
                 </div>
             </div>
