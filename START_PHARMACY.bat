@@ -29,11 +29,15 @@ timeout /t 15 /nobreak
 echo.
 echo [4/4] DANG KET NOI VOI INTERNET (Tunnel Cloudflare)...
 echo --------------------------------------------------
-:: Su dung cloudflared.exe cuc bo
-if exist "cloudflared.exe" (
+:: Su dung cloudflared
+where cloudflared >nul 2>&1
+if %ERRORLEVEL% equ 0 (
+    cloudflared tunnel --url http://127.0.0.1:3000
+) else if exist "cloudflared.exe" (
     .\cloudflared.exe tunnel --url http://127.0.0.1:3000
 ) else (
-    cloudflared tunnel --url http://127.0.0.1:3000
+    echo [!] Loi: Khong tim thay Cloudflared trong he thong.
+    echo Vui long tai cloudflared.exe va copy vao thu muc nay.
 )
 
 pause
