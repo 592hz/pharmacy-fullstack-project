@@ -27,17 +27,19 @@ echo Vui long kien nhan cho mot chut de he thong sang sang.
 timeout /t 15 /nobreak
 
 echo.
-echo [4/4] DANG KET NOI VOI INTERNET (Tunnel Cloudflare)...
+echo [4/4] DANG KET NOI VOI INTERNET (Tunnel: happy2102.io.vn)...
 echo --------------------------------------------------
-:: Su dung cloudflared
+:: Su dung Token ban da cung cap
+set "TOKEN=eyJhIjoiM2U3YjFiZjJjMDZiNjI4OGIyMTQzZDY2MTViODk5MzUiLCJ0IjoiOWYxZjlkYzQtMTFiYy00YWJiLWIxYmItNDZiZGI3YTdiNjc0IiwicyI6Ik9ERmxaalF4TURVdE1tVTFOUzAwWkRjNExXSmxNREV0WVRSa04yWTNPR1JpTVdJMiJ9"
+
 where cloudflared >nul 2>&1
 if %ERRORLEVEL% equ 0 (
-    cloudflared tunnel --url http://127.0.0.1:3000
+    cloudflared tunnel run --token %TOKEN%
 ) else if exist "cloudflared.exe" (
-    .\cloudflared.exe tunnel --url http://127.0.0.1:3000
+    .\cloudflared.exe tunnel run --token %TOKEN%
 ) else (
-    echo [!] Loi: Khong tim thay Cloudflared trong he thong.
-    echo Vui long tai cloudflared.exe va copy vao thu muc nay.
+    echo [!] Loi: Khong tim thay Cloudflared.
+    echo Vui long tai cloudflared.exe ve thu muc nay.
 )
 
 pause
