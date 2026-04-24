@@ -1,11 +1,11 @@
-import { useState, useMemo, useCallback, useEffect } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { Plus, Search, PlusCircle, Trash2, Save, X, Calendar, FileText, CreditCard, AlertCircle } from "lucide-react"
+import { Plus, Search, PlusCircle, Trash2, Save, X, Calendar as CalendarIcon, FileText, CreditCard, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { AddProductModal } from "@/components/add-product-modal"
 import AddSupplierModal from "@/components/add-supplier-modal"
 import { type ProductFormData } from "@/components/add-product-modal"
-import { parseFloatSafe, getErrorMessage } from "@/lib/utils"
+import { parseFloatSafe, getErrorMessage, formatDateInput } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { purchaseOrderSchema } from "@/lib/schemas"
 import { productService } from "@/services/product.service"
@@ -18,6 +18,31 @@ import { type IPurchaseOrder, type IPurchaseOrderItem } from "@/types/purchase-o
 import { type PaymentMethod } from "@/lib/schemas"
 import { useDebounce } from "@/hooks/use-debounce"
 import { cacheService } from "@/services/cache.service"
+import { formatDateTimeInput } from "@/lib/utils"
+
+// Helper functions for date conversion
+const formatDateTimeToVN = (isoString: string) => {
+    if (!isoString) return ""
+    const date = new Date(isoString)
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = date.getFullYear()
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${day}/${month}/${year} ${hours}:${minutes}`
+}
+
+const parseVNDateTimeToISO = (vnString: string) => {
+    if (!vnString) return new Date().toISOString()
+    const regex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s(\d{1,2}):(\d{1,2})$/
+    const match = vnString.match(regex)
+    if (match) {
+        const [, day, month, year, hours, minutes] = match
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes))
+        return date.toISOString()
+    }
+    return new Date().toISOString()
+}
 
 const DRAFT_STORAGE_KEY = "purchase_order_draft"
 
@@ -30,6 +55,7 @@ export default function CreatePurchaseOrderPage() {
     const [invoiceNumber, setInvoiceNumber] = useState("")
     const [notes, setNotes] = useState("")
     const [items, setItems] = useState<IPurchaseOrderItem[]>([])
+    const [extraDiscount, setExtraDiscount] = useState(0)
 
     const generateOrderId = () => {
         const now = new Date();
@@ -41,11 +67,9 @@ export default function CreatePurchaseOrderPage() {
 
     // Metadata (some auto-generated/fixed)
     const [orderId, setOrderId] = useState(generateOrderId)
-    const [importDate, setImportDate] = useState(() => {
-        const now = new Date();
-        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-        return now.toISOString().slice(0, 10);
-    })
+    const [dateValue, setDateValue] = useState(() => formatDateTimeToVN(new Date().toISOString()))
+    const [dateError, setDateError] = useState("")
+    const dateInputRef = useRef<HTMLInputElement>(null)
     const createdBy = "Quản trị viên"
     const [paymentMethod, setPaymentMethod] = useState("Chuyển khoản")
     const [allPaymentMethods, setAllPaymentMethods] = useState<PaymentMethod[]>(() => cacheService.get("payment_methods") || [])
@@ -61,6 +85,11 @@ export default function CreatePurchaseOrderPage() {
     const [allProducts, setAllProducts] = useState<IProduct[]>(() => cacheService.get("products") || [])
     const [allSuppliers, setAllSuppliers] = useState<ISupplier[]>(() => cacheService.get("suppliers") || [])
 
+    // Supplier search state
+    const [showSupplierResults, setShowSupplierResults] = useState(false)
+    const [selectedSupplierIndex, setSelectedSupplierIndex] = useState(-1)
+    const debouncedSupplierName = useDebounce(supplierName, 300)
+
     // Draft handling
     const [hasRestoredDraft, setHasRestoredDraft] = useState(false)
 
@@ -71,24 +100,25 @@ export default function CreatePurchaseOrderPage() {
     const saveDraft = useCallback(() => {
         const draftData = {
             orderId,
-            importDate,
+            importDate: dateValue,
             supplierId,
             supplierName,
             invoiceNumber,
             notes,
             items,
+            extraDiscount,
             paymentMethod,
             timestamp: new Date().getTime()
         }
         localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData))
-    }, [orderId, importDate, supplierId, supplierName, invoiceNumber, notes, items, paymentMethod])
+    }, [orderId, dateValue, supplierId, supplierName, invoiceNumber, notes, items, paymentMethod])
 
     // Auto-save useEffect
     useEffect(() => {
-        if (items.length > 0 || supplierId || invoiceNumber || notes) {
+        if (items.length > 0 || supplierId || invoiceNumber || notes || extraDiscount > 0) {
             saveDraft()
         }
-    }, [items, supplierId, supplierName, invoiceNumber, notes, paymentMethod, importDate, saveDraft])
+    }, [items, supplierId, supplierName, invoiceNumber, notes, paymentMethod, dateValue, extraDiscount, saveDraft])
 
     useEffect(() => {
         const fetchData = async () => {
@@ -114,12 +144,13 @@ export default function CreatePurchaseOrderPage() {
                         const parsed = JSON.parse(savedDraft)
                         // Only restore if it's "fresh" enough (optional, let's just restore)
                         setOrderId(parsed.orderId)
-                        if (parsed.importDate) setImportDate(parsed.importDate)
+                        if (parsed.importDate) setDateValue(parsed.importDate)
                         setSupplierId(parsed.supplierId)
                         setSupplierName(parsed.supplierName)
                         setInvoiceNumber(parsed.invoiceNumber)
                         setNotes(parsed.notes)
                         setItems(parsed.items)
+                        setExtraDiscount(parsed.extraDiscount || 0)
                         setPaymentMethod(parsed.paymentMethod)
                         setHasRestoredDraft(true)
                         toast.info("Đã khôi phục bản nháp phiếu nhập trước đó", {
@@ -154,6 +185,23 @@ export default function CreatePurchaseOrderPage() {
             (p.id && p.id.toLowerCase().includes(query))
         ).slice(0, 10)
     }, [debouncedSearchQuery, allProducts])
+
+    const filteredSuppliers = useMemo(() => {
+        if (!debouncedSupplierName.trim()) return []
+        const query = debouncedSupplierName.toLowerCase()
+        return allSuppliers.filter(s =>
+            (s.name && s.name.toLowerCase().includes(query)) ||
+            (s.id && s.id.toLowerCase().includes(query)) ||
+            (s.phone && s.phone.includes(query))
+        ).slice(0, 10)
+    }, [debouncedSupplierName, allSuppliers])
+
+    const handleSelectSupplier = useCallback((supplier: ISupplier) => {
+        setSupplierId(supplier.id || "")
+        setSupplierName(supplier.name || "")
+        setShowSupplierResults(false)
+        setSelectedSupplierIndex(-1)
+    }, [])
 
     const handleQuickAdd = useCallback((product: IProduct) => {
         const qty = 1
@@ -206,6 +254,27 @@ export default function CreatePurchaseOrderPage() {
         } else if (e.key === "Escape") {
             setShowResults(false)
             setSelectedIndex(-1)
+        }
+    }
+
+    const handleSupplierSearchKeyDown = (e: React.KeyboardEvent) => {
+        if (!showSupplierResults || filteredSuppliers.length === 0) return
+
+        if (e.key === "ArrowDown") {
+            e.preventDefault()
+            setSelectedSupplierIndex(prev => (prev < filteredSuppliers.length - 1 ? prev + 1 : prev))
+        } else if (e.key === "ArrowUp") {
+            e.preventDefault()
+            setSelectedSupplierIndex(prev => (prev > 0 ? prev - 1 : prev))
+        } else if (e.key === "Enter") {
+            e.preventDefault()
+            const selected = selectedSupplierIndex >= 0 ? filteredSuppliers[selectedSupplierIndex] : filteredSuppliers[0]
+            if (selected) {
+                handleSelectSupplier(selected)
+            }
+        } else if (e.key === "Escape") {
+            setShowSupplierResults(false)
+            setSelectedSupplierIndex(-1)
         }
     }
 
@@ -299,15 +368,24 @@ export default function CreatePurchaseOrderPage() {
     })
 
     const totalAmount = roundTo3(items.reduce((sum, item) => sum + item.totalAmount, 0))
-    const totalDiscount = roundTo3(items.reduce((sum, item) => sum + item.discountAmount, 0))
+    const itemDiscountsSum = roundTo3(items.reduce((sum, item) => sum + item.discountAmount, 0))
+    const totalDiscount = roundTo3(itemDiscountsSum + extraDiscount)
     const totalVat = roundTo3(items.reduce((sum, item) => sum + item.vatAmount, 0))
     const amountToPay = roundTo3(totalAmount - totalDiscount + totalVat)
 
     const handleSaveOrder = useCallback(async () => {
+        // Validate date
+        const dateRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s(\d{1,2}):(\d{1,2})$/
+        if (!dateValue || !dateRegex.test(dateValue)) {
+            toast.error("Ngày nhập không hợp lệ (định dạng: dd/mm/yyyy HH:mm)")
+            setDateError("Định dạng dd/mm/yyyy HH:mm")
+            return
+        }
+
         // Prepare data for validation
         const orderData = {
             id: orderId,
-            importDate: importDate ? new Date(importDate).toISOString() : new Date().toISOString(),
+            importDate: parseVNDateTimeToISO(dateValue),
             supplierId,
             supplierName,
             totalAmount,
@@ -346,7 +424,7 @@ export default function CreatePurchaseOrderPage() {
 
         const newOrder: IPurchaseOrder = {
             id: orderId,
-            importDate: importDate ? new Date(importDate).toISOString() : new Date().toISOString(),
+            importDate: parseVNDateTimeToISO(dateValue),
             supplierId,
             supplierName,
             totalAmount,
@@ -376,7 +454,7 @@ export default function CreatePurchaseOrderPage() {
                 toast.error("Lỗi khi lưu đơn hàng: " + errorMsg)
             }
         }
-    }, [items, supplierId, invoiceNumber, notes, importDate, createdBy, paymentMethod, navigate, orderId, supplierName, totalAmount, totalDiscount, totalVat, amountToPay])
+    }, [items, supplierId, invoiceNumber, notes, dateValue, createdBy, paymentMethod, navigate, orderId, supplierName, totalAmount, totalDiscount, totalVat, amountToPay])
 
     return (
         <div className="flex flex-col h-full bg-white dark:bg-neutral-900 overflow-hidden">
@@ -426,21 +504,69 @@ export default function CreatePurchaseOrderPage() {
                     {/* Supplier Select */}
                     <div className="col-span-2 flex flex-col gap-1.5">
                         <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Nhà cung cấp *</label>
-                        <div className="flex gap-2">
-                            <select
-                                value={supplierId}
-                                onChange={(e) => {
-                                    const s = allSuppliers.find(x => x.id === e.target.value)
-                                    setSupplierId(e.target.value)
-                                    setSupplierName(s?.name || "")
-                                }}
-                                className="w-full bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
-                            >
-                                <option value="">Chọn nhà cung cấp...</option>
-                                {allSuppliers.map(s => (
-                                    <option key={s.id} value={s.id}>{s.name}</option>
-                                ))}
-                            </select>
+                        <div className="flex gap-2 relative">
+                            <div className="flex-1 relative">
+                                <input
+                                    type="text"
+                                    value={supplierName}
+                                    onChange={(e) => {
+                                        setSupplierName(e.target.value)
+                                        setShowSupplierResults(true)
+                                        setSelectedSupplierIndex(-1)
+                                        if (supplierId) setSupplierId("") // Clear ID when typing
+                                    }}
+                                    onFocus={() => setShowSupplierResults(true)}
+                                    onBlur={() => setTimeout(() => setShowSupplierResults(false), 200)}
+                                    onKeyDown={handleSupplierSearchKeyDown}
+                                    placeholder="Tìm nhà cung cấp..."
+                                    className="w-full bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all font-semibold"
+                                />
+
+                                {showSupplierResults && (
+                                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-lg shadow-xl z-50 overflow-hidden max-h-[300px] overflow-y-auto">
+                                        {filteredSuppliers.length > 0 ? (
+                                            filteredSuppliers.map((s, index) => (
+                                                <button
+                                                    key={s.id}
+                                                    onMouseDown={(e) => {
+                                                        e.preventDefault()
+                                                        handleSelectSupplier(s)
+                                                    }}
+                                                    className={`w-full flex flex-col items-start p-2.5 transition-colors border-b last:border-0 border-gray-50 dark:border-neutral-700/50 ${selectedSupplierIndex === index ? "bg-green-50 dark:bg-green-900/20" : "hover:bg-gray-50 dark:hover:bg-neutral-700/30"
+                                                        }`}
+                                                >
+                                                    <div className="flex items-center justify-between w-full">
+                                                        <span className="font-bold text-gray-800 dark:text-gray-100 text-xs sm:text-sm">
+                                                            {s.name}
+                                                        </span>
+                                                        <span className="text-[10px] bg-gray-100 dark:bg-neutral-700 px-1.5 py-0.5 rounded font-mono text-gray-500">
+                                                            {s.id}
+                                                        </span>
+                                                    </div>
+                                                    {s.phone && (
+                                                        <div className="text-[10px] sm:text-[11px] text-gray-500 flex items-center gap-1 mt-0.5">
+                                                            <span>SĐT: {s.phone}</span>
+                                                        </div>
+                                                    )}
+                                                </button>
+                                            ))
+                                        ) : (
+                                            <div className="p-4 text-center">
+                                                <div className="text-xs text-gray-500 mb-2">Không thấy nhà cung cấp này</div>
+                                                <button
+                                                    onMouseDown={(e) => {
+                                                        e.preventDefault()
+                                                        setShowAddSupplierModal(true)
+                                                    }}
+                                                    className="text-[11px] font-bold text-green-600 hover:underline flex items-center gap-1 mx-auto"
+                                                >
+                                                    <Plus size={12} /> Thêm mới nhanh
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
                             <button
                                 type="button"
                                 onClick={() => setShowAddSupplierModal(true)}
@@ -472,14 +598,38 @@ export default function CreatePurchaseOrderPage() {
                             className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all"
                         />
                     </div>
-                    <div className="flex flex-col gap-1.5">
-                        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1"><Calendar size={10} /> Ngày nhập</label>
-                        <input
-                            type="date"
-                            value={importDate.split('T')[0]}
-                            onChange={(e) => setImportDate(e.target.value)}
-                            className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-2 rounded text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all font-mono"
-                        />
+                    <div className="flex flex-col gap-1.5 min-w-[140px]">
+                        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1"><CalendarIcon size={10} /> Ngày nhập</label>
+                        <div className="relative group">
+                            <input
+                                type="text"
+                                value={dateValue}
+                                onChange={(e) => {
+                                    setDateValue(formatDateTimeInput(e.target.value))
+                                    if (dateError) setDateError("")
+                                }}
+                                placeholder="dd/mm/yyyy HH:mm"
+                                className={`w-full bg-white dark:bg-neutral-900 border ${dateError ? 'border-red-500' : 'border-gray-300 dark:border-neutral-700'} px-3 py-2 pr-10 rounded text-sm text-gray-900 dark:text-gray-100 outline-none focus:ring-2 focus:ring-green-500/20 focus:border-green-500 transition-all font-mono`}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => dateInputRef.current?.showPicker()}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-green-600 transition-colors"
+                            >
+                                <CalendarIcon size={16} />
+                            </button>
+                            <input
+                                type="datetime-local"
+                                ref={dateInputRef}
+                                className="absolute opacity-0 pointer-events-none"
+                                onChange={(e) => {
+                                    if (e.target.value) {
+                                        setDateValue(formatDateTimeToVN(new Date(e.target.value).toISOString()))
+                                    }
+                                }}
+                            />
+                            {dateError && <span className="absolute -bottom-4 left-0 text-[9px] text-red-500 font-bold">{dateError}</span>}
+                        </div>
                     </div>
                     <div className="flex flex-col gap-1.5">
                         <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1"><CreditCard size={10} /> HTTT</label>
@@ -652,8 +802,10 @@ export default function CreatePurchaseOrderPage() {
                                                 type="text"
                                                 className="w-full bg-blue-50/40 dark:bg-blue-900/10 border border-blue-200/50 dark:border-blue-900/30 px-1 py-1 rounded text-center outline-none focus:ring-1 focus:ring-blue-500 text-[11px] font-semibold text-blue-800 dark:text-blue-300"
                                                 value={item.expiryDate || ""}
-                                                placeholder="MM/YY"
-                                                onChange={(e) => updateItemField(item.id!, 'expiryDate', e.target.value)}
+                                                placeholder="DD/MM/YYYY"
+                                                onChange={(e) => {
+                                                    updateItemField(item.id!, 'expiryDate', formatDateInput(e.target.value));
+                                                }}
                                             />
                                         </td>
                                         <td className="px-2 py-1.5 border-r border-gray-100 dark:border-neutral-800 text-right">
@@ -740,8 +892,22 @@ export default function CreatePurchaseOrderPage() {
                                 <span className="font-bold text-gray-700 dark:text-gray-300 ml-auto">{vnd(totalAmount)}</span>
                             </div>
                             <div className="flex justify-between items-center text-[11px] sm:text-xs">
-                                <span className="text-gray-500 font-medium tracking-tight">Tổng chiết khấu:</span>
-                                <span className="font-bold text-orange-500 ml-auto">-{vnd(totalDiscount)}</span>
+                                <span className="text-gray-500 font-medium tracking-tight">Chiết khấu hàng:</span>
+                                <span className="font-bold text-gray-700 dark:text-gray-300 ml-auto">{vnd(itemDiscountsSum)}</span>
+                            </div>
+                            <div className="flex justify-between items-center text-[11px] sm:text-xs">
+                                <span className="text-gray-500 font-medium tracking-tight">Chiết khấu HĐ:</span>
+                                <div className="ml-auto w-32">
+                                    <NumericInput
+                                        className="w-full bg-orange-50 dark:bg-orange-900/10 border border-orange-200 dark:border-orange-900/30 px-2 py-1 rounded text-right outline-none focus:ring-1 focus:ring-orange-500 font-bold text-orange-600 dark:text-orange-400 text-xs"
+                                        value={extraDiscount}
+                                        onChange={(v) => setExtraDiscount(v)}
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex justify-between items-center text-[11px] sm:text-xs bg-orange-50/50 dark:bg-orange-900/5 p-1 rounded">
+                                <span className="text-orange-700 dark:text-orange-400 font-bold tracking-tight">Tổng chiết khấu:</span>
+                                <span className="font-bold text-orange-600 ml-auto">-{vnd(totalDiscount)}</span>
                             </div>
                             <div className="flex justify-between items-center text-[11px] sm:text-xs">
                                 <span className="text-gray-500 font-medium tracking-tight">Tổng thuế VAT:</span>

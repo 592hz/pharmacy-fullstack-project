@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { Download, Upload, Plus, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, FileText } from "lucide-react"
 import { toast } from "sonner"
 import { type ExportOrder } from "@/lib/schemas"
@@ -25,6 +25,7 @@ const fmtDate = (iso: string) => {
 
 export default function ExportManagePage() {
     const navigate = useNavigate()
+    const [searchParams] = useSearchParams()
     const [slips, setSlips] = useState<ExportOrder[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [showFilters, setShowFilters] = useState(false)
@@ -42,8 +43,12 @@ export default function ExportManagePage() {
     }
 
     // ── Filter state ─────────────────────────────────────────────────────────
-    const [dateFilterType, setDateFilterType] = useState<"Ngày" | "Từ ngày" | "Tháng" | "Quý" | "Năm">("Năm")
-    const [filterDate, setFilterDate] = useState<string>(() => new Date().toISOString().split("T")[0])
+    const [dateFilterType, setDateFilterType] = useState<"Ngày" | "Từ ngày" | "Tháng" | "Quý" | "Năm">(() => {
+        const type = searchParams.get("type")
+        if (type === "Ngày" || type === "Từ ngày" || type === "Tháng" || type === "Quý" || type === "Năm") return type
+        return "Năm"
+    })
+    const [filterDate, setFilterDate] = useState<string>(() => searchParams.get("date") || new Date().toISOString().split("T")[0])
     const [filterStartDate, setFilterStartDate] = useState<string>("")
     const [filterEndDate, setFilterEndDate] = useState<string>("")
     const [filterMonth, setFilterMonth] = useState<string>(() => String(new Date().getMonth() + 1).padStart(2, "0"))
@@ -56,6 +61,16 @@ export default function ExportManagePage() {
     // ── Pagination state ─────────────────────────────────────────────────────
     const [page, setPage] = useState(1)
     const [pageSize, setPageSize] = useState(10)
+
+    useEffect(() => {
+        const date = searchParams.get("date")
+        const type = searchParams.get("type")
+        
+        if (date) setFilterDate(date)
+        if (type === "Ngày" || type === "Từ ngày" || type === "Tháng" || type === "Quý" || type === "Năm") {
+            setDateFilterType(type)
+        }
+    }, [searchParams])
 
     useEffect(() => {
         fetchSlips()

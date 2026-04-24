@@ -1,7 +1,7 @@
-import { useState, useCallback, useEffect } from "react"
-import { PlusCircle, X } from "lucide-react"
+import { useState, useCallback, useEffect, useRef } from "react"
+import { PlusCircle, X, Calendar as CalendarIcon, ChevronDown } from "lucide-react"
 import { toast } from "sonner"
-import { parseFloatSafe } from "@/lib/utils"
+import { parseFloatSafe, formatDateInput } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { type Product, type Unit, productSchema } from "@/lib/schemas"
 import { getErrorMessage } from "@/lib/utils"
@@ -117,11 +117,11 @@ const generateInitialFormData = (data?: Product | null): ProductFormData => {
         const firstBatch = data.batches?.[0]
         return {
             productName: data.name || "",
-            supplierId: (data.supplierId && typeof data.supplierId === 'object') 
-                ? ((data.supplierId as unknown as PopulatedEntity)._id || (data.supplierId as unknown as PopulatedEntity).id || "") 
+            supplierId: (data.supplierId && typeof data.supplierId === 'object')
+                ? ((data.supplierId as unknown as PopulatedEntity)._id || (data.supplierId as unknown as PopulatedEntity).id || "")
                 : (data.supplierId || data.manufacturer || ""),
-            categoryId: (data.categoryId && typeof data.categoryId === 'object') 
-                ? ((data.categoryId as unknown as PopulatedEntity)._id || (data.categoryId as unknown as PopulatedEntity).id || "") 
+            categoryId: (data.categoryId && typeof data.categoryId === 'object')
+                ? ((data.categoryId as unknown as PopulatedEntity)._id || (data.categoryId as unknown as PopulatedEntity).id || "")
                 : (data.categoryId || ""),
             productCode: data.id || "",
             vatPercent: 0,
@@ -168,8 +168,96 @@ const generateInitialFormData = (data?: Product | null): ProductFormData => {
     }
 }
 
+interface SearchableSelectProps {
+    label: string
+    required?: boolean
+    options: { id: string; name: string }[]
+    value: string
+    onChange: (value: string) => void
+    placeholder?: string
+    error?: boolean
+}
+
+const SearchableSelect = ({ label, required, options, value, onChange, placeholder = "Chọn...", error }: SearchableSelectProps) => {
+    const [isOpen, setIsOpen] = useState(false)
+    const [search, setSearch] = useState("")
+    const dropdownRef = useRef<HTMLDivElement>(null)
+
+    const filteredOptions = options.filter(opt =>
+        opt.name.toLowerCase().includes(search.toLowerCase())
+    )
+
+    const selectedOption = options.find(opt => opt.id === value)
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsOpen(false)
+            }
+        }
+        document.addEventListener("mousedown", handleClickOutside)
+        return () => document.removeEventListener("mousedown", handleClickOutside)
+    }, [])
+
+    return (
+        <div className="flex flex-col gap-1 w-full relative" ref={dropdownRef}>
+            <label className="text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-gray-300">
+                {label} {required && <span className="text-red-500">*</span>}
+            </label>
+            <div
+                className={`w-full border ${error ? 'border-blue-500 ring-1 ring-blue-500' : 'border-gray-300 dark:border-neutral-700'} rounded px-2 py-1.5 text-xs sm:text-sm bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 h-[34px] flex items-center justify-between cursor-pointer focus-within:border-[#5c9a38] focus-within:ring-1 focus-within:ring-[#5c9a38] shadow-sm transition-all`}
+                onClick={() => setIsOpen(!isOpen)}
+            >
+                <span className={`truncate ${!selectedOption ? "text-gray-400" : "font-medium"}`}>
+                    {selectedOption ? selectedOption.name : placeholder}
+                </span>
+                <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </div>
+
+            {isOpen && (
+                <div className="absolute top-[100%] left-0 w-full z-[100] mt-1 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded shadow-2xl animate-in fade-in zoom-in-95 duration-100 overflow-hidden">
+                    <div className="p-2 border-b border-gray-100 dark:border-neutral-800 bg-gray-50/50 dark:bg-neutral-800/50">
+                        <input
+                            autoFocus
+                            type="text"
+                            className="w-full px-2 py-1.5 text-xs sm:text-sm border border-gray-200 dark:border-neutral-700 rounded focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white dark:bg-neutral-900"
+                            placeholder="Nhập để tìm kiếm..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                    </div>
+                    <div className="max-h-[200px] overflow-y-auto py-1 custom-scrollbar">
+                        {filteredOptions.length > 0 ? (
+                            filteredOptions.map(opt => (
+                                <div
+                                    key={opt.id}
+                                    className={`px-3 py-2 text-xs sm:text-sm cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-800 transition-colors flex items-center justify-between ${opt.id === value ? 'bg-[#5c9a38]/10 dark:bg-[#5c9a38]/20 font-bold text-[#5c9a38]' : 'text-gray-700 dark:text-gray-300'}`}
+                                    onClick={(e) => {
+                                        e.stopPropagation()
+                                        onChange(opt.id)
+                                        setIsOpen(false)
+                                        setSearch("")
+                                    }}
+                                >
+                                    <span>{opt.name}</span>
+                                    {opt.id === value && <div className="w-1.5 h-1.5 bg-[#5c9a38] rounded-full"></div>}
+                                </div>
+                            ))
+                        ) : (
+                            <div className="px-3 py-6 text-xs text-center text-gray-400 italic">Không tìm thấy kết quả</div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </div>
+    )
+}
+
 export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: AddProductModalProps) {
     const [formData, setFormData] = useState<ProductFormData>(() => generateInitialFormData(initialData))
+    const dateInputRef = useRef<HTMLInputElement>(null)
+    const batchDateInputRefs = useRef<Record<string, HTMLInputElement | null>>({})
 
     const [categories, setCategories] = useState<IProductCategory[]>([])
     const [suppliers, setSuppliers] = useState<ISupplier[]>([])
@@ -187,6 +275,17 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                     setCategories(cats)
                     setSuppliers(sups as ISupplier[])
                     setAvailableUnits(unts)
+
+                    // Mặc định nhóm sản phẩm là "Dược phẩm" khi thêm mới
+                    if (!initialData && cats.length > 0) {
+                        const defaultCat = cats.find(c => c.name === "Dược phẩm");
+                        if (defaultCat) {
+                            setFormData(prev => ({ 
+                                ...prev, 
+                                categoryId: defaultCat.id || defaultCat._id || "" 
+                            }));
+                        }
+                    }
                 } catch {
                     console.error("Error fetching data")
                     toast.error("Không thể tải dữ liệu danh mục/nhà cung cấp")
@@ -356,7 +455,15 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
             } else if (action === 'save_new') {
                 onSuccess(savedProduct as unknown as Product, formData)
                 // Use the helper to generate a completely fresh state with a new ID
-                setFormData(generateInitialFormData())
+                const freshFormData = generateInitialFormData()
+                
+                // Mặc định nhóm sản phẩm là "Dược phẩm" cho sản phẩm tiếp theo
+                const defaultCat = categories.find(c => c.name === "Dược phẩm")
+                if (defaultCat) {
+                    freshFormData.categoryId = defaultCat.id || defaultCat._id || ""
+                }
+                
+                setFormData(freshFormData)
             }
         } catch (error: unknown) {
             toast.error(`Lỗi: ${getErrorMessage(error)}`)
@@ -395,35 +502,25 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                             <InputField label="Tên hàng hóa" required value={formData.productName} onChange={(v) => handleInputChange('productName', v)} />
 
                             {/* Custom Searchable Select for Supplier */}
-                            <div className="flex flex-col gap-1 w-full">
-                                <label className="text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-gray-300">Nhà cung cấp</label>
-                                <select
-                                    className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 h-[34px]"
-                                    value={formData.supplierId}
-                                    onChange={(e) => handleInputChange('supplierId', e.target.value)}
-                                >
-                                    <option value="">Chọn nhà cung cấp...</option>
-                                    {suppliers.map(s => (
-                                        <option key={s.id || s._id} value={s.id || s._id}>{s.name}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            <SearchableSelect
+                                label="Nhà cung cấp"
+                                options={suppliers.map(s => ({ id: s.id || s._id || "", name: s.name }))}
+                                value={formData.supplierId}
+                                onChange={(v) => handleInputChange('supplierId', v)}
+                                placeholder="Chọn nhà cung cấp..."
+                            />
 
                             {/* Row 2 */}
                             {/* Custom Searchable Select for Category */}
-                            <div className="flex flex-col gap-1 w-full">
-                                <label className="text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-gray-300">Nhóm hàng hóa <span className="text-red-500">*</span></label>
-                                <select
-                                    className="w-full border border-blue-500 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:ring-1 focus:ring-blue-500 bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 h-[34px]"
-                                    value={formData.categoryId}
-                                    onChange={(e) => handleInputChange('categoryId', e.target.value)}
-                                >
-                                    <option value="">Chọn nhóm...</option>
-                                    {categories.map(c => (
-                                        <option key={c.id || c._id} value={c.id || c._id}>{c.name}</option>
-                                    ))}
-                                </select>
-                            </div>
+                            <SearchableSelect
+                                label="Nhóm hàng hóa"
+                                required
+                                error // highlight border as it was previously blue
+                                options={categories.map(c => ({ id: c.id || c._id || "", name: c.name }))}
+                                value={formData.categoryId}
+                                onChange={(v) => handleInputChange('categoryId', v)}
+                                placeholder="Chọn nhóm..."
+                            />
                             <div className="grid grid-cols-2 gap-2 sm:gap-4">
                                 <div className="space-y-1">
                                     <label className="text-[11px] sm:text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-tight">%VAT</label>
@@ -482,13 +579,33 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[11px] sm:text-xs font-semibold text-gray-700 dark:text-gray-300 truncate">Hạn dùng (DD-MM-YYYY)</label>
-                                    <input
-                                        type="text"
-                                        value={formData.expiryDate}
-                                        onChange={(e) => handleInputChange('expiryDate', e.target.value)}
-                                        className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1.5 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-mono"
-                                        placeholder="31-12-2025"
-                                    />
+                                    <div className="relative group">
+                                        <input
+                                            type="text"
+                                            value={formData.expiryDate}
+                                            onChange={(e) => handleInputChange('expiryDate', formatDateInput(e.target.value))}
+                                            className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1.5 pr-8 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] h-[34px] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-mono"
+                                            placeholder="DD/MM/YYYY"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => dateInputRef.current?.showPicker()}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#5c9a38] transition-colors"
+                                        >
+                                            <CalendarIcon size={14} />
+                                        </button>
+                                        <input
+                                            type="date"
+                                            ref={dateInputRef}
+                                            className="absolute opacity-0 pointer-events-none"
+                                            onChange={(e) => {
+                                                if (e.target.value) {
+                                                    const d = new Date(e.target.value)
+                                                    handleInputChange('expiryDate', `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`)
+                                                }
+                                            }}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -516,13 +633,33 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                                                         {batch.batchNumber}
                                                     </td>
                                                     <td className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700">
-                                                        <input
-                                                            type="text"
-                                                            value={batch.expiryDate || ""}
-                                                            onChange={(e) => handleBatchExpiryChange(batch.batchNumber, e.target.value)}
-                                                            className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1 text-center focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-mono"
-                                                            placeholder="DD-MM-YYYY"
-                                                        />
+                                                        <div className="relative group">
+                                                            <input
+                                                                type="text"
+                                                                value={batch.expiryDate || ""}
+                                                                onChange={(e) => handleBatchExpiryChange(batch.batchNumber, formatDateInput(e.target.value))}
+                                                                className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1 pr-7 text-center focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-mono"
+                                                                placeholder="DD/MM/YYYY"
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => batchDateInputRefs.current[idx]?.showPicker()}
+                                                                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#5c9a38] transition-colors"
+                                                            >
+                                                                <CalendarIcon size={12} />
+                                                            </button>
+                                                            <input
+                                                                type="date"
+                                                                ref={(el) => { batchDateInputRefs.current[idx] = el }}
+                                                                className="absolute opacity-0 pointer-events-none"
+                                                                onChange={(e) => {
+                                                                    if (e.target.value) {
+                                                                        const d = new Date(e.target.value)
+                                                                        handleBatchExpiryChange(batch.batchNumber, `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`)
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </div>
                                                     </td>
                                                     <td className="px-3 sm:px-4 py-2 text-right">
                                                         <NumericInput
