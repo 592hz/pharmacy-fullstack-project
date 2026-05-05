@@ -224,6 +224,7 @@ export const exportOrderItemSchema = z.object({
     discountPercent: z.number().min(0).max(100).default(0),
     discountAmount: z.number().default(0),
     remainingAmount: z.number(),
+    parentDoseId: z.string().optional(),
 })
 
 export const exportOrderSchema = z.object({

@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { Search, PlusCircle, Trash2, Save, X, User, CreditCard, TrendingUp, Plus } from "lucide-react"
+import { Search, PlusCircle, Trash2, Save, X, User, CreditCard, TrendingUp, Plus, Activity, Pill, Calendar as CalendarIcon } from "lucide-react"
 import { toast } from "sonner"
 import { type ExportOrder, type ExportOrderItem, type Customer, exportOrderSchema } from "@/lib/schemas"
 import { exportSlipService } from "@/services/export-slip.service"
@@ -9,13 +9,13 @@ import { customerService } from "@/services/customer.service"
 import { paymentMethodService } from "@/services/payment-method.service"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
 import AddCustomerModal from "@/components/add-customer-modal"
+import AddDoseModal from "@/components/AddDoseModal"
 import { parseFloatSafe, getErrorMessage, formatDateInput, formatDateTimeInput } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { type PaymentMethod } from "@/lib/schemas"
 import type { IProduct } from "@/types/product"
 import { useDebounce } from "@/hooks/use-debounce"
 import { cacheService } from "@/services/cache.service"
-import { Calendar as CalendarIcon } from "lucide-react"
 import { sortBatchesFEFO } from "@/lib/utils"
 
 const DRAFT_STORAGE_KEY = "export_order_draft"
@@ -68,6 +68,7 @@ export default function CreateExportOrderPage() {
     const [dateError, setDateError] = useState("")
 
     const [showAddModal, setShowAddModal] = useState(false)
+    const [showAddDoseModal, setShowAddDoseModal] = useState(false)
     const [showAddCustomerModal, setShowAddCustomerModal] = useState(false)
     const dateInputRef = useRef<HTMLInputElement>(null)
 
@@ -352,9 +353,21 @@ export default function CreateExportOrderPage() {
         }
     }, [])
 
+    const handleDoseAdded = useCallback((doseItem: ExportOrderItem, components: ExportOrderItem[]) => {
+        setItems(prev => [...prev, doseItem, ...components])
+    }, [])
+
     const removeItem = (id: string) => {
-        setItems(prev => prev.filter(item => item.id !== id))
-        toast.error("Đã xóa sản phẩm khỏi phiếu")
+        setItems(prev => {
+            const itemToRemove = prev.find(i => i.id === id)
+            if (itemToRemove?.code === "LIÊU" && itemToRemove.parentDoseId) {
+                // Remove the main dose and all its components
+                return prev.filter(item => item.parentDoseId !== itemToRemove.parentDoseId)
+            }
+            // Remove just the specific item
+            return prev.filter(item => item.id !== id)
+        })
+        toast.error("Đã xóa khỏi phiếu")
     }
 
     const updateItemField = useCallback((id: string, field: keyof ExportOrderItem, value: string | number | boolean) => {
@@ -818,6 +831,13 @@ export default function CreateExportOrderPage() {
                             <PlusCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                             <span>Thêm mới sản phẩm</span>
                         </button>
+                        <button
+                            onClick={() => setShowAddDoseModal(true)}
+                            className="flex items-center justify-center gap-2 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-4 sm:px-5 py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors border border-blue-200 dark:border-blue-800/50"
+                        >
+                            <Activity className="w-4 h-4 sm:w-5 sm:h-5" />
+                            <span>Thêm liều thuốc</span>
+                        </button>
                     </div>
 
                     {showResults && searchQuery && (
@@ -878,6 +898,13 @@ export default function CreateExportOrderPage() {
                 onAdd={handleCustomerAdded}
             />
 
+            <AddDoseModal
+                isOpen={showAddDoseModal}
+                onClose={() => setShowAddDoseModal(false)}
+                allProducts={allProducts}
+                onAdd={handleDoseAdded}
+            />
+
             {/* ── PRODUCTS TABLE ── */}
             <div className="flex-1 overflow-auto p-4 bg-gray-50/30 dark:bg-neutral-900">
                 <div className="overflow-x-auto">
@@ -910,11 +937,22 @@ export default function CreateExportOrderPage() {
                             ) : (
                                 items.map((item) => {
                                     const profitPerItem = item.remainingAmount - (item.quantity * item.importPrice)
+                                    const isDoseMain = item.code === "LIÊU"
+                                    const isDoseComponent = item.name.startsWith("[Trong liều]")
+
                                     return (
-                                        <tr key={item.id} className="hover:bg-green-50/20 dark:hover:bg-green-900/5 transition-colors group">
-                                            <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 font-mono text-gray-400 dark:text-gray-500 text-[10px] group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">{item.code}</td>
+                                        <tr key={item.id} className={`hover:bg-green-50/20 dark:hover:bg-green-900/5 transition-colors group ${isDoseComponent ? "bg-gray-50/50 dark:bg-neutral-800/20 italic opacity-80" : ""}`}>
+                                            <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 font-mono text-gray-400 dark:text-gray-500 text-[10px] group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
+                                                {isDoseComponent ? "└─" : item.code}
+                                            </td>
                                             <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800">
-                                                <div className="font-bold text-gray-800 dark:text-gray-100 text-xs sm:text-sm">{item.name}</div>
+                                                <div className={`flex items-center gap-2 ${isDoseComponent ? "pl-4" : ""}`}>
+                                                    {isDoseMain && <Activity className="w-3.5 h-3.5 text-blue-500" />}
+                                                    {isDoseComponent && <Pill className="w-3 h-3 text-gray-400" />}
+                                                    <div className={`font-bold text-gray-800 dark:text-gray-100 text-xs sm:text-sm ${isDoseMain ? "text-blue-600 dark:text-blue-400" : ""}`}>
+                                                        {item.name}
+                                                    </div>
+                                                </div>
                                             </td>
                                             <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 text-gray-600 dark:text-gray-300 text-xs sm:text-sm text-center">{item.unit}</td>
                                             <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800">

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import { Download, Upload, Plus, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, FileText } from "lucide-react"
+import { Download, Upload, Plus, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, FileText, Copy } from "lucide-react"
 import { toast } from "sonner"
 import { type ExportOrder } from "@/lib/schemas"
 import { exportSlipService } from "@/services/export-slip.service"
@@ -68,7 +68,7 @@ export default function ExportManagePage() {
     useEffect(() => {
         const date = searchParams.get("date")
         const type = searchParams.get("type")
-        
+
         if (date) setFilterDate(date)
         if (type === "Ngày" || type === "Từ ngày" || type === "Tháng" || type === "Quý" || type === "Năm") {
             setDateFilterType(type)
@@ -126,8 +126,8 @@ export default function ExportManagePage() {
                 const matchesCustomer = s.customerName.toLowerCase().includes(kw)
                 const matchesId = (s.id || "").toLowerCase().includes(kw)
                 const matchesPhone = (s.customerPhone || "").toLowerCase().includes(kw)
-                const matchesItems = s.items?.some(item => 
-                    item.name.toLowerCase().includes(kw) || 
+                const matchesItems = s.items?.some(item =>
+                    item.name.toLowerCase().includes(kw) ||
                     item.code.toLowerCase().includes(kw)
                 )
 
@@ -183,6 +183,28 @@ export default function ExportManagePage() {
     const cancelDelete = () => {
         setSlipToDelete(null)
         setDeleteStep(0)
+    }
+
+    const handleCopy = (slip: ExportOrder) => {
+        // Simple helper for current time in dd/mm/yyyy HH:mm format
+        const now = new Date()
+        const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+
+        const copyData = {
+            notes: slip.notes || "",
+            items: slip.items || [],
+            paymentMethod: slip.paymentMethod || "Tiền mặt",
+            isPrescription: slip.isPrescription || false,
+            doctorName: slip.doctorName || "",
+            customerId: slip.customerId || "",
+            customerName: slip.customerName || "Khách lẻ",
+            symptoms: slip.symptoms || "",
+            dateValue: dateStr,
+            timestamp: now.getTime()
+        }
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(copyData))
+        toast.success(`Đã sao chép nội dung phiếu ${slip.id}`)
+        navigate("/export-manage/create")
     }
 
     // ── Pagination helpers ───────────────────────────────────────────────────
@@ -451,6 +473,13 @@ export default function ExportManagePage() {
                                                     className="bg-[#5c9a38] text-white px-2 py-0.5 rounded text-[9px] font-bold hover:bg-[#4d822f]"
                                                 >
                                                     Xem
+                                                </button>
+                                                <button
+                                                    onClick={() => handleCopy(slip)}
+                                                    className="bg-blue-500 text-white px-2 py-0.5 rounded text-[9px] font-bold hover:bg-blue-600"
+                                                    title="Sao chép phiếu này"
+                                                >
+                                                    <Copy size={10} />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteClick(slip)}
