@@ -18,6 +18,8 @@ import { cacheService } from "@/services/cache.service"
 import { Calendar as CalendarIcon } from "lucide-react"
 import { sortBatchesFEFO } from "@/lib/utils"
 
+const DRAFT_STORAGE_KEY = "export_order_draft"
+
 // Helper functions for date conversion
 const formatDateTimeToVN = (isoString: string) => {
     if (!isoString) return ""
@@ -60,6 +62,45 @@ export default function CreateExportOrderPage() {
     const [allCustomers, setAllCustomers] = useState<Customer[]>(() => cacheService.get("customers") || [])
     const [isLoading, setIsLoading] = useState(!allProducts.length)
 
+    // Metadata
+    const [orderId] = useState(() => `PX${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`)
+    const [dateValue, setDateValue] = useState(() => formatDateTimeToVN(new Date().toISOString()))
+    const [dateError, setDateError] = useState("")
+
+    const [showAddModal, setShowAddModal] = useState(false)
+    const [showAddCustomerModal, setShowAddCustomerModal] = useState(false)
+    const dateInputRef = useRef<HTMLInputElement>(null)
+
+    // Draft handling
+    const [hasRestoredDraft, setHasRestoredDraft] = useState(false)
+
+    const clearDraft = useCallback(() => {
+        localStorage.removeItem(DRAFT_STORAGE_KEY)
+    }, [])
+
+    const saveDraft = useCallback(() => {
+        const draftData = {
+            notes,
+            items,
+            paymentMethod,
+            isPrescription,
+            doctorName,
+            customerId,
+            customerName,
+            symptoms,
+            dateValue,
+            timestamp: new Date().getTime()
+        }
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData))
+    }, [notes, items, paymentMethod, isPrescription, doctorName, customerId, customerName, symptoms, dateValue])
+
+    // Auto-save useEffect
+    useEffect(() => {
+        if (items.length > 0 || customerId || (customerName !== "Khách lẻ" && customerName !== "") || notes || symptoms) {
+            saveDraft()
+        }
+    }, [items, customerId, customerName, notes, paymentMethod, dateValue, symptoms, isPrescription, doctorName, saveDraft])
+
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true)
@@ -78,12 +119,36 @@ export default function CreateExportOrderPage() {
                 cacheService.set("customers", customersData)
                 cacheService.set("payment_methods", paymentMethodsData)
 
-                // Set default payment method
-                const defaultMethod = paymentMethodsData.find((m: PaymentMethod) => m.isDefault);
-                if (defaultMethod) {
-                    setPaymentMethod(defaultMethod.name);
-                } else if (paymentMethodsData.length > 0) {
-                    setPaymentMethod(paymentMethodsData[0].name);
+                // Load draft if exists
+                const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY)
+                if (savedDraft && !hasRestoredDraft) {
+                    try {
+                        const parsed = JSON.parse(savedDraft)
+                        setNotes(parsed.notes || "")
+                        setItems(parsed.items || [])
+                        setPaymentMethod(parsed.paymentMethod || "Tiền mặt")
+                        setIsPrescription(parsed.isPrescription || false)
+                        setDoctorName(parsed.doctorName || "")
+                        setCustomerId(parsed.customerId || "")
+                        setCustomerName(parsed.customerName || "Khách lẻ")
+                        setSymptoms(parsed.symptoms || "")
+                        if (parsed.dateValue) setDateValue(parsed.dateValue)
+                        setHasRestoredDraft(true)
+                        toast.info("Đã khôi phục bản nháp phiếu bán hàng trước đó", {
+                            description: `Phiếu lưu vào lúc ${new Date(parsed.timestamp).toLocaleString("vi-VN")}`,
+                            duration: 5000,
+                        })
+                    } catch (e) {
+                        console.error("Failed to parse draft", e)
+                    }
+                } else {
+                    // Set default payment method if no draft
+                    const defaultMethod = paymentMethodsData.find((m: PaymentMethod) => m.isDefault);
+                    if (defaultMethod) {
+                        setPaymentMethod(defaultMethod.name);
+                    } else if (paymentMethodsData.length > 0) {
+                        setPaymentMethod(paymentMethodsData[0].name);
+                    }
                 }
             } catch (error: unknown) {
                 toast.error("Không thể tải dữ liệu: " + getErrorMessage(error))
@@ -93,15 +158,6 @@ export default function CreateExportOrderPage() {
         }
         fetchData()
     }, [])
-
-    // Metadata
-    const [orderId] = useState(() => `PX${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`)
-    const [dateValue, setDateValue] = useState(() => formatDateTimeToVN(new Date().toISOString()))
-    const [dateError, setDateError] = useState("")
-
-    const [showAddModal, setShowAddModal] = useState(false)
-    const [showAddCustomerModal, setShowAddCustomerModal] = useState(false)
-    const dateInputRef = useRef<HTMLInputElement>(null)
 
     // Search state
     const [searchQuery, setSearchQuery] = useState("")
@@ -477,6 +533,7 @@ export default function CreateExportOrderPage() {
 
         try {
             await exportSlipService.create(newSlip)
+            clearDraft()
             toast.success("Tạo phiếu bán hàng thành công!")
             navigate("/export-manage")
         } catch (error: unknown) {
@@ -512,6 +569,26 @@ export default function CreateExportOrderPage() {
                         </h1>
                     </div>
                     <div className="flex w-full sm:w-auto gap-2">
+                        {items.length > 0 && (
+                            <button
+                                onClick={() => {
+                                    if (window.confirm("Bạn có chắc chắn muốn xóa bản nháp và làm mới phiếu này?")) {
+                                        clearDraft()
+                                        setItems([])
+                                        setCustomerId("")
+                                        setCustomerName("Khách lẻ")
+                                        setNotes("")
+                                        setSymptoms("")
+                                        setDoctorName("")
+                                        setIsPrescription(false)
+                                        toast.success("Đã xóa bản nháp")
+                                    }
+                                }}
+                                className="bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/10 dark:text-red-400 px-3 sm:px-4 py-2 rounded text-xs sm:text-sm font-medium transition-colors border border-red-200 dark:border-red-900/30 flex-1 sm:flex-none"
+                            >
+                                <Trash2 className="w-4 h-4 inline mr-1" /> Xóa bản nháp
+                            </button>
+                        )}
                         <button
                             onClick={() => navigate("/export-manage")}
                             className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-gray-700 dark:text-gray-300 px-3 sm:px-4 py-2 rounded text-xs sm:text-sm font-medium transition-colors"

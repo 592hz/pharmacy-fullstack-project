@@ -7,6 +7,8 @@ import { exportSlipService } from "@/services/export-slip.service"
 import { getErrorMessage } from "@/lib/utils"
 import { useDebounce } from "@/hooks/use-debounce"
 
+const DRAFT_STORAGE_KEY = "export_order_draft"
+
 const PAGE_SIZE_OPTIONS = [10, 20, 50]
 
 const vnd = (n: number) =>
@@ -29,6 +31,7 @@ export default function ExportManagePage() {
     const [slips, setSlips] = useState<ExportOrder[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [showFilters, setShowFilters] = useState(false)
+    const [localDraft, setLocalDraft] = useState<any>(null)
 
     const fetchSlips = async () => {
         setIsLoading(true)
@@ -74,6 +77,14 @@ export default function ExportManagePage() {
 
     useEffect(() => {
         fetchSlips()
+        const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY)
+        if (savedDraft) {
+            try {
+                setLocalDraft(JSON.parse(savedDraft))
+            } catch (e) {
+                console.error("Failed to parse local draft", e)
+            }
+        }
     }, [])
 
     useEffect(() => {
@@ -381,6 +392,57 @@ export default function ExportManagePage() {
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    {localDraft && page === 1 && (
+                                        <tr className="bg-orange-50/50 dark:bg-orange-900/10 border-b border-orange-100 dark:border-orange-900/30 text-[11px] sm:text-xs">
+                                            <td className="px-1 py-2 border-r border-gray-200 dark:border-neutral-800 flex items-center justify-center gap-1">
+                                                <button
+                                                    onClick={() => navigate("/export-manage/create")}
+                                                    className="bg-orange-500 text-white px-2 py-0.5 rounded text-[9px] font-bold hover:bg-orange-600"
+                                                >
+                                                    Tiếp tục
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        if (window.confirm("Xóa bản nháp này?")) {
+                                                            localStorage.removeItem(DRAFT_STORAGE_KEY)
+                                                            setLocalDraft(null)
+                                                            toast.success("Đã xóa bản nháp")
+                                                        }
+                                                    }}
+                                                    className="bg-red-500 text-white px-2 py-0.5 rounded text-[9px] font-bold hover:bg-red-600"
+                                                >
+                                                    Xóa
+                                                </button>
+                                            </td>
+                                            <td className="px-1 py-2 border-r border-gray-200 dark:border-neutral-800 text-center hidden sm:table-cell text-orange-500 font-bold">
+                                                DRAFT
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800">
+                                                <span className="bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 px-1.5 py-0.5 rounded text-[9px] font-black uppercase">Bản nháp</span>
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-orange-400">
+                                                {localDraft.timestamp ? fmtDate(new Date(localDraft.timestamp).toISOString()) : "Vừa xong"}
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800">
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="font-bold text-gray-800 dark:text-gray-200">{localDraft.customerName || "Khách lẻ"}</span>
+                                                    {localDraft.isPrescription && <span className="text-[9px] text-red-600 font-black uppercase italic leading-none">Bán theo đơn</span>}
+                                                </div>
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-red-500 italic font-medium truncate max-w-[120px] hidden md:table-cell">
+                                                {localDraft.symptoms}
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-right font-bold text-orange-600">
+                                                {vnd(localDraft.items?.reduce((sum: number, i: any) => sum + (i.totalAmount || 0), 0) || 0)}
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-gray-500 hidden lg:table-cell">
+                                                Bản nháp
+                                            </td>
+                                            <td className="px-2 py-2 text-gray-400 italic truncate max-w-[150px] hidden xl:table-cell">
+                                                {localDraft.notes}
+                                            </td>
+                                        </tr>
+                                    )}
                                     {paged.map((slip, idx) => (
                                         <tr key={slip.id || idx} className="hover:bg-gray-50 dark:hover:bg-neutral-800/20 items-center border-b border-gray-100 dark:border-neutral-800 text-[11px] sm:text-xs">
                                             <td className="px-1 py-2 border-r border-gray-200 dark:border-neutral-800 flex items-center justify-center gap-1">

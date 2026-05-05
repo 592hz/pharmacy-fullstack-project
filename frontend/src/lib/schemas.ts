@@ -288,6 +288,7 @@ export type PurchaseOrderItem = z.infer<typeof purchaseOrderItemSchema>
 
 // ─── DASHBOARD ───
 export const lowStockProductSchema = z.object({
+    id: z.string().optional(),
     name: z.string(),
     quantity: z.number(),
     unit: z.string(),
@@ -296,6 +297,7 @@ export const lowStockProductSchema = z.object({
 export type LowStockProduct = z.infer<typeof lowStockProductSchema>
 
 export const nearExpiryProductSchema = z.object({
+    id: z.string().optional(),
     name: z.string(),
     batchNumber: z.string(),
     expiryDate: z.string(),

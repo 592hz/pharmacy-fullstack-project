@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react"
-import { Link } from "react-router-dom"
+import { Link, useNavigate } from "react-router-dom"
 import { DollarSign, Calendar, TrendingUp, Activity, ShoppingCart, Flag, Loader2 } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts"
 import { type DashboardSummary, type NearExpiryProduct, type LowStockProduct } from "@/lib/schemas"
@@ -11,6 +11,7 @@ const formatCurrency = (value: number) => {
 }
 
 export default function DashboardPage() {
+    const navigate = useNavigate()
     const [isLoading, setIsLoading] = useState(true)
     const [summary, setSummary] = useState<DashboardSummary | null>(null)
     const [lowStockLimit, setLowStockLimit] = useState(5)
@@ -261,6 +262,7 @@ export default function DashboardPage() {
                                         <th className="px-2 py-3 text-center">Số lô</th>
                                         <th className="px-2 py-3 text-center">Hạn dùng</th>
                                         <th className="px-4 py-3 text-right">Tồn</th>
+                                        <th className="px-4 py-3 text-center">Thao tác</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
@@ -271,11 +273,19 @@ export default function DashboardPage() {
                                                 <td className="px-2 py-4 text-center text-gray-500 font-mono text-[10px]">{p.batchNumber}</td>
                                                 <td className="px-2 py-4 text-center font-bold text-red-500">{p.expiryDate}</td>
                                                 <td className="px-4 py-4 text-right font-black text-gray-700 bg-gray-50/20">{p.quantity} <span className="text-[10px] font-normal text-gray-400">{p.unit}</span></td>
+                                                <td className="px-4 py-4 text-center">
+                                                    <button
+                                                        onClick={() => navigate(`/purchase-orders/create?productId=${p.id}`)}
+                                                        className="bg-[#5c9a38] hover:bg-[#4d822f] text-white px-3 py-1 rounded text-[10px] font-bold shadow-sm transition-all"
+                                                    >
+                                                        NHẬP HÀNG
+                                                    </button>
+                                                </td>
                                             </tr>
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan={4} className="px-4 py-12 text-center text-gray-400 italic">
+                                            <td colSpan={5} className="px-4 py-12 text-center text-gray-400 italic">
                                                 <div className="flex flex-col items-center gap-2">
                                                     <Loader2 className="animate-spin text-gray-200" size={24} />
                                                     <span>Không có hàng cận date cần lưu ý</span>
@@ -312,7 +322,7 @@ export default function DashboardPage() {
                         <div className="p-4 border-b border-gray-100 dark:border-neutral-800 bg-orange-50/50 dark:bg-orange-900/10 flex items-center justify-between">
                             <div className="flex items-center gap-2">
                                 <Activity className="text-orange-500" size={20} />
-                                <h3 className="font-bold text-gray-800 dark:text-gray-100 text-[13px] uppercase tracking-wide">Sản phẩm sắp hết hàng (≤ 1)</h3>
+                                <h3 className="font-bold text-gray-800 dark:text-gray-100 text-[13px] uppercase tracking-wide">Sản phẩm sắp hết hàng (Theo định mức)</h3>
                             </div>
                             <span className="text-[11px] bg-orange-100 dark:bg-orange-900/40 text-orange-600 dark:text-orange-400 px-3 py-1 rounded-full font-black">
                                 {statsData.lowStockCount} mặt hàng
@@ -324,6 +334,7 @@ export default function DashboardPage() {
                                     <tr>
                                         <th className="px-4 py-3">Tên thuốc</th>
                                         <th className="px-4 py-3 text-right">Số lượng tồn kho hiện tại</th>
+                                        <th className="px-4 py-3 text-center">Thao tác</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
@@ -332,15 +343,29 @@ export default function DashboardPage() {
                                             <tr key={i} className="hover:bg-orange-50/30 dark:hover:bg-orange-900/5 transition-colors">
                                                 <td className="px-4 py-4 font-bold text-gray-800 dark:text-gray-200">{p.name}</td>
                                                 <td className="px-4 py-4 text-right">
-                                                    <span className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded font-black">
-                                                        {p.quantity} {p.unit}
-                                                    </span>
+                                                    {p.quantity === 0 ? (
+                                                        <span className="bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300 px-2 py-0.5 rounded font-black uppercase text-[10px]">
+                                                            Hết hàng
+                                                        </span>
+                                                    ) : (
+                                                        <span className="bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 px-2 py-0.5 rounded font-black">
+                                                            {p.quantity} {p.unit}
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-4 text-center">
+                                                    <button
+                                                        onClick={() => navigate(`/purchase-orders/create?productId=${p.id}`)}
+                                                        className="bg-[#5c9a38] hover:bg-[#4d822f] text-white px-3 py-1 rounded text-[10px] font-bold shadow-sm transition-all"
+                                                    >
+                                                        NHẬP HÀNG
+                                                    </button>
                                                 </td>
                                             </tr>
                                         ))
                                     ) : (
                                         <tr>
-                                            <td colSpan={2} className="px-4 py-12 text-center text-gray-400 italic">
+                                            <td colSpan={3} className="px-4 py-12 text-center text-gray-400 italic">
                                                 <div className="flex flex-col items-center gap-2">
                                                     <Loader2 className="animate-spin text-gray-200" size={24} />
                                                     <span>Kho hàng đang ở trạng thái an toàn</span>

@@ -52,12 +52,12 @@ export default function StockManagementPage() {
                 quantity: b.quantity
             }))
             const newTotalQty = updatedBatches.reduce((sum, b) => sum + b.quantity, 0)
-            
-            await productService.update(product.id, { 
+
+            await productService.update(product.id, {
                 batches: updatedBatches,
                 baseQuantity: newTotalQty
             })
-            
+
             toast.success(`Đã xóa lô ${batchNumber}`)
             fetchData()
         } catch (error: unknown) {
@@ -88,7 +88,7 @@ export default function StockManagementPage() {
             if (!matchesQuery) return false
 
             // Category Filter
-            const prodCategoryId = typeof product.categoryId === 'object' && product.categoryId !== null 
+            const prodCategoryId = typeof product.categoryId === 'object' && product.categoryId !== null
                 ? product.categoryId.id
                 : product.categoryId
             if (categoryFilter !== "Tất cả" && prodCategoryId !== categoryFilter) return false
@@ -99,12 +99,14 @@ export default function StockManagementPage() {
                 : (product.baseQuantity || 0)
 
             const unitType = (product.unit || "").toLowerCase()
-            // nếu viên hàng tồn kho < 50 thì báo sắp hết hàng còn các đơn vị khác là 1 
-            const lowStockThreshold = unitType === "viên" ? 50 : 1
+            let lowStockThreshold = 1
+            if (unitType.includes("viên")) lowStockThreshold = 10
+            else if (unitType.includes("vỉ")) lowStockThreshold = 5
+            else lowStockThreshold = 1
 
-            // Check if any batch is near expiry (within 6 months / 180 days)
+            // Check if any batch is near expiry (within 6 months / 180 days) AND has quantity > 0
             const hasNearExpiry = product.batches && product.batches.some((b: IProductBatch) => {
-                if (!b.expiryDate || b.expiryDate === ".") return false
+                if (!b.expiryDate || b.expiryDate === "." || (b.quantity || 0) <= 0) return false
                 try {
                     const [d, m, y] = b.expiryDate.split(/[-/]/).map(Number)
                     const expiry = new Date(y, m - 1, d)
@@ -182,7 +184,11 @@ export default function StockManagementPage() {
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Sắp hết hàng</p>
                             <p className="text-xl font-bold text-orange-600">{products.filter(p => {
                                 const qty = p.baseQuantity || 0
-                                return qty > 0 && qty <= (p.unit?.toLowerCase() === "viên" ? 50 : 5)
+                                const u = (p.unit || "").toLowerCase()
+                                let threshold = 1
+                                if (u.includes("viên")) threshold = 10
+                                else if (u.includes("vỉ")) threshold = 5
+                                return qty > 0 && qty <= threshold
                             }).length}</p>
                         </div>
                     </div>
@@ -193,7 +199,7 @@ export default function StockManagementPage() {
                         <div>
                             <p className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Cận date (6th)</p>
                             <p className="text-xl font-bold text-red-700">{products.filter(p => p.batches?.some(b => {
-                                if (!b.expiryDate || b.expiryDate === ".") return false
+                                if (!b.expiryDate || b.expiryDate === "." || (b.quantity || 0) <= 0) return false
                                 try {
                                     const [d, m, y] = b.expiryDate.split(/[-/]/).map(Number)
                                     const expiry = new Date(y, m - 1, d)
@@ -242,11 +248,11 @@ export default function StockManagementPage() {
                     </select>
                 </div>
                 <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 dark:bg-neutral-800 rounded-xl border border-gray-200 dark:border-neutral-700 select-none cursor-pointer hover:bg-gray-100 dark:hover:bg-neutral-700 transition-colors"
-                     onClick={() => setHideEmptyBatches(!hideEmptyBatches)}>
-                    <input 
-                        type="checkbox" 
+                    onClick={() => setHideEmptyBatches(!hideEmptyBatches)}>
+                    <input
+                        type="checkbox"
                         checked={hideEmptyBatches}
-                        onChange={() => {}} // Controlled by div click
+                        onChange={() => { }} // Controlled by div click
                         className="w-4 h-4 accent-[#5c9a38] rounded"
                     />
                     <span className="text-xs font-bold text-gray-600 dark:text-gray-300 flex items-center gap-1.5">
@@ -284,7 +290,12 @@ export default function StockManagementPage() {
                                         ? p.batches.reduce((sum, b) => sum + b.quantity, 0)
                                         : (p.baseQuantity || 0)
 
-                                    const isLow = totalQty > 0 && totalQty <= (p.unit === "Viên" ? 50 : 5)
+                                    const unitLow = (p.unit || "").toLowerCase()
+                                    let threshold = 1
+                                    if (unitLow.includes("viên")) threshold = 10
+                                    else if (unitLow.includes("vỉ")) threshold = 5
+
+                                    const isLow = totalQty > 0 && totalQty <= threshold
                                     const isOut = totalQty <= 0
 
                                     return (
@@ -317,44 +328,44 @@ export default function StockManagementPage() {
                                                 <div className="grid gap-2 min-w-[280px]">
                                                     {p.batches && p.batches.length > 0 ? (
                                                         p.batches
-                                                        .filter(b => !hideEmptyBatches || b.quantity > 0)
-                                                        .sort((a, b) => parseBatchDate(a.expiryDate || "").getTime() - parseBatchDate(b.expiryDate || "").getTime())
-                                                        .map((b, i) => {
-                                                            let isNearExpiry = false
-                                                            try {
-                                                                if (b.expiryDate) {
-                                                                    const [d, m, y] = b.expiryDate.split(/[-/]/).map(Number)
-                                                                    const expiry = new Date(y, m - 1, d)
-                                                                    const diff = expiry.getTime() - new Date().getTime()
-                                                                    isNearExpiry = diff > 0 && diff <= 180 * 24 * 60 * 60 * 1000
-                                                                }
-                                                            } catch { }
+                                                            .filter(b => !hideEmptyBatches || b.quantity > 0)
+                                                            .sort((a, b) => parseBatchDate(a.expiryDate || "").getTime() - parseBatchDate(b.expiryDate || "").getTime())
+                                                            .map((b, i) => {
+                                                                let isNearExpiry = false
+                                                                try {
+                                                                    if (b.expiryDate) {
+                                                                        const [d, m, y] = b.expiryDate.split(/[-/]/).map(Number)
+                                                                        const expiry = new Date(y, m - 1, d)
+                                                                        const diff = expiry.getTime() - new Date().getTime()
+                                                                        isNearExpiry = diff > 0 && diff <= 180 * 24 * 60 * 60 * 1000
+                                                                    }
+                                                                } catch { }
 
-                                                            return (
-                                                                <div key={i} className={`flex items-center justify-between p-2 rounded-xl border ${isNearExpiry ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/40' : 'bg-white dark:bg-neutral-800 border-gray-100 dark:border-neutral-700'} shadow-sm group/batch`}>
-                                                                    <div className="flex items-center gap-2">
-                                                                        <div className={`w-2 h-2 rounded-full ${isNearExpiry ? 'bg-red-500 animate-pulse' : 'bg-green-400'}`}></div>
-                                                                        <span className="font-mono text-[11px] text-gray-500 font-bold">{b.batchNumber}</span>
+                                                                return (
+                                                                    <div key={i} className={`flex items-center justify-between p-2 rounded-xl border ${isNearExpiry ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/40' : 'bg-white dark:bg-neutral-800 border-gray-100 dark:border-neutral-700'} shadow-sm group/batch`}>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <div className={`w-2 h-2 rounded-full ${isNearExpiry ? 'bg-red-500 animate-pulse' : 'bg-green-400'}`}></div>
+                                                                            <span className="font-mono text-[11px] text-gray-500 font-bold">{b.batchNumber}</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-4">
+                                                                            <span className={`text-[11px] font-black tracking-tight flex items-center gap-1 ${isNearExpiry ? 'text-red-600' : 'text-gray-400'}`}>
+                                                                                <Calendar size={12} /> {b.expiryDate}
+                                                                            </span>
+                                                                            <span className="text-xs font-black text-gray-800 dark:text-gray-200 w-8 text-right italic">{b.quantity}</span>
+
+                                                                            {b.quantity === 0 && (
+                                                                                <button
+                                                                                    onClick={() => handleDeleteBatch(p, b.batchNumber)}
+                                                                                    className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all opacity-0 group-hover/batch:opacity-100"
+                                                                                    title="Xóa lô trống"
+                                                                                >
+                                                                                    <Trash2 size={12} />
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
                                                                     </div>
-                                                                    <div className="flex items-center gap-4">
-                                                                        <span className={`text-[11px] font-black tracking-tight flex items-center gap-1 ${isNearExpiry ? 'text-red-600' : 'text-gray-400'}`}>
-                                                                            <Calendar size={12} /> {b.expiryDate}
-                                                                        </span>
-                                                                        <span className="text-xs font-black text-gray-800 dark:text-gray-200 w-8 text-right italic">{b.quantity}</span>
-                                                                        
-                                                                        {b.quantity === 0 && (
-                                                                            <button 
-                                                                                onClick={() => handleDeleteBatch(p, b.batchNumber)}
-                                                                                className="p-1 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded transition-all opacity-0 group-hover/batch:opacity-100"
-                                                                                title="Xóa lô trống"
-                                                                            >
-                                                                                <Trash2 size={12} />
-                                                                            </button>
-                                                                        )}
-                                                                    </div>
-                                                                </div>
-                                                            )
-                                                        })
+                                                                )
+                                                            })
                                                     ) : (
                                                         <span className="text-[11px] text-gray-400 italic font-medium">Không quản lý lô hàng</span>
                                                     )}
