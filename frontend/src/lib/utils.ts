@@ -52,3 +52,34 @@ export function sortBatchesFEFO<T extends { expiryDate?: string }>(batches: T[])
         return parseExpiryDate(a.expiryDate) - parseExpiryDate(b.expiryDate);
     });
 }
+
+export function formatDateInput(value: string): string {
+    let val = value.replace(/\D/g, "");
+    if (val.length > 8) val = val.slice(0, 8);
+    
+    let formatted = val;
+    if (val.length >= 5) {
+        formatted = `${val.slice(0, 2)}/${val.slice(2, 4)}/${val.slice(4)}`;
+    } else if (val.length >= 3) {
+        formatted = `${val.slice(0, 2)}/${val.slice(2)}`;
+    }
+    return formatted;
+}
+
+export function formatDateTimeInput(value: string): string {
+    let val = value.replace(/\D/g, "");
+    if (val.length > 12) val = val.slice(0, 12);
+    
+    let formatted = val;
+    // Format: DD/MM/YYYY HH:mm
+    if (val.length >= 11) {
+        formatted = `${val.slice(0, 2)}/${val.slice(2, 4)}/${val.slice(4, 8)} ${val.slice(8, 10)}:${val.slice(10)}`;
+    } else if (val.length >= 9) {
+        formatted = `${val.slice(0, 2)}/${val.slice(2, 4)}/${val.slice(4, 8)} ${val.slice(8)}`;
+    } else if (val.length >= 5) {
+        formatted = `${val.slice(0, 2)}/${val.slice(2, 4)}/${val.slice(4)}`;
+    } else if (val.length >= 3) {
+        formatted = `${val.slice(0, 2)}/${val.slice(2)}`;
+    }
+    return formatted;
+}

@@ -10,6 +10,8 @@ export interface ICustomer extends Document {
     weight?: string;
     age?: string;
     notes?: string;
+    isDeleted?: boolean;
+    deletedAt?: Date;
 }
 
 const CustomerSchema: Schema = new Schema({
@@ -21,7 +23,9 @@ const CustomerSchema: Schema = new Schema({
     gender: { type: String, enum: ['Nam', 'Nữ', 'Khác'], default: 'Nam' },
     weight: { type: String },
     age: { type: String },
-    notes: { type: String }
+    notes: { type: String },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date }
 }, { timestamps: true });
 
 export default mongoose.model<ICustomer>('Customer', CustomerSchema);

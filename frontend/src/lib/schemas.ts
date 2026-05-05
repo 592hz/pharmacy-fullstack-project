@@ -63,6 +63,8 @@ export const customerSchema = z.object({
     weight: z.string().regex(/^\d*$/, "Cân nặng phải là số").optional(),
     age: z.string().regex(/^\d*$/, "Tuổi phải là số").optional(),
     notes: z.string().optional(),
+    isDeleted: z.boolean().optional(),
+    deletedAt: z.string().optional(),
 })
 
 export type Customer = z.infer<typeof customerSchema> & { id?: string; _id?: string }
@@ -222,6 +224,7 @@ export const exportOrderItemSchema = z.object({
     discountPercent: z.number().min(0).max(100).default(0),
     discountAmount: z.number().default(0),
     remainingAmount: z.number(),
+    parentDoseId: z.string().optional(),
 })
 
 export const exportOrderSchema = z.object({
@@ -286,6 +289,7 @@ export type PurchaseOrderItem = z.infer<typeof purchaseOrderItemSchema>
 
 // ─── DASHBOARD ───
 export const lowStockProductSchema = z.object({
+    id: z.string().optional(),
     name: z.string(),
     quantity: z.number(),
     unit: z.string(),
@@ -294,6 +298,7 @@ export const lowStockProductSchema = z.object({
 export type LowStockProduct = z.infer<typeof lowStockProductSchema>
 
 export const nearExpiryProductSchema = z.object({
+    id: z.string().optional(),
     name: z.string(),
     batchNumber: z.string(),
     expiryDate: z.string(),

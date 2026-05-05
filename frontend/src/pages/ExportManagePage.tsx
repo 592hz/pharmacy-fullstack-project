@@ -1,11 +1,13 @@
 import { useState, useMemo, useEffect } from "react"
-import { useNavigate } from "react-router-dom"
-import { Download, Upload, Plus, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, FileText } from "lucide-react"
+import { useNavigate, useSearchParams } from "react-router-dom"
+import { Download, Upload, Plus, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, FileText, Copy } from "lucide-react"
 import { toast } from "sonner"
 import { type ExportOrder } from "@/lib/schemas"
 import { exportSlipService } from "@/services/export-slip.service"
 import { getErrorMessage } from "@/lib/utils"
 import { useDebounce } from "@/hooks/use-debounce"
+
+const DRAFT_STORAGE_KEY = "export_order_draft"
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50]
 
@@ -25,9 +27,11 @@ const fmtDate = (iso: string) => {
 
 export default function ExportManagePage() {
     const navigate = useNavigate()
+    const [searchParams] = useSearchParams()
     const [slips, setSlips] = useState<ExportOrder[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [showFilters, setShowFilters] = useState(false)
+    const [localDraft, setLocalDraft] = useState<any>(null)
 
     const fetchSlips = async () => {
         setIsLoading(true)
@@ -42,8 +46,12 @@ export default function ExportManagePage() {
     }
 
     // ── Filter state ─────────────────────────────────────────────────────────
-    const [dateFilterType, setDateFilterType] = useState<"Ngày" | "Từ ngày" | "Tháng" | "Quý" | "Năm">("Năm")
-    const [filterDate, setFilterDate] = useState<string>(() => new Date().toISOString().split("T")[0])
+    const [dateFilterType, setDateFilterType] = useState<"Ngày" | "Từ ngày" | "Tháng" | "Quý" | "Năm">(() => {
+        const type = searchParams.get("type")
+        if (type === "Ngày" || type === "Từ ngày" || type === "Tháng" || type === "Quý" || type === "Năm") return type
+        return "Năm"
+    })
+    const [filterDate, setFilterDate] = useState<string>(() => searchParams.get("date") || new Date().toISOString().split("T")[0])
     const [filterStartDate, setFilterStartDate] = useState<string>("")
     const [filterEndDate, setFilterEndDate] = useState<string>("")
     const [filterMonth, setFilterMonth] = useState<string>(() => String(new Date().getMonth() + 1).padStart(2, "0"))
@@ -58,7 +66,25 @@ export default function ExportManagePage() {
     const [pageSize, setPageSize] = useState(10)
 
     useEffect(() => {
+        const date = searchParams.get("date")
+        const type = searchParams.get("type")
+
+        if (date) setFilterDate(date)
+        if (type === "Ngày" || type === "Từ ngày" || type === "Tháng" || type === "Quý" || type === "Năm") {
+            setDateFilterType(type)
+        }
+    }, [searchParams])
+
+    useEffect(() => {
         fetchSlips()
+        const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY)
+        if (savedDraft) {
+            try {
+                setLocalDraft(JSON.parse(savedDraft))
+            } catch (e) {
+                console.error("Failed to parse local draft", e)
+            }
+        }
     }, [])
 
     useEffect(() => {
@@ -100,8 +126,8 @@ export default function ExportManagePage() {
                 const matchesCustomer = s.customerName.toLowerCase().includes(kw)
                 const matchesId = (s.id || "").toLowerCase().includes(kw)
                 const matchesPhone = (s.customerPhone || "").toLowerCase().includes(kw)
-                const matchesItems = s.items?.some(item => 
-                    item.name.toLowerCase().includes(kw) || 
+                const matchesItems = s.items?.some(item =>
+                    item.name.toLowerCase().includes(kw) ||
                     item.code.toLowerCase().includes(kw)
                 )
 
@@ -157,6 +183,28 @@ export default function ExportManagePage() {
     const cancelDelete = () => {
         setSlipToDelete(null)
         setDeleteStep(0)
+    }
+
+    const handleCopy = (slip: ExportOrder) => {
+        // Simple helper for current time in dd/mm/yyyy HH:mm format
+        const now = new Date()
+        const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+
+        const copyData = {
+            notes: slip.notes || "",
+            items: slip.items || [],
+            paymentMethod: slip.paymentMethod || "Tiền mặt",
+            isPrescription: slip.isPrescription || false,
+            doctorName: slip.doctorName || "",
+            customerId: slip.customerId || "",
+            customerName: slip.customerName || "Khách lẻ",
+            symptoms: slip.symptoms || "",
+            dateValue: dateStr,
+            timestamp: now.getTime()
+        }
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(copyData))
+        toast.success(`Đã sao chép nội dung phiếu ${slip.id}`)
+        navigate("/export-manage/create")
     }
 
     // ── Pagination helpers ───────────────────────────────────────────────────
@@ -366,6 +414,57 @@ export default function ExportManagePage() {
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    {localDraft && page === 1 && (
+                                        <tr className="bg-orange-50/50 dark:bg-orange-900/10 border-b border-orange-100 dark:border-orange-900/30 text-[11px] sm:text-xs">
+                                            <td className="px-1 py-2 border-r border-gray-200 dark:border-neutral-800 flex items-center justify-center gap-1">
+                                                <button
+                                                    onClick={() => navigate("/export-manage/create")}
+                                                    className="bg-orange-500 text-white px-2 py-0.5 rounded text-[9px] font-bold hover:bg-orange-600"
+                                                >
+                                                    Tiếp tục
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        if (window.confirm("Xóa bản nháp này?")) {
+                                                            localStorage.removeItem(DRAFT_STORAGE_KEY)
+                                                            setLocalDraft(null)
+                                                            toast.success("Đã xóa bản nháp")
+                                                        }
+                                                    }}
+                                                    className="bg-red-500 text-white px-2 py-0.5 rounded text-[9px] font-bold hover:bg-red-600"
+                                                >
+                                                    Xóa
+                                                </button>
+                                            </td>
+                                            <td className="px-1 py-2 border-r border-gray-200 dark:border-neutral-800 text-center hidden sm:table-cell text-orange-500 font-bold">
+                                                DRAFT
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800">
+                                                <span className="bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 px-1.5 py-0.5 rounded text-[9px] font-black uppercase">Bản nháp</span>
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-orange-400">
+                                                {localDraft.timestamp ? fmtDate(new Date(localDraft.timestamp).toISOString()) : "Vừa xong"}
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800">
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="font-bold text-gray-800 dark:text-gray-200">{localDraft.customerName || "Khách lẻ"}</span>
+                                                    {localDraft.isPrescription && <span className="text-[9px] text-red-600 font-black uppercase italic leading-none">Bán theo đơn</span>}
+                                                </div>
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-red-500 italic font-medium truncate max-w-[120px] hidden md:table-cell">
+                                                {localDraft.symptoms}
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-right font-bold text-orange-600">
+                                                {vnd(localDraft.items?.reduce((sum: number, i: any) => sum + (i.totalAmount || 0), 0) || 0)}
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-gray-500 hidden lg:table-cell">
+                                                Bản nháp
+                                            </td>
+                                            <td className="px-2 py-2 text-gray-400 italic truncate max-w-[150px] hidden xl:table-cell">
+                                                {localDraft.notes}
+                                            </td>
+                                        </tr>
+                                    )}
                                     {paged.map((slip, idx) => (
                                         <tr key={slip.id || idx} className="hover:bg-gray-50 dark:hover:bg-neutral-800/20 items-center border-b border-gray-100 dark:border-neutral-800 text-[11px] sm:text-xs">
                                             <td className="px-1 py-2 border-r border-gray-200 dark:border-neutral-800 flex items-center justify-center gap-1">
@@ -374,6 +473,13 @@ export default function ExportManagePage() {
                                                     className="bg-[#5c9a38] text-white px-2 py-0.5 rounded text-[9px] font-bold hover:bg-[#4d822f]"
                                                 >
                                                     Xem
+                                                </button>
+                                                <button
+                                                    onClick={() => handleCopy(slip)}
+                                                    className="bg-blue-500 text-white px-2 py-0.5 rounded text-[9px] font-bold hover:bg-blue-600"
+                                                    title="Sao chép phiếu này"
+                                                >
+                                                    <Copy size={10} />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteClick(slip)}

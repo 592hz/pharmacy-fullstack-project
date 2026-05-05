@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { Search, PlusCircle, Trash2, Save, X, User, CreditCard, TrendingUp, Plus } from "lucide-react"
+import { Search, PlusCircle, Trash2, Save, X, User, CreditCard, TrendingUp, Plus, Activity, Pill, Calendar as CalendarIcon } from "lucide-react"
 import { toast } from "sonner"
 import { type ExportOrder, type ExportOrderItem, type Customer, exportOrderSchema } from "@/lib/schemas"
 import { exportSlipService } from "@/services/export-slip.service"
@@ -9,14 +9,16 @@ import { customerService } from "@/services/customer.service"
 import { paymentMethodService } from "@/services/payment-method.service"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
 import AddCustomerModal from "@/components/add-customer-modal"
-import { parseFloatSafe, getErrorMessage } from "@/lib/utils"
+import AddDoseModal from "@/components/AddDoseModal"
+import { parseFloatSafe, getErrorMessage, formatDateInput, formatDateTimeInput } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { type PaymentMethod } from "@/lib/schemas"
 import type { IProduct } from "@/types/product"
 import { useDebounce } from "@/hooks/use-debounce"
 import { cacheService } from "@/services/cache.service"
-import { Calendar as CalendarIcon } from "lucide-react"
 import { sortBatchesFEFO } from "@/lib/utils"
+
+const DRAFT_STORAGE_KEY = "export_order_draft"
 
 // Helper functions for date conversion
 const formatDateTimeToVN = (isoString: string) => {
@@ -60,6 +62,46 @@ export default function CreateExportOrderPage() {
     const [allCustomers, setAllCustomers] = useState<Customer[]>(() => cacheService.get("customers") || [])
     const [isLoading, setIsLoading] = useState(!allProducts.length)
 
+    // Metadata
+    const [orderId] = useState(() => `PX${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`)
+    const [dateValue, setDateValue] = useState(() => formatDateTimeToVN(new Date().toISOString()))
+    const [dateError, setDateError] = useState("")
+
+    const [showAddModal, setShowAddModal] = useState(false)
+    const [showAddDoseModal, setShowAddDoseModal] = useState(false)
+    const [showAddCustomerModal, setShowAddCustomerModal] = useState(false)
+    const dateInputRef = useRef<HTMLInputElement>(null)
+
+    // Draft handling
+    const [hasRestoredDraft, setHasRestoredDraft] = useState(false)
+
+    const clearDraft = useCallback(() => {
+        localStorage.removeItem(DRAFT_STORAGE_KEY)
+    }, [])
+
+    const saveDraft = useCallback(() => {
+        const draftData = {
+            notes,
+            items,
+            paymentMethod,
+            isPrescription,
+            doctorName,
+            customerId,
+            customerName,
+            symptoms,
+            dateValue,
+            timestamp: new Date().getTime()
+        }
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData))
+    }, [notes, items, paymentMethod, isPrescription, doctorName, customerId, customerName, symptoms, dateValue])
+
+    // Auto-save useEffect
+    useEffect(() => {
+        if (items.length > 0 || customerId || (customerName !== "Khách lẻ" && customerName !== "") || notes || symptoms) {
+            saveDraft()
+        }
+    }, [items, customerId, customerName, notes, paymentMethod, dateValue, symptoms, isPrescription, doctorName, saveDraft])
+
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true)
@@ -78,12 +120,36 @@ export default function CreateExportOrderPage() {
                 cacheService.set("customers", customersData)
                 cacheService.set("payment_methods", paymentMethodsData)
 
-                // Set default payment method
-                const defaultMethod = paymentMethodsData.find((m: PaymentMethod) => m.isDefault);
-                if (defaultMethod) {
-                    setPaymentMethod(defaultMethod.name);
-                } else if (paymentMethodsData.length > 0) {
-                    setPaymentMethod(paymentMethodsData[0].name);
+                // Load draft if exists
+                const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY)
+                if (savedDraft && !hasRestoredDraft) {
+                    try {
+                        const parsed = JSON.parse(savedDraft)
+                        setNotes(parsed.notes || "")
+                        setItems(parsed.items || [])
+                        setPaymentMethod(parsed.paymentMethod || "Tiền mặt")
+                        setIsPrescription(parsed.isPrescription || false)
+                        setDoctorName(parsed.doctorName || "")
+                        setCustomerId(parsed.customerId || "")
+                        setCustomerName(parsed.customerName || "Khách lẻ")
+                        setSymptoms(parsed.symptoms || "")
+                        if (parsed.dateValue) setDateValue(parsed.dateValue)
+                        setHasRestoredDraft(true)
+                        toast.info("Đã khôi phục bản nháp phiếu bán hàng trước đó", {
+                            description: `Phiếu lưu vào lúc ${new Date(parsed.timestamp).toLocaleString("vi-VN")}`,
+                            duration: 5000,
+                        })
+                    } catch (e) {
+                        console.error("Failed to parse draft", e)
+                    }
+                } else {
+                    // Set default payment method if no draft
+                    const defaultMethod = paymentMethodsData.find((m: PaymentMethod) => m.isDefault);
+                    if (defaultMethod) {
+                        setPaymentMethod(defaultMethod.name);
+                    } else if (paymentMethodsData.length > 0) {
+                        setPaymentMethod(paymentMethodsData[0].name);
+                    }
                 }
             } catch (error: unknown) {
                 toast.error("Không thể tải dữ liệu: " + getErrorMessage(error))
@@ -93,15 +159,6 @@ export default function CreateExportOrderPage() {
         }
         fetchData()
     }, [])
-
-    // Metadata
-    const [orderId] = useState(() => `PX${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`)
-    const [dateValue, setDateValue] = useState(() => formatDateTimeToVN(new Date().toISOString()))
-    const [dateError, setDateError] = useState("")
-
-    const [showAddModal, setShowAddModal] = useState(false)
-    const [showAddCustomerModal, setShowAddCustomerModal] = useState(false)
-    const dateInputRef = useRef<HTMLInputElement>(null)
 
     // Search state
     const [searchQuery, setSearchQuery] = useState("")
@@ -296,9 +353,21 @@ export default function CreateExportOrderPage() {
         }
     }, [])
 
+    const handleDoseAdded = useCallback((doseItem: ExportOrderItem, components: ExportOrderItem[]) => {
+        setItems(prev => [...prev, doseItem, ...components])
+    }, [])
+
     const removeItem = (id: string) => {
-        setItems(prev => prev.filter(item => item.id !== id))
-        toast.error("Đã xóa sản phẩm khỏi phiếu")
+        setItems(prev => {
+            const itemToRemove = prev.find(i => i.id === id)
+            if (itemToRemove?.code === "LIÊU" && itemToRemove.parentDoseId) {
+                // Remove the main dose and all its components
+                return prev.filter(item => item.parentDoseId !== itemToRemove.parentDoseId)
+            }
+            // Remove just the specific item
+            return prev.filter(item => item.id !== id)
+        })
+        toast.error("Đã xóa khỏi phiếu")
     }
 
     const updateItemField = useCallback((id: string, field: keyof ExportOrderItem, value: string | number | boolean) => {
@@ -477,6 +546,7 @@ export default function CreateExportOrderPage() {
 
         try {
             await exportSlipService.create(newSlip)
+            clearDraft()
             toast.success("Tạo phiếu bán hàng thành công!")
             navigate("/export-manage")
         } catch (error: unknown) {
@@ -512,6 +582,26 @@ export default function CreateExportOrderPage() {
                         </h1>
                     </div>
                     <div className="flex w-full sm:w-auto gap-2">
+                        {items.length > 0 && (
+                            <button
+                                onClick={() => {
+                                    if (window.confirm("Bạn có chắc chắn muốn xóa bản nháp và làm mới phiếu này?")) {
+                                        clearDraft()
+                                        setItems([])
+                                        setCustomerId("")
+                                        setCustomerName("Khách lẻ")
+                                        setNotes("")
+                                        setSymptoms("")
+                                        setDoctorName("")
+                                        setIsPrescription(false)
+                                        toast.success("Đã xóa bản nháp")
+                                    }
+                                }}
+                                className="bg-red-50 hover:bg-red-100 text-red-600 dark:bg-red-900/10 dark:text-red-400 px-3 sm:px-4 py-2 rounded text-xs sm:text-sm font-medium transition-colors border border-red-200 dark:border-red-900/30 flex-1 sm:flex-none"
+                            >
+                                <Trash2 className="w-4 h-4 inline mr-1" /> Xóa bản nháp
+                            </button>
+                        )}
                         <button
                             onClick={() => navigate("/export-manage")}
                             className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 bg-gray-200 hover:bg-gray-300 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-gray-700 dark:text-gray-300 px-3 sm:px-4 py-2 rounded text-xs sm:text-sm font-medium transition-colors"
@@ -630,7 +720,7 @@ export default function CreateExportOrderPage() {
                                 type="text"
                                 value={dateValue}
                                 onChange={(e) => {
-                                    setDateValue(e.target.value)
+                                    setDateValue(formatDateTimeInput(e.target.value))
                                     if (dateError) setDateError("")
                                 }}
                                 placeholder="dd/mm/yyyy HH:mm"
@@ -741,6 +831,13 @@ export default function CreateExportOrderPage() {
                             <PlusCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                             <span>Thêm mới sản phẩm</span>
                         </button>
+                        <button
+                            onClick={() => setShowAddDoseModal(true)}
+                            className="flex items-center justify-center gap-2 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400 px-4 sm:px-5 py-2.5 rounded-lg sm:rounded-xl text-xs sm:text-sm font-bold hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors border border-blue-200 dark:border-blue-800/50"
+                        >
+                            <Activity className="w-4 h-4 sm:w-5 sm:h-5" />
+                            <span>Thêm liều thuốc</span>
+                        </button>
                     </div>
 
                     {showResults && searchQuery && (
@@ -801,6 +898,13 @@ export default function CreateExportOrderPage() {
                 onAdd={handleCustomerAdded}
             />
 
+            <AddDoseModal
+                isOpen={showAddDoseModal}
+                onClose={() => setShowAddDoseModal(false)}
+                allProducts={allProducts}
+                onAdd={handleDoseAdded}
+            />
+
             {/* ── PRODUCTS TABLE ── */}
             <div className="flex-1 overflow-auto p-4 bg-gray-50/30 dark:bg-neutral-900">
                 <div className="overflow-x-auto">
@@ -833,11 +937,22 @@ export default function CreateExportOrderPage() {
                             ) : (
                                 items.map((item) => {
                                     const profitPerItem = item.remainingAmount - (item.quantity * item.importPrice)
+                                    const isDoseMain = item.code === "LIÊU"
+                                    const isDoseComponent = item.name.startsWith("[Trong liều]")
+
                                     return (
-                                        <tr key={item.id} className="hover:bg-green-50/20 dark:hover:bg-green-900/5 transition-colors group">
-                                            <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 font-mono text-gray-400 dark:text-gray-500 text-[10px] group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">{item.code}</td>
+                                        <tr key={item.id} className={`hover:bg-green-50/20 dark:hover:bg-green-900/5 transition-colors group ${isDoseComponent ? "bg-gray-50/50 dark:bg-neutral-800/20 italic opacity-80" : ""}`}>
+                                            <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 font-mono text-gray-400 dark:text-gray-500 text-[10px] group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">
+                                                {isDoseComponent ? "└─" : item.code}
+                                            </td>
                                             <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800">
-                                                <div className="font-bold text-gray-800 dark:text-gray-100 text-xs sm:text-sm">{item.name}</div>
+                                                <div className={`flex items-center gap-2 ${isDoseComponent ? "pl-4" : ""}`}>
+                                                    {isDoseMain && <Activity className="w-3.5 h-3.5 text-blue-500" />}
+                                                    {isDoseComponent && <Pill className="w-3 h-3 text-gray-400" />}
+                                                    <div className={`font-bold text-gray-800 dark:text-gray-100 text-xs sm:text-sm ${isDoseMain ? "text-blue-600 dark:text-blue-400" : ""}`}>
+                                                        {item.name}
+                                                    </div>
+                                                </div>
                                             </td>
                                             <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800 text-gray-600 dark:text-gray-300 text-xs sm:text-sm text-center">{item.unit}</td>
                                             <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800">
@@ -852,8 +967,9 @@ export default function CreateExportOrderPage() {
                                                 <input
                                                     type="text"
                                                     className="w-full bg-transparent border border-transparent hover:border-gray-300 dark:hover:border-neutral-600 px-1 py-1 rounded text-center outline-none focus:bg-white dark:focus:bg-neutral-900 focus:border-[#5c9a38] text-[10px] sm:text-xs font-semibold text-gray-800 dark:text-gray-200 transition-all"
+                                                    placeholder="DD/MM/YYYY"
                                                     value={item.expiryDate || ""}
-                                                    onChange={(e) => updateItemField(item.id!, 'expiryDate', e.target.value)}
+                                                    onChange={(e) => updateItemField(item.id!, 'expiryDate', formatDateInput(e.target.value))}
                                                 />
                                             </td>
                                             <td className="px-2 sm:px-3 py-3 sm:py-4 border-r border-gray-100 dark:border-neutral-800">

@@ -61,8 +61,14 @@ export const getSummary = async (req: Request, res: Response) => {
             // Low stock check
             const totalQty = p.batches?.reduce((sum: number, b: any) => sum + b.quantity, 0) || p.baseQuantity || 0;
             const normalizedQty = Math.floor(totalQty / (p.conversionRate || 1));
+            const unitName = (p.unit || p.baseUnitName || '').toLowerCase();
+            //  đặt định mức cho các đơn vị tính khác nhau  
+            let threshold = 1; // Mặc định là 1
+            if (unitName.includes('viên')) threshold = 10;
+            else if (unitName.includes('vỉ')) threshold = 5;
+            else if (unitName.includes('chai') || unitName.includes('lọ') || unitName.includes('ống') || unitName.includes('gói')) threshold = 1;
 
-            if (normalizedQty <= 1) {
+            if (normalizedQty <= threshold) {
                 lowStockCount++;
                 lowStockProducts.push({
                     id: p.id,
