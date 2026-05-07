@@ -15,10 +15,10 @@ interface AddDoseModalProps {
 }
 
 const PRESET_PRICES = [
-    { label: "Liều nhẹ", value: 20000 },
-    { label: "Liều thường", value: 25000 },
-    { label: "Liều nặng", value: 30000 },
-    { label: "Liều đặc biệt", value: 40000 },
+    { label: "Liều nhẹ", value: 15000 },
+    { label: "Liều thường", value: 20000 },
+    { label: "Liều cao", value: 25000 },
+    { label: "Liều đặc biệt", value: 45000 },
 ]
 
 export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: AddDoseModalProps) {
@@ -82,7 +82,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
         }
 
         const doseId = `DOSE-${Date.now()}`
-        
+
         // 1. Create the main Dose item (the one that carries the retail price)
         const mainDoseItem: ExportOrderItem = {
             id: doseId,
@@ -106,7 +106,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
             const product = comp.product
             const totalQty = comp.quantity
             const sortedBatches = sortBatchesFEFO(product.batches?.filter(b => b.quantity > 0) || [])
-            
+
             const rows: ExportOrderItem[] = []
             let remaining = totalQty
 
@@ -161,7 +161,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
         onAdd(mainDoseItem, componentItems)
         onClose()
         toast.success(`Đã thêm liều: ${doseName}`)
-        
+
         // Reset state
         setDoseName("")
         setSelectedComponents([])
@@ -174,7 +174,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
             ...prev,
             { product: newProduct, quantity: 1 }
         ])
-        
+
         setShowAddProductModal(false)
         toast.success(`Đã thêm sản phẩm mới vào liều: ${newProduct.name}`)
     }
@@ -184,7 +184,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
             <div className="bg-white dark:bg-neutral-900 w-full max-w-4xl max-h-[90vh] rounded-3xl shadow-2xl flex flex-col overflow-hidden border border-gray-200 dark:border-neutral-800 scale-in-center">
-                
+
                 {/* Header */}
                 <div className="flex-none p-6 border-b border-gray-100 dark:border-neutral-800 flex items-center justify-between bg-gradient-to-r from-green-50/50 to-white dark:from-green-900/10 dark:to-neutral-900">
                     <div className="flex items-center gap-4">
@@ -204,11 +204,11 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                 <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
                     {/* Left Panel: Settings */}
                     <div className="w-full lg:w-1/2 p-6 overflow-y-auto border-r border-gray-100 dark:border-neutral-800 space-y-6">
-                        
+
                         {/* Dose Name */}
                         <div className="space-y-2">
                             <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Tên liều thuốc (ví dụ: Sốt xuất huyết, Cảm cúm...)</label>
-                            <input 
+                            <input
                                 type="text"
                                 value={doseName}
                                 onChange={(e) => setDoseName(e.target.value)}
@@ -228,11 +228,10 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                                             setSelectedPrice(p.value)
                                             setCustomPrice("")
                                         }}
-                                        className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-1 ${
-                                            selectedPrice === p.value && !customPrice 
-                                            ? "border-green-500 bg-green-50 dark:bg-green-900/20 shadow-lg shadow-green-500/10" 
+                                        className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-1 ${selectedPrice === p.value && !customPrice
+                                            ? "border-green-500 bg-green-50 dark:bg-green-900/20 shadow-lg shadow-green-500/10"
                                             : "border-gray-100 dark:border-neutral-800 hover:border-green-200 dark:hover:border-green-900/40 bg-white dark:bg-neutral-900"
-                                        }`}
+                                            }`}
                                     >
                                         <span className="text-xs font-bold text-gray-500 uppercase">{p.label}</span>
                                         <span className="text-lg font-black text-gray-800 dark:text-gray-100">{(p.value / 1000).toLocaleString()}k</span>
@@ -240,7 +239,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                                 ))}
                             </div>
                             <div className="relative group">
-                                <input 
+                                <input
                                     type="text"
                                     placeholder="Hoặc nhập giá tùy chỉnh..."
                                     value={customPrice}
@@ -265,7 +264,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                             <div className="pt-2">
                                 <div className={`flex items-center gap-2 p-3 rounded-xl ${profit >= 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
                                     {profit >= 0 ? <Check size={18} /> : <AlertCircle size={18} />}
-                                    <span className="text-sm font-bold">Lợi nhuận: {profit.toLocaleString("vi-VN")} đ ({((profit/finalPrice)*100 || 0).toFixed(1)}%)</span>
+                                    <span className="text-sm font-bold">Lợi nhuận: {profit.toLocaleString("vi-VN")} đ ({((profit / finalPrice) * 100 || 0).toFixed(1)}%)</span>
                                 </div>
                             </div>
                         </div>
@@ -279,7 +278,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                             <div className="flex items-center gap-2">
                                 <div className="flex-1 relative">
                                     <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                                    <input 
+                                    <input
                                         type="text"
                                         placeholder="Tìm thuốc thêm vào liều..."
                                         value={searchQuery}
@@ -360,7 +359,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                                                     onChange={(v) => updateComponentQty(comp.product.id, v)}
                                                     className="w-16 h-10 bg-gray-50 dark:bg-neutral-800 border-none text-center font-black text-gray-800 dark:text-gray-100 rounded-xl"
                                                 />
-                                                <button 
+                                                <button
                                                     onClick={() => removeComponent(comp.product.id)}
                                                     className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-xl transition-all"
                                                 >
@@ -377,13 +376,13 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
 
                 {/* Footer */}
                 <div className="flex-none p-6 border-t border-gray-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex gap-3">
-                    <button 
+                    <button
                         onClick={onClose}
                         className="flex-1 px-6 py-4 rounded-2xl bg-gray-100 hover:bg-gray-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-gray-600 dark:text-gray-300 font-bold transition-all"
                     >
                         HỦY BỎ
                     </button>
-                    <button 
+                    <button
                         onClick={handleConfirm}
                         className="flex-[2] px-6 py-4 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-black shadow-lg shadow-green-600/20 transition-all flex items-center justify-center gap-2"
                     >

@@ -128,12 +128,12 @@ export const productSchema = z.object({
     baseQuantity: z.number().optional(),
 })
 
-export type Product = z.infer<typeof productSchema> & { 
-    id: string; 
-    name: string; 
-    unit: string; 
-    importPrice: number; 
-    retailPrice: number; 
+export type Product = z.infer<typeof productSchema> & {
+    id: string;
+    name: string;
+    unit: string;
+    importPrice: number;
+    retailPrice: number;
     wholesalePrice: number;
     baseQuantity: number;
     registrationNo?: string;
