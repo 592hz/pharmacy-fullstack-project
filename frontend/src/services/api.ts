@@ -69,8 +69,10 @@ export const productsApi = {
     bulkRestoreProducts: (ids: string[]) => api.put<{ message: string }>('/products/trash/restore-bulk', { ids }),
     bulkPermanentDeleteProducts: (ids: string[]) => api.delete<{ message: string }>('/products/trash/permanent-bulk', { ids }, true),
     emptyProductTrash: () => api.delete<{ message: string }>('/products/trash/empty'),
+    deleteAllProducts: () => api.delete<{ message: string }>('/products/all'),
     bulkCreateProducts: (products: Partial<IProduct>[]) => api.post<IBulkCreateResponse>('/products/bulk', { products }),
 };
+
 
 export const categoriesApi = {
     getCategories: () => api.get<IProductCategory[]>('/product-categories'),

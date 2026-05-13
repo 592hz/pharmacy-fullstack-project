@@ -20,7 +20,11 @@ export const getSummary = async (req: Request, res: Response) => {
             exportDate: { $gte: startOfYear }
         });
 
-        const calculateStats = (slips: any[]) => {
+        const allCategories = await Category.find({
+            date: { $gte: startOfYear }
+        });
+
+        const calculateStats = (slips: any[], categories: any[]) => {
             let revenue = 0;
             let profit = 0;
             slips.forEach(slip => {
@@ -30,23 +34,23 @@ export const getSummary = async (req: Request, res: Response) => {
                     profit += itemProfit;
                 });
             });
-            return { revenue, profit };
+
+            const income = categories.filter(c => c.type === 'Thu').reduce((sum, c) => sum + (c.amount || 0), 0);
+            const expense = categories.filter(c => c.type === 'Chi').reduce((sum, c) => sum + (c.amount || 0), 0);
+
+            return { revenue, profit, income, expense, netProfit: profit + income - expense };
         };
 
-        const todaySlips = exportSlips.filter(s => dayjs(s.exportDate).isAfter(startOfDay));
+        const todaySlips = exportSlips.filter(s => dayjs(s.exportDate).isSame(now, 'day'));
+        const todayCategories = allCategories.filter(c => dayjs(c.date).isSame(now, 'day'));
+
         const monthSlips = exportSlips.filter(s => dayjs(s.exportDate).isAfter(startOfMonth));
+        const monthCategories = allCategories.filter(c => dayjs(c.date).isAfter(startOfMonth));
 
-        const statsToday = calculateStats(todaySlips);
-        const statsMonth = calculateStats(monthSlips);
-        const statsYear = calculateStats(exportSlips);
+        const statsToday = calculateStats(todaySlips, todayCategories);
+        const statsMonth = calculateStats(monthSlips, monthCategories);
+        const statsYear = calculateStats(exportSlips, allCategories);
 
-        // 2. Thu & Chi (Current Month)
-        const categories = await Category.find({
-            date: { $gte: startOfMonth }
-        });
-
-        const totalIncome = categories.filter(c => c.type === 'Thu').reduce((sum, c) => sum + (c.amount || 0), 0);
-        const totalExpense = categories.filter(c => c.type === 'Chi').reduce((sum, c) => sum + (c.amount || 0), 0);
 
         // 3. Hàng sắp hết & Cận date
         const allProducts = await Product.find();
@@ -77,7 +81,6 @@ export const getSummary = async (req: Request, res: Response) => {
                     unit: p.unit || p.baseUnitName
                 });
             }
-
             // Near expiry check
             p.batches?.forEach((b: any) => {
                 if (b.expiryDate) {
@@ -108,11 +111,13 @@ export const getSummary = async (req: Request, res: Response) => {
             const date = now.startOf('month').add(i, 'day');
             const dayStr = date.format('DD/MM');
             const daySlips = monthSlips.filter(s => dayjs(s.exportDate).isSame(date, 'day'));
-            const dayStats = calculateStats(daySlips);
+            const dayCategories = monthCategories.filter(c => dayjs(c.date).isSame(date, 'day'));
+            const dayStats = calculateStats(daySlips, dayCategories);
             chartDataMonth.push({
                 name: dayStr,
                 DoanhThu: dayStats.revenue,
-                LoiNhuan: dayStats.profit
+                LoiNhuan: dayStats.netProfit
+
             });
         }
 
@@ -121,8 +126,8 @@ export const getSummary = async (req: Request, res: Response) => {
                 today: statsToday,
                 month: statsMonth,
                 year: statsYear,
-                totalIncome,
-                totalExpense,
+                totalIncome: statsMonth.income,
+                totalExpense: statsMonth.expense,
                 lowStockCount,
                 nearExpiryCount,
                 lowStockProducts: lowStockProducts,
@@ -133,6 +138,7 @@ export const getSummary = async (req: Request, res: Response) => {
                 month: chartDataMonth
             }
         });
+
 
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });

@@ -49,9 +49,9 @@ export default function DashboardPage() {
     }
 
     const statsData = summary?.stats || {
-        today: { revenue: 0, profit: 0 },
-        month: { revenue: 0, profit: 0 },
-        year: { revenue: 0, profit: 0 },
+        today: { revenue: 0, profit: 0, netProfit: 0 },
+        month: { revenue: 0, profit: 0, netProfit: 0 },
+        year: { revenue: 0, profit: 0, netProfit: 0 },
         totalIncome: 0,
         totalExpense: 0,
         lowStockCount: 0,
@@ -70,11 +70,18 @@ export default function DashboardPage() {
             color: "text-blue-500 bg-blue-100 dark:bg-blue-900/40",
         },
         {
-            title: "Lợi nhuận ngày",
+            title: "LN bán hàng ngày",
             value: formatCurrency(statsData.today.profit),
             sub: "Hôm nay",
             icon: TrendingUp,
             color: "text-green-500 bg-green-100 dark:bg-green-900/40",
+        },
+        {
+            title: "LN thực tế ngày",
+            value: formatCurrency(statsData.today.netProfit || 0),
+            sub: "Đã trừ chi phí",
+            icon: Flag,
+            color: "text-purple-500 bg-purple-100 dark:bg-purple-900/40",
         },
         {
             title: "Doanh thu tháng",
@@ -84,11 +91,18 @@ export default function DashboardPage() {
             color: "text-orange-500 bg-orange-100 dark:bg-orange-900/40",
         },
         {
-            title: "Lợi nhuận tháng",
+            title: "LN bán hàng tháng",
             value: formatCurrency(statsData.month.profit),
             sub: `Tháng ${currentMonthNum}`,
             icon: TrendingUp,
             color: "text-green-500 bg-green-100 dark:bg-green-900/40",
+        },
+        {
+            title: "LN thực tế tháng",
+            value: formatCurrency(statsData.month.netProfit || 0),
+            sub: "Đã trừ chi phí",
+            icon: Flag,
+            color: "text-[#5c9a38] bg-[#5c9a38]/10 dark:bg-[#5c9a38]/20",
         },
         {
             title: "Doanh thu năm",
@@ -98,43 +112,61 @@ export default function DashboardPage() {
             color: "text-cyan-500 bg-cyan-100 dark:bg-cyan-900/40",
         },
         {
-            title: "Lợi nhuận năm",
+            title: "LN bán hàng năm",
             value: formatCurrency(statsData.year.profit),
             sub: `Năm ${currentYearNum}`,
             icon: TrendingUp,
             color: "text-green-500 bg-green-100 dark:bg-green-900/40",
         },
+        {
+            title: "LN thực tế năm",
+            value: formatCurrency(statsData.year.netProfit || 0),
+            sub: "Đã trừ chi phí",
+            icon: Flag,
+            color: "text-rose-500 bg-rose-100 dark:bg-rose-900/40",
+        },
     ]
 
     return (
         <div className="flex flex-1 flex-col gap-6 p-4">
-            <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 relative">
-                {stats.map((item, index) => {
-                    const Icon = item.icon
-                    return (
-                        <div
-                            key={index}
-                            className="flex items-center justify-between rounded-xl border bg-white dark:bg-neutral-900 p-3 sm:p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
-                        >
-                            <div className="space-y-0.5 sm:space-y-1">
-                                <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase">{item.title}</p>
-                                <p className="text-sm sm:text-xl font-black tracking-tight text-foreground truncate">
-                                    {item.value.replace(" \u20ab", "")} <span className="text-[10px] font-normal font-mono opacity-50 sm:text-xs">đ</span>
-                                </p>
-                                <p className="text-[9px] sm:text-xs text-muted-foreground">{item.sub}</p>
-                            </div>
-
-                            <div
-                                className={`flex h-8 w-8 sm:h-11 sm:w-11 items-center justify-center rounded-full shrink-0 ${item.color}`}
-                            >
-                                <Icon className="w-4 h-4 sm:w-5 sm:h-5" />
-                            </div>
-                        </div>
-                    )
-                })}
+            {/* Các thông tin phụ - 3 thẻ này giờ chiếm trọn hàng */}
+            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-3">
+                <Link
+                    to={`/export-manage?date=${new Date().toISOString().split("T")[0]}&type=Ngày`}
+                    className="flex items-center space-x-4 rounded-xl border bg-white dark:bg-neutral-900 p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50 cursor-pointer"
+                >
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-500 dark:bg-blue-900/40">
+                        <ShoppingCart size={22} />
+                    </div>
+                    <div>
+                        <p className="text-sm font-medium text-muted-foreground">Hóa đơn ngày</p>
+                        <p className="text-2xl font-bold tracking-tight text-foreground">{statsData.billCountToday}</p>
+                        <p className="text-xs text-muted-foreground">Đã thanh toán</p>
+                    </div>
+                </Link>
+                <div className="flex items-center space-x-4 rounded-xl border bg-white dark:bg-neutral-900 p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+                    <div className="flex min-w-[48px] h-12 w-12 items-center justify-center rounded-full bg-green-100 text-[#65a34e] dark:bg-green-900/40">
+                        <TrendingUp size={22} />
+                    </div>
+                    <div className="overflow-hidden">
+                        <p className="text-sm font-medium text-muted-foreground truncate">Tổng thu tháng</p>
+                        <p className="text-lg font-bold tracking-tight text-foreground truncate">{formatCurrency(statsData.totalIncome)}</p>
+                        <p className="text-[10px] text-muted-foreground">Từ thu chi ngoài</p>
+                    </div>
+                </div>
+                {/* biểu đồ thống kê doanh thu */}
+                <div className="flex items-center space-x-4 rounded-xl border bg-white dark:bg-neutral-900 p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+                    <div className="flex min-w-[48px] h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-500 dark:bg-red-900/40">
+                        <DollarSign size={22} />
+                    </div>
+                    <div className="overflow-hidden">
+                        <p className="text-sm font-medium text-muted-foreground truncate">Tổng chi tháng</p>
+                        <p className="text-lg font-bold tracking-tight text-foreground truncate">{formatCurrency(statsData.totalExpense)}</p>
+                        <p className="text-[10px] text-muted-foreground">Từ thu chi ngoài</p>
+                    </div>
+                </div>
             </div>
-
-            {/* Thống kê doanh thu */}
+            {/* Thống kê doanh thu ngày tháng năm */}
             <div className="flex min-h-[450px] flex-col rounded-xl border bg-white dark:bg-neutral-900 p-6 shadow-sm">
                 <div className="mb-6 flex items-center justify-between">
                     <div>
@@ -193,46 +225,79 @@ export default function DashboardPage() {
                     </ResponsiveContainer>
                 </div>
             </div>
-
-            {/* Các thông tin phụ - 3 thẻ này giờ chiếm trọn hàng */}
-            <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-3">
-                <Link
-                    to={`/export-manage?date=${new Date().toISOString().split("T")[0]}&type=Ngày`}
-                    className="flex items-center space-x-4 rounded-xl border bg-white dark:bg-neutral-900 p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50 cursor-pointer"
-                >
-                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100 text-blue-500 dark:bg-blue-900/40">
-                        <ShoppingCart size={22} />
+            {/* Nhóm chỉ số Thống kê */}
+            <div className="grid gap-6">
+                {/* Cụm 1: Hôm nay */}
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2 px-1">
+                        <div className="w-1 h-4 bg-blue-500 rounded-full"></div>
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Thống kê hôm nay</h3>
                     </div>
-                    <div>
-                        <p className="text-sm font-medium text-muted-foreground">Hóa đơn ngày</p>
-                        <p className="text-2xl font-bold tracking-tight text-foreground">{statsData.billCountToday}</p>
-                        <p className="text-xs text-muted-foreground">Đã thanh toán</p>
-                    </div>
-                </Link>
-
-                <div className="flex items-center space-x-4 rounded-xl border bg-white dark:bg-neutral-900 p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
-                    <div className="flex min-w-[48px] h-12 w-12 items-center justify-center rounded-full bg-green-100 text-[#65a34e] dark:bg-green-900/40">
-                        <TrendingUp size={22} />
-                    </div>
-                    <div className="overflow-hidden">
-                        <p className="text-sm font-medium text-muted-foreground truncate">Tổng thu tháng</p>
-                        <p className="text-lg font-bold tracking-tight text-foreground truncate">{formatCurrency(statsData.totalIncome)}</p>
-                        <p className="text-[10px] text-muted-foreground">Từ thu chi ngoài</p>
+                    <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 relative">
+                        {stats.slice(0, 3).map((item, index) => (
+                            <div key={index} className="flex items-center justify-between rounded-xl border bg-white dark:bg-neutral-900 p-3 sm:p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+                                <div className="space-y-0.5 sm:space-y-1">
+                                    <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase">{item.title}</p>
+                                    <p className="text-sm sm:text-xl font-black tracking-tight text-foreground truncate">
+                                        {item.value.replace(" \u20ab", "")} <span className="text-[10px] font-normal font-mono opacity-50 sm:text-xs">đ</span>
+                                    </p>
+                                    <p className="text-[9px] sm:text-xs text-muted-foreground">{item.sub}</p>
+                                </div>
+                                <div className={`flex h-8 w-8 sm:h-11 sm:w-11 items-center justify-center rounded-full shrink-0 ${item.color}`}>
+                                    <item.icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
-                <div className="flex items-center space-x-4 rounded-xl border bg-white dark:bg-neutral-900 p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
-                    <div className="flex min-w-[48px] h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-500 dark:bg-red-900/40">
-                        <DollarSign size={22} />
+                {/* Cụm 2: Tháng này */}
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2 px-1">
+                        <div className="w-1 h-4 bg-orange-500 rounded-full"></div>
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Thống kê tháng {currentMonthNum}</h3>
                     </div>
-                    <div className="overflow-hidden">
-                        <p className="text-sm font-medium text-muted-foreground truncate">Tổng chi tháng</p>
-                        <p className="text-lg font-bold tracking-tight text-foreground truncate">{formatCurrency(statsData.totalExpense)}</p>
-                        <p className="text-[10px] text-muted-foreground">Từ thu chi ngoài</p>
+                    <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 relative">
+                        {stats.slice(3, 6).map((item, index) => (
+                            <div key={index} className="flex items-center justify-between rounded-xl border bg-white dark:bg-neutral-900 p-3 sm:p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+                                <div className="space-y-0.5 sm:space-y-1">
+                                    <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase">{item.title}</p>
+                                    <p className="text-sm sm:text-xl font-black tracking-tight text-foreground truncate">
+                                        {item.value.replace(" \u20ab", "")} <span className="text-[10px] font-normal font-mono opacity-50 sm:text-xs">đ</span>
+                                    </p>
+                                    <p className="text-[9px] sm:text-xs text-muted-foreground">{item.sub}</p>
+                                </div>
+                                <div className={`flex h-8 w-8 sm:h-11 sm:w-11 items-center justify-center rounded-full shrink-0 ${item.color}`}>
+                                    <item.icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                </div>
+                            </div>
+                        ))}
                     </div>
                 </div>
 
-
+                {/* Cụm 3: Năm nay */}
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2 px-1">
+                        <div className="w-1 h-4 bg-cyan-500 rounded-full"></div>
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Thống kê năm {currentYearNum}</h3>
+                    </div>
+                    <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 relative">
+                        {stats.slice(6, 9).map((item, index) => (
+                            <div key={index} className="flex items-center justify-between rounded-xl border bg-white dark:bg-neutral-900 p-3 sm:p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+                                <div className="space-y-0.5 sm:space-y-1">
+                                    <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase">{item.title}</p>
+                                    <p className="text-sm sm:text-xl font-black tracking-tight text-foreground truncate">
+                                        {item.value.replace(" \u20ab", "")} <span className="text-[10px] font-normal font-mono opacity-50 sm:text-xs">đ</span>
+                                    </p>
+                                    <p className="text-[9px] sm:text-xs text-muted-foreground">{item.sub}</p>
+                                </div>
+                                <div className={`flex h-8 w-8 sm:h-11 sm:w-11 items-center justify-center rounded-full shrink-0 ${item.color}`}>
+                                    <item.icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
             </div>
 
             {/* Cảnh báo kho & Hạn dùng */}

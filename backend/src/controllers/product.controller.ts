@@ -214,3 +214,16 @@ export const emptyProductTrash = async (_req: Request, res: Response) => {
         res.status(500).json({ message: (error as Error).message });
     }
 };
+
+export const deleteAllProducts: RequestHandler = async (req, res) => {
+    try {
+        const result = await Product.updateMany(
+            { isDeleted: { $ne: true } },
+            { isDeleted: true, deletedAt: new Date() }
+        );
+        res.status(200).json({ message: `${result.modifiedCount} products moved to trash` });
+    } catch (error) {
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
