@@ -62,25 +62,42 @@ export const getSummary = async (req: Request, res: Response) => {
         const sixMonthsFromNow = now.add(6, 'month');
 
         allProducts.forEach(p => {
-            // Low stock check
-            const totalQty = p.batches?.reduce((sum: number, b: any) => sum + b.quantity, 0) || p.baseQuantity || 0;
-            const normalizedQty = Math.floor(totalQty / (p.conversionRate || 1));
-            const unitName = (p.unit || p.baseUnitName || '').toLowerCase();
-            //  đặt định mức cho các đơn vị tính khác nhau  
-            let threshold = 2; // Mặc định là 2
-            if (unitName.includes('viên')) threshold = 100;
-            else if (unitName.includes('vỉ')) threshold = 5;
-            else if (unitName.includes('chai') || unitName.includes('lọ') || unitName.includes('ống') || unitName.includes('gói')) threshold = 2;
+            // 1. Tính tổng tồn kho (theo đơn vị cơ bản - viên/gói/...)
+            const totalBaseQty = p.batches?.reduce((sum: number, b: any) => sum + b.quantity, 0) || p.baseQuantity || 0;
+            const conversionRate = p.conversionRate || 1;
 
-            if (normalizedQty <= threshold) {
+            const unitName = (p.unit || '').toLowerCase();
+            const baseUnitName = (p.baseUnitName || '').toLowerCase();
+
+            // 2. Xác định số lượng hiển thị và định mức (Threshold)
+            let currentQty = 0;
+            let threshold = 2; // Mặc định là 2 (Hộp/Lọ/Chai)
+
+            if (unitName.includes('viên') || unitName === 'v') {
+                // Nếu đơn vị chính là VIÊN -> So sánh trực tiếp tổng số viên
+                currentQty = totalBaseQty;
+                threshold = 100;
+            } else if (unitName.includes('vỉ')) {
+                // Nếu đơn vị chính là VỈ -> Tính theo số vỉ
+                currentQty = Math.floor(totalBaseQty / (conversionRate || 1));
+                threshold = 5;
+            } else {
+                // Các đơn vị khác (Hộp, Lọ, Chai,...) -> Tính theo đơn vị chính
+                currentQty = Math.floor(totalBaseQty / (conversionRate || 1));
+                threshold = 2;
+            }
+
+            // 3. Kiểm tra định mức
+            if (currentQty <= threshold) {
                 lowStockCount++;
                 lowStockProducts.push({
                     id: p.id,
                     name: p.name,
-                    quantity: normalizedQty,
+                    quantity: currentQty,
                     unit: p.unit || p.baseUnitName
                 });
             }
+
             // Near expiry check
             p.batches?.forEach((b: any) => {
                 if (b.expiryDate) {
