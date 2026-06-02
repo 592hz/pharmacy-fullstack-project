@@ -32,6 +32,8 @@ export interface IExportSlip extends Document {
     isPrescription?: boolean;
     doctorName?: string;
     symptoms?: string;
+    isDeleted: boolean;
+    deletedAt?: Date;
 }
 
 const ExportSlipItemSchema = new Schema({
@@ -65,7 +67,9 @@ const ExportSlipSchema: Schema = new Schema({
     items: [ExportSlipItemSchema],
     isPrescription: { type: Boolean, default: false },
     doctorName: { type: String },
-    symptoms: { type: String }
+    symptoms: { type: String },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date }
 }, { timestamps: true });
 
 export default mongoose.model<IExportSlip>('ExportSlip', ExportSlipSchema);

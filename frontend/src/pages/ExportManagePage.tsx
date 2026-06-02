@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import { Download, Upload, Plus, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, FileText, Copy } from "lucide-react"
+import { Download, Upload, Plus, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, FileText, Copy, Trash2, CheckSquare, Square } from "lucide-react"
 import { toast } from "sonner"
 import { type ExportOrder } from "@/lib/schemas"
 import { exportSlipService } from "@/services/export-slip.service"
@@ -65,6 +65,10 @@ export default function ExportManagePage() {
     const [page, setPage] = useState(1)
     const [pageSize, setPageSize] = useState(10)
 
+    // ── Multi Selection state ────────────────────────────────────────────────
+    const [selectedIds, setSelectedIds] = useState<string[]>([])
+    const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
+
     useEffect(() => {
         const date = searchParams.get("date")
         const type = searchParams.get("type")
@@ -89,6 +93,7 @@ export default function ExportManagePage() {
 
     useEffect(() => {
         setPage(1)
+        setSelectedIds([])
     }, [dateFilterType, filterYear, filterMonth, filterDate, filterStartDate, filterEndDate, filterQuarter, debouncedFilterKeyword, filterPrescription])
 
     // ── Delete confirm state ─────────────────────────────────────────────────
@@ -145,6 +150,25 @@ export default function ExportManagePage() {
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
     const paged = filtered.slice((page - 1) * pageSize, page * pageSize)
 
+    // ── Multi-select helpers ─────────────────────────────────────────────────
+    const toggleSelectAll = () => {
+        const selectableIds = paged.map(s => s.id!)
+        const allSelected = selectableIds.length > 0 && selectableIds.every(id => selectedIds.includes(id))
+        if (allSelected) {
+            setSelectedIds(prev => prev.filter(id => !selectableIds.includes(id)))
+        } else {
+            setSelectedIds(prev => [...new Set([...prev, ...selectableIds])])
+        }
+    }
+
+    const toggleSelectItem = (id: string) => {
+        setSelectedIds(prev => 
+            prev.includes(id) 
+                ? prev.filter(i => i !== id) 
+                : [...prev, id]
+        )
+    }
+
     // ── Handlers ─────────────────────────────────────────────────────────────
     const handleSearch = () => {
         setPage(1)
@@ -168,7 +192,8 @@ export default function ExportManagePage() {
             setIsDeleting(true)
             try {
                 await exportSlipService.delete(slipToDelete.id)
-                toast.success(`Đã xóa phiếu xuất ${slipToDelete.id}`)
+                toast.success(`Đã đưa phiếu xuất ${slipToDelete.id} vào thùng rác`)
+                setSelectedIds(prev => prev.filter(id => id !== slipToDelete.id))
                 setSlipToDelete(null)
                 setDeleteStep(0)
                 fetchSlips()
@@ -183,6 +208,22 @@ export default function ExportManagePage() {
     const cancelDelete = () => {
         setSlipToDelete(null)
         setDeleteStep(0)
+    }
+
+    const handleBulkDeleteClick = () => {
+        setShowBulkDeleteConfirm(true)
+    }
+
+    const confirmBulkDelete = async () => {
+        try {
+            await exportSlipService.bulkDelete(selectedIds)
+            toast.success(`Đã đưa ${selectedIds.length} phiếu xuất vào thùng rác!`)
+            setSelectedIds([])
+            setShowBulkDeleteConfirm(false)
+            fetchSlips()
+        } catch (error: unknown) {
+            toast.error(`Lỗi xóa hàng loạt: ${getErrorMessage(error)}`)
+        }
     }
 
     const handleCopy = (slip: ExportOrder) => {
@@ -376,13 +417,21 @@ export default function ExportManagePage() {
 
                     {/* ── Main Content Area ──────────────────────────────── */}
                     <div className="flex-1 flex flex-col min-w-0">
-                        <div className="flex items-center gap-2 mb-4">
+                        <div className="flex items-center gap-2 mb-4 flex-wrap">
                             <button
                                 onClick={() => navigate("/export-manage/create")}
                                 className="bg-[#5c9a38] hover:bg-[#4d822f] text-white px-4 py-1.5 rounded flex items-center gap-2 text-sm font-bold shadow-sm transition-all active:scale-95"
                             >
                                 <Plus size={16} /> Bán Hàng
                             </button>
+                            {selectedIds.length > 0 && (
+                                <button
+                                    onClick={handleBulkDeleteClick}
+                                    className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded flex items-center gap-1.5 text-sm font-bold shadow-sm transition-all active:scale-95 animate-in fade-in zoom-in duration-200"
+                                >
+                                    <Trash2 size={16} /> Xóa mục đã chọn ({selectedIds.length})
+                                </button>
+                            )}
                             <button className="p-2 border border-gray-300 dark:border-neutral-700 rounded hover:bg-gray-100 dark:hover:bg-neutral-800 bg-[#5c9a38] text-white">
                                 <Download size={16} />
                             </button>
@@ -402,6 +451,15 @@ export default function ExportManagePage() {
                             <table className="w-full text-xs text-left border-collapse whitespace-nowrap">
                                 <thead className="bg-[#f8f9fa] dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-800 font-bold text-gray-700 dark:text-gray-400">
                                     <tr>
+                                        <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-800 w-8 text-center">
+                                            <button onClick={toggleSelectAll} className="text-gray-400 hover:text-[#5c9a38] transition-colors">
+                                                {paged.length > 0 && paged.every(s => selectedIds.includes(s.id!)) ? (
+                                                    <CheckSquare size={16} className="text-[#5c9a38]" />
+                                                ) : (
+                                                    <Square size={16} />
+                                                )}
+                                            </button>
+                                        </th>
                                         <th className="px-1 py-3 border-r border-gray-200 dark:border-neutral-800 w-20 text-center uppercase text-[10px]">#</th>
                                         <th className="px-1 py-3 border-r border-gray-200 dark:border-neutral-800 w-10 text-center uppercase text-[10px] hidden sm:table-cell">STT</th>
                                         <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase text-[10px]">Số phiếu</th>
@@ -416,6 +474,7 @@ export default function ExportManagePage() {
                                 <tbody>
                                     {localDraft && page === 1 && (
                                         <tr className="bg-orange-50/50 dark:bg-orange-900/10 border-b border-orange-100 dark:border-orange-900/30 text-[11px] sm:text-xs">
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-center" />
                                             <td className="px-1 py-2 border-r border-gray-200 dark:border-neutral-800 flex items-center justify-center gap-1">
                                                 <button
                                                     onClick={() => navigate("/export-manage/create")}
@@ -466,7 +525,16 @@ export default function ExportManagePage() {
                                         </tr>
                                     )}
                                     {paged.map((slip, idx) => (
-                                        <tr key={slip.id || idx} className="hover:bg-gray-50 dark:hover:bg-neutral-800/20 items-center border-b border-gray-100 dark:border-neutral-800 text-[11px] sm:text-xs">
+                                        <tr key={slip.id || idx} className={`hover:bg-gray-50 dark:hover:bg-neutral-800/20 items-center border-b border-gray-100 dark:border-neutral-800 text-[11px] sm:text-xs transition-colors ${selectedIds.includes(slip.id || '') ? 'bg-green-50/20 dark:bg-green-900/10' : ''}`}>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-center">
+                                                <button onClick={() => toggleSelectItem(slip.id!)} className="text-gray-400 hover:text-[#5c9a38] transition-colors">
+                                                    {selectedIds.includes(slip.id!) ? (
+                                                        <CheckSquare size={16} className="text-[#5c9a38]" />
+                                                    ) : (
+                                                        <Square size={16} />
+                                                    )}
+                                                </button>
+                                            </td>
                                             <td className="px-1 py-2 border-r border-gray-200 dark:border-neutral-800 flex items-center justify-center gap-1">
                                                 <button
                                                     onClick={() => handleView(slip.id!)}
@@ -555,7 +623,7 @@ export default function ExportManagePage() {
                                 <select
                                     value={pageSize}
                                     onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }}
-                                    className="border border-gray-300 rounded px-2 py-1 text-xs outline-none ml-2"
+                                    className="border border-gray-300 rounded px-2 py-1 text-xs outline-none ml-2 bg-transparent"
                                 >
                                     {PAGE_SIZE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
@@ -577,7 +645,7 @@ export default function ExportManagePage() {
                         </h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
                             {deleteStep === 1
-                                ? `Bạn có chắc chắn muốn xóa phiếu xuất "${slipToDelete.id}"? Hành động này không thể hoàn tác.`
+                                ? `Bạn có chắc chắn muốn xóa phiếu xuất "${slipToDelete.id}"? Phiếu này sẽ được chuyển vào Thùng rác.`
                                 : `Vui lòng xác nhận LẦN CUỐI. Bạn thực sự muốn xóa phiếu xuất "${slipToDelete.id}"?`}
                         </p>
                         <div className="flex items-center justify-center gap-3">
@@ -593,6 +661,37 @@ export default function ExportManagePage() {
                                 className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 shadow-sm disabled:opacity-50"
                             >
                                 {isDeleting ? "Đang xóa..." : (deleteStep === 1 ? "Xóa bỏ" : "Xác nhận xóa")}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Bulk Delete Confirmation Modal ─────────────────────────────────── */}
+            {showBulkDeleteConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="relative w-full max-w-md rounded-xl bg-white shadow-2xl dark:bg-neutral-900 p-6 text-center border dark:border-neutral-800">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30 mb-4">
+                            <span className="text-red-600 text-xl font-bold">!</span>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                            Xác nhận xóa nhiều phiếu xuất
+                        </h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
+                            Bạn có chắc chắn muốn xóa {selectedIds.length} phiếu xuất đã chọn và đưa chúng vào thùng rác?
+                        </p>
+                        <div className="flex items-center justify-center gap-3">
+                            <button
+                                onClick={() => setShowBulkDeleteConfirm(false)}
+                                className="rounded-md bg-white px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50 dark:bg-neutral-800 dark:text-gray-300 dark:border-neutral-700"
+                            >
+                                Hủy bỏ
+                            </button>
+                            <button
+                                onClick={confirmBulkDelete}
+                                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 shadow-sm"
+                            >
+                                Xác nhận xóa
                             </button>
                         </div>
                     </div>

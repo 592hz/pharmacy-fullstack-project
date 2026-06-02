@@ -155,6 +155,29 @@ export const permanentlyDeleteOrder = async (req: Request, res: Response) => {
     }
 };
 
+export const bulkDeletePurchaseOrders = async (req: Request, res: Response) => {
+    try {
+        const { ids } = req.body;
+        if (!ids || !Array.isArray(ids)) {
+            return res.status(400).json({ message: 'IDs array is required' });
+        }
+
+        const ordersToDelete = await PurchaseOrder.find({ id: { $in: ids }, isDeleted: { $ne: true } });
+        
+        for (const order of ordersToDelete) {
+            order.isDeleted = true;
+            order.deletedAt = new Date();
+            await order.save();
+            // @ts-ignore - adjustStock exists in this file
+            await adjustStock(order.items, -1);
+        }
+
+        res.status(200).json({ message: `${ordersToDelete.length} orders moved to trash` });
+    } catch (error: unknown) {
+        res.status(500).json({ message: (error as Error).message });
+    }
+};
+
 export const bulkRestoreOrders = async (req: Request, res: Response) => {
     try {
         const { ids } = req.body;

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
-import { Download, Upload, SlidersHorizontal, FileText, Plus, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
+import { Download, Upload, SlidersHorizontal, FileText, Plus, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Trash2, CheckSquare, Square } from "lucide-react"
 import { toast } from "sonner"
 import { type PurchaseOrder } from "@/lib/schemas"
 import { purchaseOrderService } from "@/services/purchase-order.service"
@@ -53,6 +53,10 @@ export default function PurchaseOrdersPage() {
     const [pageSize, setPageSize] = useState(10)
     const [showFilters, setShowFilters] = useState(false)
 
+    // ── Multi Selection state ────────────────────────────────────────────────
+    const [selectedIds, setSelectedIds] = useState<string[]>([])
+    const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
+
     useEffect(() => {
         const fetchOrders = async () => {
             setIsLoading(true)
@@ -99,6 +103,7 @@ export default function PurchaseOrdersPage() {
 
     useEffect(() => {
         setPage(1)
+        setSelectedIds([])
     }, [dateFilterType, filterYear, filterMonth, filterDate, filterStartDate, filterEndDate, filterQuarter, debouncedFilterKeyword, debouncedFilterProduct])
 
     // ── Delete confirm ───────────────────────────────────────────────────────
@@ -170,6 +175,27 @@ export default function PurchaseOrdersPage() {
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
     const paged = filtered.slice((page - 1) * pageSize, page * pageSize)
 
+    // ── Multi-select helpers ─────────────────────────────────────────────────
+    const selectableOrders = useMemo(() => paged.filter(o => !o.isDraft), [paged])
+
+    const toggleSelectAll = () => {
+        const selectableIds = selectableOrders.map(o => o.id!)
+        const allSelected = selectableIds.length > 0 && selectableIds.every(id => selectedIds.includes(id))
+        if (allSelected) {
+            setSelectedIds(prev => prev.filter(id => !selectableIds.includes(id)))
+        } else {
+            setSelectedIds(prev => [...new Set([...prev, ...selectableIds])])
+        }
+    }
+
+    const toggleSelectItem = (id: string) => {
+        setSelectedIds(prev => 
+            prev.includes(id) 
+                ? prev.filter(i => i !== id) 
+                : [...prev, id]
+        )
+    }
+
     // ── Handlers ─────────────────────────────────────────────────────────────
     const handleSearch = () => {
         setPage(1)
@@ -192,6 +218,7 @@ export default function PurchaseOrdersPage() {
                     await purchaseOrderService.delete(orderToDelete.id)
                     setOrders((prev) => prev.filter((o) => o.id !== orderToDelete.id))
                     toast.success(`Đã xóa phiếu nhập ${orderToDelete.id}!`)
+                    setSelectedIds(prev => prev.filter(id => id !== orderToDelete.id))
                 }
                 setOrderToDelete(null)
                 setDeleteStep(0)
@@ -202,6 +229,22 @@ export default function PurchaseOrdersPage() {
     }
 
     const cancelDelete = () => { setOrderToDelete(null); setDeleteStep(0) }
+
+    const handleBulkDeleteClick = () => {
+        setShowBulkDeleteConfirm(true)
+    }
+
+    const confirmBulkDelete = async () => {
+        try {
+            await purchaseOrderService.bulkDelete(selectedIds)
+            setOrders(prev => prev.filter(o => !selectedIds.includes(o.id!)))
+            toast.success(`Đã đưa ${selectedIds.length} phiếu nhập vào thùng rác!`)
+            setSelectedIds([])
+            setShowBulkDeleteConfirm(false)
+        } catch (error: unknown) {
+            toast.error(`Lỗi xóa hàng loạt: ${getErrorMessage(error)}`)
+        }
+    }
 
     const handleView = (order: PurchaseOrderWithDraft) => {
         if (order.isDraft) {
@@ -408,6 +451,15 @@ export default function PurchaseOrdersPage() {
                                 <Plus size={15} />
                                 Phiếu nhập
                             </button>
+                            {selectedIds.length > 0 && (
+                                <button
+                                    onClick={handleBulkDeleteClick}
+                                    className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-sm font-medium transition-colors shadow-sm animate-in fade-in zoom-in duration-200"
+                                >
+                                    <Trash2 size={15} />
+                                    Xóa mục đã chọn ({selectedIds.length})
+                                </button>
+                            )}
                             <button className="flex items-center justify-center bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white w-8 h-8 rounded transition-colors" title="Export Excel">
                                 <Download size={15} />
                             </button>
@@ -427,6 +479,15 @@ export default function PurchaseOrdersPage() {
                             <table className="w-full text-sm text-left whitespace-nowrap">
                                 <thead className="text-[11px] text-gray-700 uppercase bg-gray-50 dark:bg-neutral-800/50 dark:text-gray-300 border-b border-gray-200 dark:border-neutral-800">
                                     <tr>
+                                        <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 w-8 text-center">
+                                            <button onClick={toggleSelectAll} className="text-gray-400 hover:text-[#5c9a38] transition-colors">
+                                                {selectableOrders.length > 0 && selectableOrders.every(o => selectedIds.includes(o.id!)) ? (
+                                                    <CheckSquare size={16} className="text-[#5c9a38]" />
+                                                ) : (
+                                                    <Square size={16} />
+                                                )}
+                                            </button>
+                                        </th>
                                         <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 w-8"></th>
                                         <th className="px-1 sm:px-2 py-2 border-r border-gray-200 dark:border-neutral-800 w-8 text-center text-[10px]">STT</th>
                                         <th className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-[10px]">Số phiếu</th>
@@ -445,6 +506,7 @@ export default function PurchaseOrdersPage() {
                                 <tbody className="divide-y divide-gray-100 dark:divide-neutral-800">
                                     {/* Totals row */}
                                     <tr className="bg-blue-50 dark:bg-blue-900/10 font-semibold text-gray-700 dark:text-gray-300">
+                                        <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800" />
                                         <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800" />
                                         <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-[10px]" />
                                         <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-[10px]" />
@@ -471,7 +533,7 @@ export default function PurchaseOrdersPage() {
 
                                     {paged.length === 0 ? (
                                         <tr>
-                                            <td colSpan={13} className="px-6 py-8 text-center text-gray-400 text-sm">
+                                            <td colSpan={14} className="px-6 py-8 text-center text-gray-400 text-sm">
                                                 Không có dữ liệu phù hợp
                                             </td>
                                         </tr>
@@ -482,8 +544,21 @@ export default function PurchaseOrdersPage() {
                                                 className={`hover:bg-gray-50 dark:hover:bg-neutral-800/40 text-[13px] transition-colors ${order.isDraft
                                                     ? "bg-amber-50/50 dark:bg-amber-900/10 text-amber-900 dark:text-amber-200"
                                                     : "text-gray-700 dark:text-gray-300"
-                                                    }`}
+                                                    } ${selectedIds.includes(order.id || '') ? 'bg-green-50/20 dark:bg-green-900/10' : ''}`}
                                             >
+                                                {/* Checkbox column */}
+                                                <td className="px-2 py-1.5 border-r border-gray-200 dark:border-neutral-800 text-center">
+                                                    {!order.isDraft && (
+                                                        <button onClick={() => toggleSelectItem(order.id!)} className="text-gray-400 hover:text-[#5c9a38] transition-colors">
+                                                            {selectedIds.includes(order.id!) ? (
+                                                                <CheckSquare size={16} className="text-[#5c9a38]" />
+                                                            ) : (
+                                                                <Square size={16} />
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                </td>
+
                                                 {/* Action buttons */}
                                                 <td className="px-1.5 py-1.5 border-r border-gray-200 dark:border-neutral-800 space-x-1 whitespace-nowrap">
                                                     <button
@@ -645,6 +720,37 @@ export default function PurchaseOrdersPage() {
                                 className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
                             >
                                 {deleteStep === 1 ? "Xóa bỏ" : "Xác nhận xóa"}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Bulk Delete Confirmation Modal ─────────────────────────────────── */}
+            {showBulkDeleteConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="relative w-full max-w-md rounded-xl bg-white shadow-2xl dark:bg-neutral-900 p-6 text-center border dark:border-neutral-800">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30 mb-4">
+                            <span className="text-red-600 text-xl font-bold">!</span>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                            Xác nhận xóa nhiều phiếu nhập
+                        </h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                            Bạn có chắc chắn muốn xóa {selectedIds.length} phiếu nhập đã chọn và đưa chúng vào thùng rác?
+                        </p>
+                        <div className="flex items-center justify-center gap-3">
+                            <button
+                                onClick={() => setShowBulkDeleteConfirm(false)}
+                                className="rounded-md bg-white px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50 dark:bg-neutral-800 dark:text-gray-300 dark:border-neutral-700"
+                            >
+                                Hủy bỏ
+                            </button>
+                            <button
+                                onClick={confirmBulkDelete}
+                                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                            >
+                                Xác nhận xóa
                             </button>
                         </div>
                     </div>

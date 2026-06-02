@@ -5,13 +5,14 @@ import { productService } from "@/services/product.service"
 import { productCategoryService } from "@/services/product-category.service"
 import { supplierService } from "@/services/supplier.service"
 import { purchaseOrderService } from "@/services/purchase-order.service"
+import { exportSlipService } from "@/services/export-slip.service"
 import { getErrorMessage } from "@/lib/utils"
 import type { IProduct } from "@/types/product"
 import type { IProductCategory } from "@/types/category"
 import type { ISupplier } from "@/types/supplier"
 import type { IPurchaseOrder } from "@/types/purchase-order"
 
-type TrashItemType = "categories" | "products" | "suppliers" | "orders"
+type TrashItemType = "categories" | "products" | "suppliers" | "orders" | "exports"
 
 interface TrashItem {
     id: string
@@ -66,6 +67,14 @@ export default function TrashPage() {
                     name: `Phiếu nhập ${o.id} - ${o.supplierName}`,
                     deletedAt: o.deletedAt
                 }))
+            } else if (activeTab === "exports") {
+                const res = await exportSlipService.getDeleted()
+                data = res.map((e: any) => ({
+                    id: e.id || "",
+                    code: e.id || "",
+                    name: `Phiếu xuất ${e.id} - ${e.customerName}`,
+                    deletedAt: e.deletedAt
+                }))
             }
             setItems(data)
         } catch (error: unknown) {
@@ -89,6 +98,8 @@ export default function TrashPage() {
                 await supplierService.restore(id)
             } else if (type === "orders") {
                 await purchaseOrderService.restore(id)
+            } else if (type === "exports") {
+                await exportSlipService.restore(id)
             }
             toast.success("Đã khôi phục thành công!")
             setItems(prev => prev.filter(item => item.id !== id))
@@ -109,6 +120,8 @@ export default function TrashPage() {
                 await supplierService.bulkRestore(selectedIds)
             } else if (activeTab === "orders") {
                 await purchaseOrderService.bulkRestore(selectedIds)
+            } else if (activeTab === "exports") {
+                await exportSlipService.bulkRestore(selectedIds)
             }
             toast.success(`Đã khôi phục ${selectedIds.length} mục thành công!`)
             setItems(prev => prev.filter(item => !selectedIds.includes(item.id)))
@@ -128,6 +141,7 @@ export default function TrashPage() {
                 else if (type === "products") await productService.permanentDelete(id)
                 else if (type === "suppliers") await supplierService.permanentDelete(id)
                 else if (type === "orders") await purchaseOrderService.permanentDelete(id)
+                else if (type === "exports") await exportSlipService.permanentDelete(id)
                 setItems(prev => prev.filter(item => item.id !== id))
                 setSelectedIds(prev => prev.filter(selectedId => selectedId !== id))
             } else if (mode === 'bulk' && ids) {
@@ -135,6 +149,7 @@ export default function TrashPage() {
                 else if (type === "products") await productService.bulkPermanentDelete(ids)
                 else if (type === "suppliers") await supplierService.bulkPermanentDelete(ids)
                 else if (type === "orders") await purchaseOrderService.bulkPermanentDelete(ids)
+                else if (type === "exports") await exportSlipService.bulkPermanentDelete(ids)
                 setItems(prev => prev.filter(item => !ids.includes(item.id)))
                 setSelectedIds([])
             } else if (mode === 'empty') {
@@ -142,6 +157,7 @@ export default function TrashPage() {
                 else if (type === "products") await productService.emptyTrash()
                 else if (type === "suppliers") await supplierService.emptyTrash()
                 else if (type === "orders") await purchaseOrderService.emptyTrash()
+                else if (type === "exports") await exportSlipService.emptyTrash()
                 setItems([])
                 setSelectedIds([])
             }
@@ -189,7 +205,7 @@ export default function TrashPage() {
 
                     {/* Tabs */}
                     <div className="flex border-b border-gray-200 dark:border-neutral-800 mb-6 overflow-x-auto">
-                        {(["categories", "products", "suppliers", "orders"] as const).map((tab) => (
+                        {(["categories", "products", "suppliers", "orders", "exports"] as const).map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -200,7 +216,8 @@ export default function TrashPage() {
                             >
                                 {tab === "categories" ? "Nhóm sản phẩm" : 
                                  tab === "products" ? "Sản phẩm" : 
-                                 tab === "suppliers" ? "Nhà cung cấp" : "Phiếu nhập hàng"}
+                                 tab === "suppliers" ? "Nhà cung cấp" : 
+                                 tab === "orders" ? "Phiếu nhập hàng" : "Phiếu xuất hàng"}
                             </button>
                         ))}
                     </div>

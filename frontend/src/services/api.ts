@@ -109,6 +109,7 @@ export const purchaseOrdersApi = {
     deleteOrder: (id: string) => api.delete<{ message: string }>(`/purchase-orders/${id}`),
     restoreOrder: (id: string) => api.put<IPurchaseOrder>(`/purchase-orders/${id}/restore`, {}),
     permanentDeleteOrder: (id: string) => api.delete<{ message: string }>(`/purchase-orders/${id}/permanent`),
+    bulkDeleteOrders: (ids: string[]) => api.put<{ message: string }>('/purchase-orders/trash/delete-bulk', { ids }),
     bulkRestoreOrders: (ids: string[]) => api.put<{ message: string }>('/purchase-orders/trash/restore-bulk', { ids }),
     bulkPermanentDeleteOrders: (ids: string[]) => api.delete<{ message: string }>('/purchase-orders/trash/permanent-bulk', { ids }, true),
     emptyOrderTrash: () => api.delete<{ message: string }>('/purchase-orders/trash/empty'),

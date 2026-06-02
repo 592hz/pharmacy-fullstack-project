@@ -10,6 +10,7 @@ export const purchaseOrderService = {
     delete: (id: string) => purchaseOrdersApi.deleteOrder(id),
     restore: (id: string) => purchaseOrdersApi.restoreOrder(id),
     permanentDelete: (id: string) => purchaseOrdersApi.permanentDeleteOrder(id),
+    bulkDelete: (ids: string[]) => purchaseOrdersApi.bulkDeleteOrders(ids),
     bulkRestore: (ids: string[]) => purchaseOrdersApi.bulkRestoreOrders(ids),
     bulkPermanentDelete: (ids: string[]) => purchaseOrdersApi.bulkPermanentDeleteOrders(ids),
     emptyTrash: () => purchaseOrdersApi.emptyOrderTrash()
