@@ -15,10 +15,10 @@ interface AddDoseModalProps {
 }
 
 const PRESET_PRICES = [
-    { label: "Liều nhẹ", value: 15000 },
-    { label: "Liều thường", value: 20000 },
-    { label: "Liều cao", value: 25000 },
-    { label: "Liều đặc biệt", value: 45000 },
+    { label: "Liều nhẹ", value: 20000 },
+    { label: "Liều thường", value: 30000 },
+    { label: "Liều cao", value: 45000 },
+    { label: "Liều đặc biệt", value: 60000 }
 ]
 
 export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: AddDoseModalProps) {
