@@ -215,6 +215,8 @@ export default function ExportManagePage() {
     }
 
     const confirmBulkDelete = async () => {
+        if (isDeleting) return
+        setIsDeleting(true)
         try {
             await exportSlipService.bulkDelete(selectedIds)
             toast.success(`Đã đưa ${selectedIds.length} phiếu xuất vào thùng rác!`)
@@ -223,6 +225,8 @@ export default function ExportManagePage() {
             fetchSlips()
         } catch (error: unknown) {
             toast.error(`Lỗi xóa hàng loạt: ${getErrorMessage(error)}`)
+        } finally {
+            setIsDeleting(false)
         }
     }
 
@@ -689,9 +693,11 @@ export default function ExportManagePage() {
                             </button>
                             <button
                                 onClick={confirmBulkDelete}
-                                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 shadow-sm"
+                                disabled={isDeleting}
+                                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
-                                Xác nhận xóa
+                                {isDeleting && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+                                {isDeleting ? "Đang xóa..." : "Xác nhận xóa"}
                             </button>
                         </div>
                     </div>

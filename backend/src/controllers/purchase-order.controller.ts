@@ -3,30 +3,61 @@ import PurchaseOrder from '../models/purchase-order.model.js';
 import Product from '../models/product.model.js';
 import { IPurchaseOrderItem } from '../models/purchase-order.model.js';
 
+// Helper to save product with version conflict retry mechanism
+const saveProductWithRetry = async (id: string, updateFn: (product: any) => void, retries = 5): Promise<any> => {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        const product = await Product.findOne({ id });
+        if (!product) return null;
+        try {
+            updateFn(product);
+            product.baseQuantity = (product.batches || []).reduce((sum: number, b: any) => sum + b.quantity, 0);
+            product.markModified('batches');
+            return await product.save();
+        } catch (error: any) {
+            if (error.name === 'VersionError' && attempt < retries) {
+                console.warn(`[Mongoose] Version conflict for product ${id}. Retrying... (Attempt ${attempt}/${retries})`);
+                await new Promise(resolve => setTimeout(resolve, Math.random() * 50 + 10));
+            } else {
+                throw error;
+            }
+        }
+    }
+};
+
 const adjustStock = async (items: IPurchaseOrderItem[], multiplier: number) => {
+    // Group items by product code
+    const itemsByProduct: { [code: string]: IPurchaseOrderItem[] } = {};
     for (const item of items) {
-        const product = await Product.findOne({ id: item.code });
-        if (product) {
+        if (!itemsByProduct[item.code]) {
+            itemsByProduct[item.code] = [];
+        }
+        itemsByProduct[item.code]!.push(item);
+    }
+
+    for (const [code, productItems] of Object.entries(itemsByProduct)) {
+        await saveProductWithRetry(code, (product) => {
             if (!product.batches) product.batches = [];
 
-            const existingBatch = product.batches.find(b =>
-                b.batchNumber === item.batchNumber &&
-                b.expiryDate === item.expiryDate
-            );
+            for (const item of productItems) {
+                const batchNum = item.batchNumber || 'N/A';
+                const expDate = item.expiryDate || 'N/A';
 
-            if (existingBatch) {
-                existingBatch.quantity += (item.quantity * multiplier);
-            } else if (multiplier > 0) {
-                product.batches.push({
-                    batchNumber: item.batchNumber,
-                    expiryDate: item.expiryDate,
-                    quantity: item.quantity * multiplier
-                });
+                const existingBatch = product.batches!.find((b: any) =>
+                    b.batchNumber === batchNum &&
+                    b.expiryDate === expDate
+                );
+
+                if (existingBatch) {
+                    existingBatch.quantity += (item.quantity * multiplier);
+                } else if (multiplier > 0) {
+                    product.batches!.push({
+                        batchNumber: batchNum,
+                        expiryDate: expDate,
+                        quantity: item.quantity * multiplier
+                    });
+                }
             }
-
-            product.baseQuantity = product.batches.reduce((sum, b) => sum + b.quantity, 0);
-            await product.save();
-        }
+        });
     }
 };
 

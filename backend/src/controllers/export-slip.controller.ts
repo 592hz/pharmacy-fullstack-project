@@ -2,82 +2,120 @@ import { Request, Response } from 'express';
 import ExportSlip from '../models/export-slip.model.js';
 import Product from '../models/product.model.js';
 
+// Helper to save product with version conflict retry mechanism
+const saveProductWithRetry = async (id: string, updateFn: (product: any) => void, retries = 5): Promise<any> => {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        const product = await Product.findOne({ id });
+        if (!product) return null;
+        try {
+            updateFn(product);
+            product.baseQuantity = (product.batches || []).reduce((sum: number, b: any) => sum + b.quantity, 0);
+            product.markModified('batches');
+            return await product.save();
+        } catch (error: any) {
+            if (error.name === 'VersionError' && attempt < retries) {
+                console.warn(`[Mongoose] Version conflict for product ${id}. Retrying... (Attempt ${attempt}/${retries})`);
+                await new Promise(resolve => setTimeout(resolve, Math.random() * 50 + 10));
+            } else {
+                throw error;
+            }
+        }
+    }
+};
+
 // Helper to restore stock when export slip is deleted
 const restoreExportStock = async (items: any[]) => {
+    const itemsByProduct: { [code: string]: any[] } = {};
     for (const item of items) {
-        const product = await Product.findOne({ id: item.code });
-        if (product) {
+        if (!itemsByProduct[item.code]) {
+            itemsByProduct[item.code] = [];
+        }
+        itemsByProduct[item.code]!.push(item);
+    }
+
+    for (const [code, productItems] of Object.entries(itemsByProduct)) {
+        await saveProductWithRetry(code, (product) => {
             if (!product.batches) product.batches = [];
 
-            const existingBatch = product.batches.find(b =>
-                b.batchNumber === item.batchNumber &&
-                b.expiryDate === item.expiryDate
-            );
+            for (const item of productItems) {
+                const batchNum = item.batchNumber || 'N/A';
+                const expDate = item.expiryDate || 'N/A';
 
-            if (existingBatch) {
-                existingBatch.quantity += (Number(item.quantity) || 0);
-            } else {
-                product.batches.push({
-                    batchNumber: item.batchNumber,
-                    expiryDate: item.expiryDate,
-                    quantity: Number(item.quantity) || 0
-                });
+                const existingBatch = product.batches!.find((b: any) =>
+                    b.batchNumber === batchNum &&
+                    b.expiryDate === expDate
+                );
+
+                if (existingBatch) {
+                    existingBatch.quantity += (Number(item.quantity) || 0);
+                } else {
+                    product.batches!.push({
+                        batchNumber: batchNum,
+                        expiryDate: expDate,
+                        quantity: Number(item.quantity) || 0
+                    });
+                }
             }
-
-            product.baseQuantity = product.batches.reduce((sum, b) => sum + b.quantity, 0);
-            product.markModified('batches');
-            await product.save();
-        }
+        });
     }
 };
 
 // Helper to reduce stock when export slip is restored
 const reduceExportStock = async (items: any[]) => {
+    const itemsByProduct: { [code: string]: any[] } = {};
     for (const item of items) {
-        const product = await Product.findOne({ id: item.code } as any);
-        if (product && product.batches && product.batches.length > 0) {
-            let remainingToSubtract = Number(item.quantity) || 0;
+        if (!itemsByProduct[item.code]) {
+            itemsByProduct[item.code] = [];
+        }
+        itemsByProduct[item.code]!.push(item);
+    }
 
-            // 1. Try exact batch match first
-            const exactBatch = product.batches.find(b => 
-                b.batchNumber === item.batchNumber && 
-                b.expiryDate === item.expiryDate
-            );
+    for (const [code, productItems] of Object.entries(itemsByProduct)) {
+        await saveProductWithRetry(code, (product) => {
+            if (!product.batches || product.batches.length === 0) return;
 
-            if (exactBatch && exactBatch.quantity > 0) {
-                const subtractAmount = Math.min(exactBatch.quantity, remainingToSubtract);
-                exactBatch.quantity -= subtractAmount;
-                remainingToSubtract -= subtractAmount;
-            }
+            for (const item of productItems) {
+                let remainingToSubtract = Number(item.quantity) || 0;
+                const batchNum = item.batchNumber || 'N/A';
+                const expDate = item.expiryDate || 'N/A';
 
-            // 2. Greedy approach if still remaining
-            if (remainingToSubtract > 0) {
-                product.batches.sort((a, b) => {
-                    const parseDate = (d: string | undefined) => {
-                        if (!d) return Infinity;
-                        const parts = d.split(/[-/]/);
-                        if (parts.length === 3) {
-                            return new Date(parseInt(parts[2] || "0", 10), parseInt(parts[1] || "1", 10) - 1, parseInt(parts[0] || "1", 10)).getTime();
-                        }
-                        return Infinity;
-                    };
-                    return parseDate(a.expiryDate) - parseDate(b.expiryDate);
-                });
+                // 1. Try exact batch match first
+                const exactBatch = product.batches!.find((b: any) => 
+                    b.batchNumber === batchNum && 
+                    b.expiryDate === expDate
+                );
 
-                for (const batch of product.batches) {
-                    if (remainingToSubtract <= 0) break;
-                    if (batch.quantity <= 0) continue;
-
-                    const subtractAmount = Math.min(batch.quantity, remainingToSubtract);
-                    batch.quantity -= subtractAmount;
+                if (exactBatch && exactBatch.quantity > 0) {
+                    const subtractAmount = Math.min(exactBatch.quantity, remainingToSubtract);
+                    exactBatch.quantity -= subtractAmount;
                     remainingToSubtract -= subtractAmount;
                 }
-            }
 
-            product.baseQuantity = product.batches.reduce((sum, b) => sum + b.quantity, 0);
-            product.markModified('batches');
-            await product.save();
-        }
+                // 2. Greedy approach if still remaining
+                if (remainingToSubtract > 0) {
+                    product.batches!.sort((a: any, b: any) => {
+                        const parseDate = (d: string | undefined) => {
+                            if (!d) return Infinity;
+                            const parts = d.split(/[-/]/);
+                            if (parts.length === 3) {
+                                return new Date(parseInt(parts[2] || "0", 10), parseInt(parts[1] || "1", 10) - 1, parseInt(parts[0] || "1", 10)).getTime();
+                            }
+                            return Infinity;
+                        };
+                        return parseDate(a.expiryDate) - parseDate(b.expiryDate);
+                    });
+
+                    for (const batch of product.batches!) {
+                        if (remainingToSubtract <= 0) break;
+                        if (batch.quantity <= 0) continue;
+
+                        const subtractAmount = Math.min(batch.quantity, remainingToSubtract);
+                        batch.quantity -= subtractAmount;
+                        remainingToSubtract -= subtractAmount;
+                    }
+                }
+            }
+        });
     }
 };
 

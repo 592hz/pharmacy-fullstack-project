@@ -109,6 +109,7 @@ export default function PurchaseOrdersPage() {
     // ── Delete confirm ───────────────────────────────────────────────────────
     const [orderToDelete, setOrderToDelete] = useState<PurchaseOrderWithDraft | null>(null)
     const [deleteStep, setDeleteStep] = useState(0)
+    const [isDeleting, setIsDeleting] = useState(false)
 
     // ── Derived filtered + paginated data ────────────────────────────────────
     const filtered = useMemo(() => {
@@ -209,6 +210,8 @@ export default function PurchaseOrdersPage() {
     const confirmDelete = async () => {
         if (deleteStep === 1) { setDeleteStep(2); return }
         if (deleteStep === 2 && orderToDelete?.id) {
+            if (isDeleting) return
+            setIsDeleting(true)
             try {
                 if (orderToDelete.isDraft) {
                     localStorage.removeItem(DRAFT_STORAGE_KEY)
@@ -224,6 +227,8 @@ export default function PurchaseOrdersPage() {
                 setDeleteStep(0)
             } catch (error: unknown) {
                 toast.error(`Lỗi: ${getErrorMessage(error)}`)
+            } finally {
+                setIsDeleting(false)
             }
         }
     }
@@ -235,6 +240,8 @@ export default function PurchaseOrdersPage() {
     }
 
     const confirmBulkDelete = async () => {
+        if (isDeleting) return
+        setIsDeleting(true)
         try {
             await purchaseOrderService.bulkDelete(selectedIds)
             setOrders(prev => prev.filter(o => !selectedIds.includes(o.id!)))
@@ -243,6 +250,8 @@ export default function PurchaseOrdersPage() {
             setShowBulkDeleteConfirm(false)
         } catch (error: unknown) {
             toast.error(`Lỗi xóa hàng loạt: ${getErrorMessage(error)}`)
+        } finally {
+            setIsDeleting(false)
         }
     }
 
@@ -717,9 +726,11 @@ export default function PurchaseOrdersPage() {
                             </button>
                             <button
                                 onClick={confirmDelete}
-                                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                                disabled={isDeleting}
+                                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
-                                {deleteStep === 1 ? "Xóa bỏ" : "Xác nhận xóa"}
+                                {isDeleting && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+                                {isDeleting ? "Đang xóa..." : (deleteStep === 1 ? "Xóa bỏ" : "Xác nhận xóa")}
                             </button>
                         </div>
                     </div>
@@ -748,9 +759,11 @@ export default function PurchaseOrdersPage() {
                             </button>
                             <button
                                 onClick={confirmBulkDelete}
-                                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700"
+                                disabled={isDeleting}
+                                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                             >
-                                Xác nhận xóa
+                                {isDeleting && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+                                {isDeleting ? "Đang xóa..." : "Xác nhận xóa"}
                             </button>
                         </div>
                     </div>

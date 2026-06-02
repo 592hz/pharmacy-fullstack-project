@@ -28,6 +28,7 @@ export default function TrashPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [selectedIds, setSelectedIds] = useState<string[]>([])
     const [itemToPermanentDelete, setItemToPermanentDelete] = useState<{ id?: string, ids?: string[], name?: string, type: TrashItemType, mode: 'single' | 'bulk' | 'empty' } | null>(null)
+    const [isActionInProgress, setIsActionInProgress] = useState(false)
 
     const fetchDeletedItems = useCallback(async () => {
         setIsLoading(true)
@@ -89,6 +90,8 @@ export default function TrashPage() {
     }, [fetchDeletedItems])
 
     const handleRestore = async (id: string, type: TrashItemType) => {
+        if (isActionInProgress) return
+        setIsActionInProgress(true)
         try {
             if (type === "categories") {
                 await productCategoryService.restore(id)
@@ -106,11 +109,15 @@ export default function TrashPage() {
             setSelectedIds(prev => prev.filter(selectedId => selectedId !== id))
         } catch (error: unknown) {
             toast.error("Lỗi khi khôi phục: " + getErrorMessage(error))
+        } finally {
+            setIsActionInProgress(false)
         }
     }
 
     const handleBulkRestore = async () => {
         if (selectedIds.length === 0) return
+        if (isActionInProgress) return
+        setIsActionInProgress(true)
         try {
             if (activeTab === "categories") {
                 await productCategoryService.bulkRestore(selectedIds)
@@ -128,11 +135,15 @@ export default function TrashPage() {
             setSelectedIds([])
         } catch (error: unknown) {
             toast.error("Lỗi khi khôi phục hàng loạt: " + getErrorMessage(error))
+        } finally {
+            setIsActionInProgress(false)
         }
     }
 
     const confirmPermanentDelete = async () => {
         if (!itemToPermanentDelete) return
+        if (isActionInProgress) return
+        setIsActionInProgress(true)
         try {
             const { id, ids, type, mode } = itemToPermanentDelete
             
@@ -166,6 +177,8 @@ export default function TrashPage() {
             setItemToPermanentDelete(null)
         } catch (error: unknown) {
             toast.error("Lỗi khi xóa vĩnh viễn: " + getErrorMessage(error))
+        } finally {
+            setIsActionInProgress(false)
         }
     }
 
@@ -356,8 +369,15 @@ export default function TrashPage() {
                             Hành động này <span className="text-red-500 font-bold">không thể khôi phục</span>.
                         </p>
                         <div className="flex justify-end gap-2">
-                            <button onClick={() => setItemToPermanentDelete(null)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-md">Hủy</button>
-                            <button onClick={confirmPermanentDelete} className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md">Xóa vĩnh viễn</button>
+                            <button onClick={() => setItemToPermanentDelete(null)} disabled={isActionInProgress} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-md disabled:opacity-50">Hủy</button>
+                            <button 
+                                onClick={confirmPermanentDelete} 
+                                disabled={isActionInProgress}
+                                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {isActionInProgress && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+                                {isActionInProgress ? "Đang xử lý..." : "Xóa vĩnh viễn"}
+                            </button>
                         </div>
                     </div>
                 </div>
