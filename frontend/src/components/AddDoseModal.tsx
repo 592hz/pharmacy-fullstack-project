@@ -21,11 +21,20 @@ const PRESET_PRICES = [
     { label: "Liều đặc biệt", value: 60000 }
 ]
 
+const getDefaultQtyForPrice = (price: number): number => {
+    if (price <= 20000) return 2
+    if (price <= 30000) return 3
+    if (price <= 45000) return 4
+    if (price <= 60000) return 6
+    return Math.floor(price / 10000) || 1
+}
+
 export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: AddDoseModalProps) {
     const [doseName, setDoseName] = useState("")
     const [selectedPrice, setSelectedPrice] = useState<number>(20000)
     const [customPrice, setCustomPrice] = useState<string>("")
     const [searchQuery, setSearchQuery] = useState("")
+    const [showSuggestions, setShowSuggestions] = useState(false)
     const [showAddProductModal, setShowAddProductModal] = useState(false)
     const [selectedComponents, setSelectedComponents] = useState<{
         product: IProduct;
@@ -37,8 +46,10 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
 
     // Search logic
     const filteredProducts = useMemo(() => {
-        if (!searchQuery.trim()) return []
-        const query = searchQuery.toLowerCase()
+        const query = searchQuery.trim().toLowerCase()
+        if (!query) {
+            return allProducts.slice(0, 10)
+        }
         return allProducts.filter(p =>
             p.name.toLowerCase().includes(query) ||
             p.id.toLowerCase().includes(query)
@@ -51,7 +62,8 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
             if (existing) {
                 return prev.map(c => c.product.id === product.id ? { ...c, quantity: c.quantity + 1 } : c)
             }
-            return [...prev, { product, quantity: 1 }]
+            const defaultQty = getDefaultQtyForPrice(finalPrice)
+            return [...prev, { product, quantity: defaultQty }]
         })
         setSearchQuery("")
     }
@@ -227,6 +239,8 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                                         onClick={() => {
                                             setSelectedPrice(p.value)
                                             setCustomPrice("")
+                                            const newQty = getDefaultQtyForPrice(p.value)
+                                            setSelectedComponents(prev => prev.map(c => ({ ...c, quantity: newQty })))
                                         }}
                                         className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-1 ${selectedPrice === p.value && !customPrice
                                             ? "border-green-500 bg-green-50 dark:bg-green-900/20 shadow-lg shadow-green-500/10"
@@ -243,7 +257,15 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                                     type="text"
                                     placeholder="Hoặc nhập giá tùy chỉnh..."
                                     value={customPrice}
-                                    onChange={(e) => setCustomPrice(e.target.value)}
+                                    onChange={(e) => {
+                                        const val = e.target.value
+                                        setCustomPrice(val)
+                                        const priceNum = val ? parseFloatSafe(val) : selectedPrice
+                                        if (priceNum > 0) {
+                                            const newQty = getDefaultQtyForPrice(priceNum)
+                                            setSelectedComponents(prev => prev.map(c => ({ ...c, quantity: newQty })))
+                                        }
+                                    }}
                                     className="w-full bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 px-4 py-3 pl-12 rounded-2xl text-base font-bold text-gray-800 dark:text-gray-100 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
                                 />
                                 <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 font-bold">đ</div>
@@ -283,6 +305,8 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                                         placeholder="Tìm thuốc thêm vào liều..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
+                                        onFocus={() => setShowSuggestions(true)}
+                                        onBlur={() => setTimeout(() => setShowSuggestions(false), 200)}
                                         className="w-full bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-700 pl-12 pr-4 py-3 rounded-2xl text-sm font-semibold outline-none focus:ring-4 focus:ring-green-500/10 focus:border-green-500 transition-all shadow-sm"
                                     />
                                 </div>
@@ -295,30 +319,47 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                                 </button>
                             </div>
 
-                            {searchQuery && (
+                            {(showSuggestions || searchQuery) && (
                                 <div className="relative">
                                     <div className="absolute top-2 left-0 right-0 mt-2 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 rounded-2xl shadow-2xl z-50 max-h-[300px] overflow-y-auto p-2 animate-in slide-in-from-top-2">
                                         {filteredProducts.length > 0 ? (
-                                            filteredProducts.map(p => (
-                                                <button
-                                                    key={p.id}
-                                                    onClick={() => handleAddComponent(p)}
-                                                    className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-green-50 dark:hover:bg-green-900/20 text-left transition-colors group"
-                                                >
-                                                    <div>
-                                                        <div className="font-bold text-gray-800 dark:text-gray-100 group-hover:text-green-600">{p.name}</div>
-                                                        <div className="text-[10px] text-gray-500 flex items-center gap-2">
-                                                            <span className={`${p.baseQuantity && p.baseQuantity > 0 ? "text-blue-500" : "text-red-500 font-bold"}`}>
-                                                                Tồn: {p.baseQuantity || 0} {p.unit}
-                                                                {(!p.baseQuantity || p.baseQuantity <= 0) && " (Hết/Mới)"}
-                                                            </span>
-                                                            <span>•</span>
-                                                            <span className="text-gray-400">Giá nhập: {p.importPrice?.toLocaleString()}</span>
+                                            filteredProducts.map(p => {
+                                                const isAlreadySelected = selectedComponents.some(c => c.product.id === p.id);
+                                                return (
+                                                    <button
+                                                        key={p.id}
+                                                        onMouseDown={(e) => {
+                                                            e.preventDefault();
+                                                            handleAddComponent(p);
+                                                        }}
+                                                        className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition-colors group ${
+                                                            isAlreadySelected 
+                                                                ? "bg-green-50 dark:bg-green-950/20 border-l-4 border-green-500 pl-2" 
+                                                                : "hover:bg-green-50 dark:hover:bg-green-900/20"
+                                                        }`}
+                                                    >
+                                                        <div>
+                                                            <div className="font-bold text-gray-800 dark:text-gray-100 group-hover:text-green-600 flex items-center gap-2">
+                                                                {p.name}
+                                                                {isAlreadySelected && (
+                                                                    <span className="text-[10px] bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 px-1.5 py-0.5 rounded font-black">
+                                                                        ĐÃ CHỌN ({selectedComponents.find(c => c.product.id === p.id)?.quantity})
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <div className="text-[10px] text-gray-500 flex items-center gap-2 mt-1">
+                                                                <span className={`${p.baseQuantity && p.baseQuantity > 0 ? "text-blue-500" : "text-red-500 font-bold"}`}>
+                                                                    Tồn: {p.baseQuantity || 0} {p.unit}
+                                                                    {(!p.baseQuantity || p.baseQuantity <= 0) && " (Hết/Mới)"}
+                                                                </span>
+                                                                <span>•</span>
+                                                                <span className="text-gray-400">Giá nhập: {p.importPrice?.toLocaleString()}</span>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                    <Plus size={16} className="text-gray-300 group-hover:text-green-500" />
-                                                </button>
-                                            ))
+                                                        <Plus size={16} className={`text-gray-300 group-hover:text-green-500 ${isAlreadySelected ? "text-green-500" : ""}`} />
+                                                    </button>
+                                                );
+                                            })
                                         ) : (
                                             <div className="p-4 text-center text-gray-400 text-sm">Không tìm thấy sản phẩm</div>
                                         )}

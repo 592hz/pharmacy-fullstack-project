@@ -6,6 +6,7 @@ export interface ICategory extends Document {
     type: 'Thu' | 'Chi';
     amount: number;
     date: Date;
+    purchaseOrderId?: string;
 }
 
 const CategorySchema: Schema = new Schema({
@@ -13,7 +14,8 @@ const CategorySchema: Schema = new Schema({
     notes: { type: String },
     type: { type: String, enum: ['Thu', 'Chi'], required: true },
     amount: { type: Number, required: true },
-    date: { type: Date, default: Date.now }
+    date: { type: Date, default: Date.now },
+    purchaseOrderId: { type: String }
 }, { 
     timestamps: true,
     toJSON: {

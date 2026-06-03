@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import PurchaseOrder from '../models/purchase-order.model.js';
 import Product from '../models/product.model.js';
 import { IPurchaseOrderItem } from '../models/purchase-order.model.js';
+import Category from '../models/category.model.js';
 
 // Helper to save product with version conflict retry mechanism
 const saveProductWithRetry = async (id: string, updateFn: (product: any) => void, retries = 5): Promise<any> => {
@@ -98,6 +99,21 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
         // Update product stock and batches
         await adjustStock(savedOrder.items, 1);
         
+        // Auto create expense category entry
+        try {
+            const expenseCategory = new Category({
+                name: `Chi tiền nhập hàng: ${savedOrder.supplierName}`,
+                notes: `Mã đơn nhập: ${savedOrder.id}. Người tạo: ${savedOrder.createdBy || 'Hệ thống'}`,
+                type: 'Chi',
+                amount: savedOrder.grandTotal || savedOrder.totalAmount || 0,
+                date: savedOrder.importDate || new Date(),
+                purchaseOrderId: savedOrder.id
+            });
+            await expenseCategory.save();
+        } catch (catErr) {
+            console.error('Failed to create automatic expense category entry:', catErr);
+        }
+        
         res.status(201).json(savedOrder);
     } catch (error: unknown) {
         res.status(400).json({ message: (error as Error).message });
@@ -131,6 +147,23 @@ export const updatePurchaseOrder = async (req: Request, res: Response) => {
         // 4. Apply new stock
         await adjustStock(updatedOrder.items, 1);
 
+        // Update corresponding expense category entry
+        try {
+            await Category.findOneAndUpdate(
+                { purchaseOrderId: id },
+                {
+                    name: `Chi tiền nhập hàng: ${updatedOrder.supplierName}`,
+                    notes: `Mã đơn nhập: ${updatedOrder.id}. Người tạo: ${updatedOrder.createdBy || 'Hệ thống'}`,
+                    type: 'Chi',
+                    amount: updatedOrder.grandTotal || updatedOrder.totalAmount || 0,
+                    date: updatedOrder.importDate || new Date()
+                },
+                { upsert: true, new: true }
+            );
+        } catch (catErr) {
+            console.error('Failed to update expense category entry:', catErr);
+        }
+
         res.status(200).json(updatedOrder);
     } catch (error: unknown) {
         res.status(400).json({ message: (error as Error).message });
@@ -149,6 +182,13 @@ export const deletePurchaseOrder = async (req: Request, res: Response) => {
 
         // Reverse stock when moving to trash
         await adjustStock(deletedOrder.items, -1);
+
+        // Delete corresponding expense category entry (as the order is moved to trash)
+        try {
+            await Category.findOneAndDelete({ purchaseOrderId: id });
+        } catch (catErr) {
+            console.error('Failed to delete expense category entry on trash:', catErr);
+        }
 
         res.status(200).json({ message: 'Order moved to trash' });
     } catch (error: unknown) {
@@ -169,6 +209,21 @@ export const restoreOrder = async (req: Request, res: Response) => {
         // Re-apply stock when restoring
         await adjustStock(restoredOrder.items, 1);
 
+        // Re-create corresponding expense category entry on restore
+        try {
+            const expenseCategory = new Category({
+                name: `Chi tiền nhập hàng: ${restoredOrder.supplierName}`,
+                notes: `Mã đơn nhập: ${restoredOrder.id}. Người tạo: ${restoredOrder.createdBy || 'Hệ thống'}`,
+                type: 'Chi',
+                amount: restoredOrder.grandTotal || restoredOrder.totalAmount || 0,
+                date: restoredOrder.importDate || new Date(),
+                purchaseOrderId: restoredOrder.id
+            });
+            await expenseCategory.save();
+        } catch (catErr) {
+            console.error('Failed to recreate expense category entry on restore:', catErr);
+        }
+
         res.status(200).json(restoredOrder);
     } catch (error: unknown) {
         res.status(500).json({ message: (error as Error).message });
@@ -180,6 +235,14 @@ export const permanentlyDeleteOrder = async (req: Request, res: Response) => {
         const id = req.params.id as string;
         const deletedOrder = await PurchaseOrder.findOneAndDelete({ id });
         if (!deletedOrder) return res.status(404).json({ message: 'Order not found' });
+
+        // Delete corresponding expense category entry
+        try {
+            await Category.findOneAndDelete({ purchaseOrderId: id });
+        } catch (catErr) {
+            console.error('Failed to delete expense category entry on permanent delete:', catErr);
+        }
+
         res.status(200).json({ message: 'Order permanently deleted' });
     } catch (error: unknown) {
         res.status(500).json({ message: (error as Error).message });
@@ -201,6 +264,13 @@ export const bulkDeletePurchaseOrders = async (req: Request, res: Response) => {
             await order.save();
             // @ts-ignore - adjustStock exists in this file
             await adjustStock(order.items, -1);
+
+            // Delete corresponding expense category
+            try {
+                await Category.findOneAndDelete({ purchaseOrderId: order.id });
+            } catch (catErr) {
+                console.error(`Failed to delete category for bulk-deleted order ${order.id}:`, catErr);
+            }
         }
 
         res.status(200).json({ message: `${ordersToDelete.length} orders moved to trash` });
@@ -225,6 +295,21 @@ export const bulkRestoreOrders = async (req: Request, res: Response) => {
             await order.save();
             // @ts-ignore - adjustStock exists in this file
             await adjustStock(order.items, 1);
+
+            // Re-create expense category
+            try {
+                const expenseCategory = new Category({
+                    name: `Chi tiền nhập hàng: ${order.supplierName}`,
+                    notes: `Mã đơn nhập: ${order.id}. Người tạo: ${order.createdBy || 'Hệ thống'}`,
+                    type: 'Chi',
+                    amount: order.grandTotal || order.totalAmount || 0,
+                    date: order.importDate || new Date(),
+                    purchaseOrderId: order.id
+                });
+                await expenseCategory.save();
+            } catch (catErr) {
+                console.error(`Failed to recreate category for bulk-restored order ${order.id}:`, catErr);
+            }
         }
 
         res.status(200).json({ message: `${ordersToRestore.length} orders restored and stock adjusted` });
@@ -241,6 +326,12 @@ export const bulkPermanentlyDeleteOrders = async (req: Request, res: Response) =
         }
 
         const result = await PurchaseOrder.deleteMany({ id: { $in: ids } });
+        
+        try {
+            await Category.deleteMany({ purchaseOrderId: { $in: ids } });
+        } catch (catErr) {
+            console.error('Failed to delete categories for bulk permanently deleted orders:', catErr);
+        }
 
         res.status(200).json({ message: `${result.deletedCount} orders permanently deleted` });
     } catch (error: unknown) {
@@ -250,7 +341,17 @@ export const bulkPermanentlyDeleteOrders = async (req: Request, res: Response) =
 
 export const emptyOrderTrash = async (_req: Request, res: Response) => {
     try {
+        const deletedOrders = await PurchaseOrder.find({ isDeleted: true });
+        const deletedIds = deletedOrders.map(o => o.id);
+
         const result = await PurchaseOrder.deleteMany({ isDeleted: true });
+
+        try {
+            await Category.deleteMany({ purchaseOrderId: { $in: deletedIds } });
+        } catch (catErr) {
+            console.error('Failed to empty category trash:', catErr);
+        }
+
         res.status(200).json({ message: `${result.deletedCount} orders permanently deleted` });
     } catch (error: unknown) {
         res.status(500).json({ message: (error as Error).message });
