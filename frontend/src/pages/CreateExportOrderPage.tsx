@@ -63,7 +63,7 @@ export default function CreateExportOrderPage() {
     const [isLoading, setIsLoading] = useState(!allProducts.length)
 
     // Metadata
-    const [orderId] = useState(() => `PX${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`)
+    const [orderId, setOrderId] = useState(() => `PX${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`)
     const [dateValue, setDateValue] = useState(() => formatDateTimeToVN(new Date().toISOString()))
     const [dateError, setDateError] = useState("")
 
@@ -548,7 +548,17 @@ export default function CreateExportOrderPage() {
             await exportSlipService.create(newSlip)
             clearDraft()
             toast.success("Tạo phiếu bán hàng thành công!")
-            navigate("/export-manage")
+            
+            // Reset form for the next order
+            setItems([])
+            setCustomerId("")
+            setCustomerName("Khách lẻ")
+            setNotes("")
+            setSymptoms("")
+            setDoctorName("")
+            setIsPrescription(false)
+            setOrderId(`PX${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`)
+            setDateValue(formatDateTimeToVN(new Date().toISOString()))
         } catch (error: unknown) {
             toast.error("Lỗi khi tạo phiếu bán hàng: " + getErrorMessage(error))
         }

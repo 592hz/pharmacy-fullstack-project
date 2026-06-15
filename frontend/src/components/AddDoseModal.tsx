@@ -1,11 +1,13 @@
-import { useState, useMemo } from "react"
-import { Search, X, Plus, Trash2, Pill, Activity, ChevronRight, Check, AlertCircle } from "lucide-react"
+import { useState, useMemo, useEffect } from "react"
+import { Search, X, Plus, Trash2, Pill, Activity, ChevronRight, Check, AlertCircle, Settings, Save, Loader2 } from "lucide-react"
 import { type ExportOrderItem } from "@/lib/schemas"
 import { type IProduct } from "@/types/product"
 import { parseFloatSafe, sortBatchesFEFO } from "@/lib/utils"
 import { NumericInput } from "./ui/numeric-input"
 import { toast } from "sonner"
 import { AddProductModal } from "./add-product-modal"
+import { doseTemplateService, type IDoseTemplate } from "@/services/dose-template.service"
+import { ManageDoseTemplatesModal } from "./ManageDoseTemplatesModal"
 
 interface AddDoseModalProps {
     isOpen: boolean
@@ -35,10 +37,28 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
     const [customPrice, setCustomPrice] = useState<string>("")
     const [searchQuery, setSearchQuery] = useState("")
     const [showAddProductModal, setShowAddProductModal] = useState(false)
+    const [showManageTemplatesModal, setShowManageTemplatesModal] = useState(false)
+    const [isSavingTemplate, setIsSavingTemplate] = useState(false)
     const [selectedComponents, setSelectedComponents] = useState<{
         product: IProduct;
         quantity: number;
     }[]>([])
+    const [templates, setTemplates] = useState<IDoseTemplate[]>([])
+
+    const loadTemplates = async () => {
+        try {
+            const data = await doseTemplateService.getTemplates()
+            setTemplates(data || [])
+        } catch (error) {
+            console.error("Lỗi tải mẫu liều thuốc", error)
+        }
+    }
+
+    useEffect(() => {
+        if (isOpen) {
+            loadTemplates()
+        }
+    }, [isOpen])
 
     // Price handling
     const finalPrice = customPrice ? parseFloatSafe(customPrice) : selectedPrice
@@ -79,6 +99,46 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
     }, 0)
 
     const profit = finalPrice - totalImportPrice
+
+    const handleSaveAsTemplate = async () => {
+        if (!doseName) {
+            toast.error("Vui lòng nhập tên liều để lưu mẫu");
+            return;
+        }
+        if (selectedComponents.length === 0) {
+            toast.error("Vui lòng chọn ít nhất một loại thuốc để lưu mẫu");
+            return;
+        }
+
+        try {
+            setIsSavingTemplate(true);
+            await doseTemplateService.createTemplate({
+                name: doseName,
+                price: finalPrice,
+                components: selectedComponents.map(c => ({
+                    product: c.product._id,
+                    quantity: c.quantity
+                }))
+            } as any);
+            toast.success("Đã lưu mẫu liều thuốc thành công");
+            loadTemplates();
+        } catch (error: any) {
+            toast.error(error.response?.data?.message || "Lỗi khi lưu mẫu liều thuốc");
+        } finally {
+            setIsSavingTemplate(false);
+        }
+    }
+
+    const handleSelectTemplate = (template: IDoseTemplate) => {
+        setDoseName(template.name);
+        setSelectedPrice(template.price);
+        setCustomPrice(template.price.toString());
+        setSelectedComponents(template.components.map(c => ({
+            product: c.product,
+            quantity: c.quantity
+        })));
+        toast.success(`Đã áp dụng mẫu: ${template.name}`);
+    }
 
     const handleConfirm = () => {
         if (!doseName) {
@@ -205,9 +265,15 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                             <p className="text-sm text-gray-500 font-medium">Kết hợp nhiều loại thuốc thành một liều bán lẻ</p>
                         </div>
                     </div>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-full transition-colors text-gray-400">
-                        <X size={24} />
-                    </button>
+                    <div className="flex items-center gap-3">
+                        <button onClick={() => setShowManageTemplatesModal(true)} className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 hover:border-green-400 rounded-xl transition-all text-sm font-bold text-gray-700 dark:text-gray-200 shadow-sm">
+                            <Settings size={18} className="text-gray-400" />
+                            <span>Mẫu liều</span>
+                        </button>
+                        <button onClick={onClose} className="p-2 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded-full transition-colors text-gray-400">
+                            <X size={24} />
+                        </button>
+                    </div>
                 </div>
 
                 <div className="flex-1 overflow-hidden flex flex-col lg:flex-row">
@@ -224,6 +290,24 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                                 placeholder="Nhập tên liều..."
                                 className="w-full bg-gray-50 dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 px-4 py-3 rounded-2xl text-lg font-bold text-gray-800 dark:text-gray-100 outline-none focus:ring-4 focus:ring-green-500/10 focus:border-green-500 transition-all"
                             />
+                            <div className="flex flex-wrap gap-2 pt-1">
+                                {templates.map((tpl) => (
+                                    <button
+                                        key={tpl._id}
+                                        onClick={() => handleSelectTemplate(tpl)}
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all ${
+                                            doseName === tpl.name 
+                                                ? "border-green-500 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400" 
+                                                : "border-gray-200 dark:border-neutral-700 hover:border-green-400 hover:text-green-500 bg-white dark:bg-neutral-900 text-gray-600 dark:text-gray-300"
+                                        }`}
+                                    >
+                                        {tpl.name}
+                                    </button>
+                                ))}
+                                {templates.length === 0 && (
+                                    <span className="text-xs text-gray-400 italic">Chưa có mẫu nào. Hãy lưu để hiển thị nhanh ở đây.</span>
+                                )}
+                            </div>
                         </div>
 
                         {/* Price Selection */}
@@ -396,6 +480,14 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                 {/* Footer */}
                 <div className="flex-none p-6 border-t border-gray-100 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex gap-3">
                     <button
+                        onClick={handleSaveAsTemplate}
+                        disabled={isSavingTemplate}
+                        className="flex-1 px-6 py-4 rounded-2xl bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 font-bold transition-all flex items-center justify-center gap-2 disabled:opacity-50 border border-blue-200 dark:border-blue-900/30"
+                    >
+                        {isSavingTemplate ? <Loader2 size={20} className="animate-spin" /> : <Save size={20} />}
+                        LƯU MẪU NÀY
+                    </button>
+                    <button
                         onClick={onClose}
                         className="flex-1 px-6 py-4 rounded-2xl bg-gray-100 hover:bg-gray-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-gray-600 dark:text-gray-300 font-bold transition-all"
                     >
@@ -414,6 +506,15 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                 isOpen={showAddProductModal}
                 onClose={() => setShowAddProductModal(false)}
                 onSuccess={handleProductCreated}
+            />
+
+            <ManageDoseTemplatesModal
+                isOpen={showManageTemplatesModal}
+                onClose={() => {
+                    setShowManageTemplatesModal(false)
+                    loadTemplates()
+                }}
+                onSelectTemplate={handleSelectTemplate}
             />
         </div>
     )
