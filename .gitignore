@@ -1,0 +1,47 @@
+# Dependencies
+node_modules/
+dist/
+build/
+.output/
+.next/
+.vercel/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Environment Variables
+.env
+.env.*
+!.env.example
+*.local
+
+# OS Files
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.bak
+*.swp
+
+# IDE Files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.user
+*.userlock
+
+# Temporary files
+/tmp/
+
+# Troubleshooting & Private scripts
+backend/test-db.js
+backend/check-local.js
+backend/test-direct.js
+backend/get-user.js
+backend/src/scripts/
+test-*.js
+cloudflared.exe
+*.exe

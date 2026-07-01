@@ -1,0 +1,22 @@
+# Set default behavior to automatically guess line endings
+* text=auto
+
+# Force LF for all text files (recommended for cross-platform consistency)
+# This will convert to LF on commit and may convert to CRLF on checkout on Windows
+* text eol=lf
+
+# Explicitly set line endings for specific file types if needed
+*.js text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.css text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+
+# Denote all files that are truly binary and should not be modified.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary

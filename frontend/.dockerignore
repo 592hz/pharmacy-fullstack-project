@@ -1,5 +1,8 @@
 node_modules
 dist
-.git
 .env
-.npm
+.env.local
+.vercel
+*.log
+.git
+.vscode

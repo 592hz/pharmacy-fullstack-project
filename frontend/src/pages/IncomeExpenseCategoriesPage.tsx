@@ -1,11 +1,14 @@
 import { useState, useEffect, useMemo } from "react"
-import { Plus, ArrowLeft, ChevronLeft, ChevronRight, Calendar, TrendingUp, TrendingDown } from "lucide-react"
+import { Plus, ArrowLeft, ChevronLeft, ChevronRight, Calendar, TrendingUp, TrendingDown, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 import AddCategoryModal from "@/components/add-category-modal"
-import { mockCategories, setMockCategories, type Category } from "@/lib/mock-data"
+import { type Category } from "@/lib/schemas"
+import { categoryService } from "@/services/category.service"
+import { getErrorMessage } from "@/lib/utils"
 
 export default function IncomeExpenseCategoriesPage() {
-    const [categories, setCategories] = useState<Category[]>(mockCategories)
+    const [categories, setCategories] = useState<Category[]>([])
+    const [isLoading, setIsLoading] = useState(true)
     
     // View state
     const [viewMode, setViewMode] = useState<'list' | 'detail'>('list')
@@ -18,9 +21,21 @@ export default function IncomeExpenseCategoriesPage() {
     const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null)
     const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
 
+    const fetchCategories = async () => {
+        setIsLoading(true)
+        try {
+            const data = await categoryService.getAll()
+            setCategories(data)
+        } catch (error: unknown) {
+            toast.error("Không thể tải danh sách thu chi: " + getErrorMessage(error))
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
     useEffect(() => {
-        setMockCategories(categories)
-    }, [categories])
+        fetchCategories()
+    }, [])
 
     // Grouping logic for the year view
     const statsByMonth = useMemo(() => {
@@ -32,6 +47,7 @@ export default function IncomeExpenseCategoriesPage() {
         }))
 
         categories.forEach(c => {
+            if (!c.date) return
             const date = new Date(c.date)
             if (date.getFullYear() === selectedYear) {
                 const monthIdx = date.getMonth()
@@ -51,9 +67,10 @@ export default function IncomeExpenseCategoriesPage() {
     const filteredCategories = useMemo(() => {
         if (viewMode === 'list') return []
         return categories.filter(c => {
+            if (!c.date) return false
             const date = new Date(c.date)
             return date.getFullYear() === selectedYear && (date.getMonth() + 1) === selectedMonth
-        }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+        }).sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())
     }, [categories, viewMode, selectedYear, selectedMonth])
 
 
@@ -62,18 +79,23 @@ export default function IncomeExpenseCategoriesPage() {
         setDeleteConfirmCount(1)
     }
 
-    const confirmDelete = () => {
-        if (!categoryToDelete) return
+    const confirmDelete = async () => {
+        if (!categoryToDelete || !categoryToDelete.id) return
         if (deleteConfirmCount === 1) {
             setDeleteConfirmCount(2)
             return
         }
 
         if (deleteConfirmCount === 2) {
-            setCategories(categories.filter(c => c.id !== categoryToDelete.id))
-            toast.success("Đã xóa nhóm thu chi thành công!")
-            setCategoryToDelete(null)
-            setDeleteConfirmCount(0)
+            try {
+                await categoryService.delete(categoryToDelete.id)
+                setCategories(categories.filter(c => c.id !== categoryToDelete.id))
+                toast.success("Đã xóa nhóm thu chi thành công!")
+                setCategoryToDelete(null)
+                setDeleteConfirmCount(0)
+            } catch (error: unknown) {
+                toast.error(`Lỗi: ${getErrorMessage(error)}`)
+            }
         }
     }
 
@@ -82,17 +104,28 @@ export default function IncomeExpenseCategoriesPage() {
         setDeleteConfirmCount(0)
     }
 
-    const handleAddCategory = (newCategory: Category) => {
-        setCategories([newCategory, ...categories])
-        toast.success("Đã thêm mới thành công!")
-        setIsAddModalOpen(false)
+    const handleAddCategory = async (newCategory: Category) => {
+        try {
+            const data = await categoryService.create(newCategory)
+            setCategories([data, ...categories])
+            toast.success("Đã thêm mới thành công!")
+            setIsAddModalOpen(false)
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
+        }
     }
 
-    const handleEditCategory = (updatedCategory: Category) => {
-        setCategories(categories.map(c => c.id === updatedCategory.id ? updatedCategory : c))
-        toast.success("Cập nhật thành công!")
-        setIsAddModalOpen(false)
-        setEditingCategory(null)
+    const handleEditCategory = async (updatedCategory: Category) => {
+        try {
+            if (!updatedCategory.id) return
+            const data = await categoryService.update(updatedCategory.id, updatedCategory)
+            setCategories(categories.map(c => c.id === data.id ? data : c))
+            toast.success("Cập nhật thành công!")
+            setIsAddModalOpen(false)
+            setEditingCategory(null)
+        } catch (error: unknown) {
+            toast.error(`Lỗi: ${getErrorMessage(error)}`)
+        }
     }
 
     const vnd = (val: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(val)
@@ -149,7 +182,13 @@ export default function IncomeExpenseCategoriesPage() {
                     </div>
                 </div>
 
-                {viewMode === 'list' ? (
+                {isLoading && (
+                    <div className="flex items-center justify-center p-20">
+                        <Loader2 className="animate-spin text-[#5c9a38]" size={40} />
+                    </div>
+                )}
+
+                {!isLoading && viewMode === 'list' ? (
                     /* ── MONTH GRID VIEW ── */
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-10">
                         {statsByMonth.map((m) => (
@@ -198,7 +237,7 @@ export default function IncomeExpenseCategoriesPage() {
                             </div>
                         ))}
                     </div>
-                ) : (
+                ) : !isLoading && (
                     /* ── DETAIL TABLE VIEW ── */
                     <div className="bg-white dark:bg-neutral-900 rounded-xl border border-gray-200 dark:border-neutral-800 shadow-sm overflow-hidden flex flex-col">
                         <div className="p-0 overflow-auto">
@@ -224,7 +263,7 @@ export default function IncomeExpenseCategoriesPage() {
                                         filteredCategories.map((c) => (
                                             <tr key={c.id} className="hover:bg-gray-50/50 dark:hover:bg-neutral-800/50 transition-colors">
                                                 <td className="px-6 py-4 text-gray-500 whitespace-nowrap">
-                                                    {new Date(c.date).toLocaleDateString('vi-VN')}
+                                                    {c.date ? new Date(c.date).toLocaleDateString('vi-VN') : "—"}
                                                 </td>
                                                 <td className="px-6 py-4 font-bold text-gray-800 dark:text-gray-200">
                                                     {c.name}
@@ -262,23 +301,23 @@ export default function IncomeExpenseCategoriesPage() {
                                         ))
                                     )}
                                 </tbody>
-                            </table>
+                             </table>
                         </div>
                         
                         {/* Summary for detail view */}
                         <div className="bg-gray-50 dark:bg-neutral-800/50 p-6 flex flex-wrap gap-10 justify-end border-t border-gray-200 dark:border-neutral-800">
                             <div className="flex flex-col items-end">
                                 <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Tổng Thu</span>
-                                <span className="text-xl font-bold text-green-600">{vnd(filteredCategories.filter(c => c.type === 'Thu').reduce((a, b) => a + b.amount, 0))}</span>
+                                <span className="text-xl font-bold text-green-600">{vnd(filteredCategories.filter((c: Category) => c.type === 'Thu').reduce((a: number, b: Category) => a + b.amount, 0))}</span>
                             </div>
                             <div className="flex flex-col items-end">
                                 <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Tổng Chi</span>
-                                <span className="text-xl font-bold text-red-600">{vnd(filteredCategories.filter(c => c.type === 'Chi').reduce((a, b) => a + b.amount, 0))}</span>
+                                <span className="text-xl font-bold text-red-600">{vnd(filteredCategories.filter((c: Category) => c.type === 'Chi').reduce((a: number, b: Category) => a + b.amount, 0))}</span>
                             </div>
                             <div className="flex flex-col items-end">
                                 <span className="text-[10px] uppercase font-bold text-gray-500 tracking-wider">Số dư tháng</span>
                                 <span className="text-xl font-bold text-blue-600">
-                                    {vnd(filteredCategories.reduce((acc, c) => acc + (c.type === 'Thu' ? c.amount : -c.amount), 0))}
+                                    {vnd(filteredCategories.reduce((acc: number, c: Category) => acc + (c.type === 'Thu' ? c.amount : -c.amount), 0))}
                                 </span>
                             </div>
                         </div>
@@ -309,7 +348,7 @@ export default function IncomeExpenseCategoriesPage() {
                         </h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 px-4">
                             {deleteConfirmCount === 1
-                                ? `Bạn có chắc chắn muốn xóa "${categoryToDelete.name}" vào ngày ${new Date(categoryToDelete.date).toLocaleDateString('vi-VN')}?`
+                                ? `Bạn có chắc chắn muốn xóa "${categoryToDelete.name}" vào ngày ${categoryToDelete.date ? new Date(categoryToDelete.date).toLocaleDateString('vi-VN') : "—"}?`
                                 : `Đây là xác nhận lần cuối. Dữ liệu sẽ bị xóa vĩnh viễn khỏi hệ thống!`
                             }
                         </p>
