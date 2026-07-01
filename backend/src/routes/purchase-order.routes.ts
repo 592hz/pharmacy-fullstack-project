@@ -8,6 +8,7 @@ import {
     getDeletedOrders,
     restoreOrder,
     permanentlyDeleteOrder,
+    bulkDeletePurchaseOrders,
     bulkRestoreOrders,
     bulkPermanentlyDeleteOrders,
     emptyOrderTrash
@@ -17,6 +18,7 @@ const router = Router();
 
 router.get('/', getPurchaseOrders);
 router.get('/trash', getDeletedOrders);
+router.put('/trash/delete-bulk', bulkDeletePurchaseOrders);
 router.put('/trash/restore-bulk', bulkRestoreOrders);
 router.delete('/trash/permanent-bulk', bulkPermanentlyDeleteOrders);
 router.delete('/trash/empty', emptyOrderTrash);

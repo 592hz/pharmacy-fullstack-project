@@ -21,6 +21,7 @@ import productCategoryRoutes from './routes/product-category.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import reportRoutes from './routes/report.routes.js';
+import doseTemplateRoutes from './routes/dose-template.routes.js';
 
 
 const app = express();
@@ -44,6 +45,7 @@ app.use('/api/product-categories', productCategoryRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/dose-templates', doseTemplateRoutes);
 
 app.get('/', (req, res) => {
     res.send('Pharmacy API is running...');

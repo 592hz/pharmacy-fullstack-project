@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { Plus, Search, PlusCircle, Trash2, Save, X, Calendar as CalendarIcon, FileText, CreditCard, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
 import { AddProductModal } from "@/components/add-product-modal"
@@ -48,6 +48,8 @@ const DRAFT_STORAGE_KEY = "purchase_order_draft"
 
 export default function CreatePurchaseOrderPage() {
     const navigate = useNavigate()
+    const [searchParams] = useSearchParams()
+    const urlProductId = searchParams.get("productId")
 
     // Form state
     const [supplierId, setSupplierId] = useState("")
@@ -176,6 +178,34 @@ export default function CreatePurchaseOrderPage() {
         };
         fetchData();
     }, []);
+
+    // Handle auto-add product from URL
+    useEffect(() => {
+        if (urlProductId && allProducts.length > 0 && items.length === 0 && !hasRestoredDraft) {
+            const product = allProducts.find(p => p.id === urlProductId)
+            if (product) {
+                const newItem: IPurchaseOrderItem = {
+                    id: `new-${Date.now()}`,
+                    code: product.id || "",
+                    name: product.name || "",
+                    unit: product.unit || product.baseUnitName || "",
+                    batchNumber: "",
+                    expiryDate: "",
+                    quantity: 1,
+                    importPrice: product.importPrice || 0,
+                    retailPrice: product.retailPrice || 0,
+                    totalAmount: product.importPrice || 0,
+                    discountPercent: 0,
+                    discountAmount: 0,
+                    vatPercent: 0,
+                    vatAmount: 0,
+                    remainingAmount: product.importPrice || 0,
+                }
+                setItems([newItem])
+                toast.success(`Đã tự động thêm sản phẩm: ${product.name}`)
+            }
+        }
+    }, [urlProductId, allProducts, items.length, hasRestoredDraft])
 
     const filteredSuggestions = useMemo(() => {
         if (!debouncedSearchQuery.trim()) return []

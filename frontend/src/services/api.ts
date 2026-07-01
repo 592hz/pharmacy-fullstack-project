@@ -69,8 +69,10 @@ export const productsApi = {
     bulkRestoreProducts: (ids: string[]) => api.put<{ message: string }>('/products/trash/restore-bulk', { ids }),
     bulkPermanentDeleteProducts: (ids: string[]) => api.delete<{ message: string }>('/products/trash/permanent-bulk', { ids }, true),
     emptyProductTrash: () => api.delete<{ message: string }>('/products/trash/empty'),
+    deleteAllProducts: () => api.delete<{ message: string }>('/products/all'),
     bulkCreateProducts: (products: Partial<IProduct>[]) => api.post<IBulkCreateResponse>('/products/bulk', { products }),
 };
+
 
 export const categoriesApi = {
     getCategories: () => api.get<IProductCategory[]>('/product-categories'),
@@ -107,6 +109,7 @@ export const purchaseOrdersApi = {
     deleteOrder: (id: string) => api.delete<{ message: string }>(`/purchase-orders/${id}`),
     restoreOrder: (id: string) => api.put<IPurchaseOrder>(`/purchase-orders/${id}/restore`, {}),
     permanentDeleteOrder: (id: string) => api.delete<{ message: string }>(`/purchase-orders/${id}/permanent`),
+    bulkDeleteOrders: (ids: string[]) => api.put<{ message: string }>('/purchase-orders/trash/delete-bulk', { ids }),
     bulkRestoreOrders: (ids: string[]) => api.put<{ message: string }>('/purchase-orders/trash/restore-bulk', { ids }),
     bulkPermanentDeleteOrders: (ids: string[]) => api.delete<{ message: string }>('/purchase-orders/trash/permanent-bulk', { ids }, true),
     emptyOrderTrash: () => api.delete<{ message: string }>('/purchase-orders/trash/empty'),

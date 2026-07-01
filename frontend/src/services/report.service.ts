@@ -6,22 +6,32 @@ export interface RevenueReportData {
             revenue: number;
             profit: number;
             totalOrders: number;
+            income: number;
+            expense: number;
+            netProfit: number;
         };
         previous: {
             revenue: number;
             profit: number;
             totalOrders: number;
+            income: number;
+            expense: number;
+            netProfit: number;
         };
         growth: {
             revenue: number;
             profit: number;
             orders: number;
+            netProfit: number;
         };
     };
     monthlyData: {
         month: string;
         revenue: number;
         profit: number;
+        income: number;
+        expense: number;
+        netProfit: number;
         orders: number;
     }[];
     topProducts: {
@@ -30,6 +40,7 @@ export interface RevenueReportData {
         quantity: number;
     }[];
 }
+
 
 export const reportService = {
     getRevenueReport: (startDate?: string, endDate?: string) => {

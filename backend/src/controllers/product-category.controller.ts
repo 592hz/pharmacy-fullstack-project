@@ -44,7 +44,7 @@ export const createProductCategory = async (req: Request, res: Response) => {
 export const updateProductCategory = async (req: Request, res: Response) => {
     try {
         const updatedCategory = await ProductCategory.findByIdAndUpdate(req.params.id, req.body, { new: true });
-        if (!updatedCategory) return res.status(404).json({ message: 'Product category not found' });
+        if (!updatedCategory) return res.status(404).json({ message: 'Không tìm thấy nhóm hàng hóa' });
         res.status(200).json(updatedCategory);
     } catch (error) {
         res.status(400).json({ message: (error as Error).message });
@@ -56,7 +56,7 @@ export const deleteProductCategory = async (req: Request, res: Response) => {
         const { id: categoryId } = req.params;
 
         if (!categoryId) {
-            return res.status(400).json({ message: 'Category ID is required' });
+            return res.status(400).json({ message: 'Mã nhóm hàng hóa là bắt buộc' });
         }
 
         // Soft delete the category
@@ -66,7 +66,7 @@ export const deleteProductCategory = async (req: Request, res: Response) => {
             { new: true }
         );
 
-        if (!deletedCategory) return res.status(404).json({ message: 'Product category not found' });
+        if (!deletedCategory) return res.status(404).json({ message: 'Không tìm thấy nhóm hàng hóa' });
 
         // Cascading soft delete for all products in this category
         await Product.updateMany(
@@ -74,7 +74,7 @@ export const deleteProductCategory = async (req: Request, res: Response) => {
             { isDeleted: true, deletedAt: new Date() }
         );
 
-        res.status(200).json({ message: 'Product category and its products moved to trash' });
+        res.status(200).json({ message: 'Đã chuyển nhóm hàng hóa và các sản phẩm thuộc nhóm này vào thùng rác' });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -98,7 +98,7 @@ export const restoreProductCategory = async (req: Request, res: Response) => {
             { new: true }
         );
 
-        if (!restoredCategory) return res.status(404).json({ message: 'Category not found' });
+        if (!restoredCategory) return res.status(404).json({ message: 'Không tìm thấy nhóm hàng hóa' });
 
         // Restore all products in this category that were deleted
         await Product.updateMany(
@@ -124,9 +124,9 @@ export const permanentlyDeleteProductCategory = async (req: Request, res: Respon
         await Product.deleteMany({ categoryId: id as string });
         const deletedCategory = await ProductCategory.findByIdAndDelete(id);
 
-        if (!deletedCategory) return res.status(404).json({ message: 'Category not found' });
+        if (!deletedCategory) return res.status(404).json({ message: 'Không tìm thấy nhóm hàng hóa' });
         
-        res.status(200).json({ message: 'Category and its products permanently deleted' });
+        res.status(200).json({ message: 'Đã xóa vĩnh viễn nhóm hàng hóa và các sản phẩm thuộc nhóm này' });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -136,7 +136,7 @@ export const bulkRestoreProductCategories = async (req: Request, res: Response) 
     try {
         const { ids } = req.body;
         if (!ids || !Array.isArray(ids)) {
-            return res.status(400).json({ message: 'IDs array is required' });
+            return res.status(400).json({ message: 'Danh sách ID là bắt buộc' });
         }
 
         const restoredCategories = await ProductCategory.updateMany(
@@ -150,7 +150,7 @@ export const bulkRestoreProductCategories = async (req: Request, res: Response) 
             { isDeleted: false, deletedAt: null }
         );
 
-        res.status(200).json({ message: `${restoredCategories.modifiedCount} categories restored` });
+        res.status(200).json({ message: `Đã khôi phục ${restoredCategories.modifiedCount} nhóm hàng hóa` });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -160,7 +160,7 @@ export const bulkPermanentlyDeleteProductCategories = async (req: Request, res: 
     try {
         const { ids } = req.body;
         if (!ids || !Array.isArray(ids)) {
-            return res.status(400).json({ message: 'IDs array is required' });
+            return res.status(400).json({ message: 'Danh sách ID là bắt buộc' });
         }
 
         // Permanently delete products in these categories first
@@ -168,7 +168,7 @@ export const bulkPermanentlyDeleteProductCategories = async (req: Request, res: 
         
         const deletedCategories = await ProductCategory.deleteMany({ _id: { $in: ids } });
 
-        res.status(200).json({ message: `${deletedCategories.deletedCount} categories and their products permanently deleted` });
+        res.status(200).json({ message: `Đã xóa vĩnh viễn ${deletedCategories.deletedCount} nhóm hàng hóa và các sản phẩm thuộc nhóm` });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -183,7 +183,7 @@ export const emptyProductCategoryTrash = async (_req: Request, res: Response) =>
         await Product.deleteMany({ categoryId: { $in: categoryIds } });
         const result = await ProductCategory.deleteMany({ isDeleted: true });
 
-        res.status(200).json({ message: `${result.deletedCount} categories and their products permanently deleted` });
+        res.status(200).json({ message: `Đã xóa vĩnh viễn ${result.deletedCount} nhóm hàng hóa và các sản phẩm thuộc nhóm` });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }

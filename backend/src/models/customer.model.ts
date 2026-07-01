@@ -15,8 +15,8 @@ export interface ICustomer extends Document {
 }
 
 const CustomerSchema: Schema = new Schema({
-    id: { type: String, required: true, unique: true },
-    name: { type: String, required: true },
+    id: { type: String, required: [true, 'Mã khách hàng không được để trống'], unique: true },
+    name: { type: String, required: [true, 'Tên khách hàng không được để trống'] },
     phone: { type: String },
     dob: { type: String },
     address: { type: String },

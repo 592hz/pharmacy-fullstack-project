@@ -6,14 +6,16 @@ export interface ICategory extends Document {
     type: 'Thu' | 'Chi';
     amount: number;
     date: Date;
+    purchaseOrderId?: string;
 }
 
 const CategorySchema: Schema = new Schema({
-    name: { type: String, required: true },
+    name: { type: String, required: [true, 'Tên danh mục/giao dịch không được để trống'] },
     notes: { type: String },
-    type: { type: String, enum: ['Thu', 'Chi'], required: true },
-    amount: { type: Number, required: true },
-    date: { type: Date, default: Date.now }
+    type: { type: String, enum: ['Thu', 'Chi'], required: [true, 'Loại giao dịch (Thu/Chi) là bắt buộc'] },
+    amount: { type: Number, required: [true, 'Số tiền giao dịch không được để trống'] },
+    date: { type: Date, default: Date.now },
+    purchaseOrderId: { type: String }
 }, { 
     timestamps: true,
     toJSON: {

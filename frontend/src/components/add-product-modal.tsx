@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react"
-import { PlusCircle, X, Calendar as CalendarIcon, ChevronDown } from "lucide-react"
+import { PlusCircle, X, Calendar as CalendarIcon, ChevronDown, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { parseFloatSafe, formatDateInput } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
@@ -280,9 +280,9 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                     if (!initialData && cats.length > 0) {
                         const defaultCat = cats.find(c => c.name === "Dược phẩm");
                         if (defaultCat) {
-                            setFormData(prev => ({ 
-                                ...prev, 
-                                categoryId: defaultCat.id || defaultCat._id || "" 
+                            setFormData(prev => ({
+                                ...prev,
+                                categoryId: defaultCat.id || defaultCat._id || ""
                             }));
                         }
                     }
@@ -366,22 +366,48 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
         }))
     }
 
-    const handleBatchExpiryChange = (batchNumber: string, newExpiry: string) => {
+    const handleBatchExpiryChange = (idx: number, newExpiry: string) => {
         setFormData(prev => ({
             ...prev,
-            batches: prev.batches.map(b =>
-                b.batchNumber === batchNumber ? { ...b, expiryDate: newExpiry } : b
+            batches: prev.batches.map((b, i) =>
+                i === idx ? { ...b, expiryDate: newExpiry } : b
             )
         }))
     }
 
-    const handleBatchQuantityChange = (batchNumber: string, newQty: number) => {
+    const handleBatchNumberChange = (idx: number, newBatchNumber: string) => {
+        setFormData(prev => ({
+            ...prev,
+            batches: prev.batches.map((b, i) =>
+                i === idx ? { ...b, batchNumber: newBatchNumber } : b
+            )
+        }))
+    }
+
+    const handleBatchQuantityChange = (idx: number, newQty: number) => {
         const conversionRate = initialData?.conversionRate || 1
         setFormData(prev => ({
             ...prev,
-            batches: prev.batches.map(b =>
-                b.batchNumber === batchNumber ? { ...b, quantity: newQty * conversionRate } : b
+            batches: prev.batches.map((b, i) =>
+                i === idx ? { ...b, quantity: newQty * conversionRate } : b
             )
+        }))
+    }
+
+    const addBatch = () => {
+        setFormData(prev => ({
+            ...prev,
+            batches: [
+                ...prev.batches,
+                { batchNumber: "", expiryDate: "", quantity: 0 }
+            ]
+        }))
+    }
+
+    const removeBatch = (idx: number) => {
+        setFormData(prev => ({
+            ...prev,
+            batches: prev.batches.filter((_, i) => i !== idx)
         }))
     }
 
@@ -434,7 +460,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                     : [
                         {
                             batchNumber: formData.batchNumber || (initialData ? "MỚI" : "LÔ ĐẦU"),
-                            expiryDate: (formData.expiryDate && formData.expiryDate !== ".") ? formData.expiryDate : "2099-01-01",
+                            expiryDate: (formData.expiryDate && formData.expiryDate !== ".") ? formData.expiryDate : "01-01-2099",
                             quantity: Number(formData.initialQuantity) * conversionRate
                         }
                     ]
@@ -456,13 +482,13 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                 onSuccess(savedProduct as unknown as Product, formData)
                 // Use the helper to generate a completely fresh state with a new ID
                 const freshFormData = generateInitialFormData()
-                
+
                 // Mặc định nhóm sản phẩm là "Dược phẩm" cho sản phẩm tiếp theo
                 const defaultCat = categories.find(c => c.name === "Dược phẩm")
                 if (defaultCat) {
                     freshFormData.categoryId = defaultCat.id || defaultCat._id || ""
                 }
-                
+
                 setFormData(freshFormData)
             }
         } catch (error: unknown) {
@@ -473,12 +499,40 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
     if (!isOpen) return null
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 sm:p-6 md:p-8">
-            <div className="bg-white dark:bg-neutral-900 w-full h-full max-w-[1400px] flex flex-col rounded shadow-2xl overflow-hidden relative animate-in fade-in zoom-in-95 duration-200">
+        <div
+            className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center transition-all duration-300 ${
+                isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+            }`}
+        >
+            {/* Overlay */}
+            <div
+                onClick={onClose}
+                className={`absolute inset-0 bg-black/60 transition-opacity duration-300 ${
+                    isOpen ? "opacity-100" : "opacity-0"
+                }`}
+            />
+
+            {/* Modal */}
+            <div
+                className={`relative w-full sm:max-w-[1400px] bg-white dark:bg-neutral-900
+                rounded-t-2xl sm:rounded-lg shadow-2xl flex flex-col
+                transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]
+                ${
+                    isOpen
+                        ? "translate-y-0"
+                        : "translate-y-full sm:translate-y-10 sm:opacity-0"
+                }
+                max-h-[95vh]`}
+            >
                 {/* HEADERS & TABS */}
-                <div className="flex flex-col border-b border-gray-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 pt-2">
+                <div className="flex flex-col border-b border-gray-200 dark:border-neutral-800 pt-2">
+                    {/* Thanh kéo mobile */}
+                    <div className="w-10 h-1.5 bg-gray-300 rounded-full mx-auto mb-2 sm:hidden"></div>
+
                     <div className="flex items-center justify-between px-3 sm:px-4 pb-2">
-                        <h2 className="text-base sm:text-xl font-bold text-gray-800 dark:text-gray-100">{initialData ? "Cập nhật thông tin hàng hóa" : "Thêm mới hàng hóa"}</h2>
+                        <h2 className="text-base sm:text-xl font-bold text-gray-800 dark:text-gray-100">
+                            {initialData ? "Cập nhật thông tin hàng hóa" : "Thêm mới hàng hóa"}
+                        </h2>
                         <button onClick={onClose} className="p-1 hover:bg-gray-100 dark:hover:bg-neutral-800 rounded text-gray-500 hover:text-gray-800 dark:hover:text-gray-200 transition-colors">
                             <X className="w-5 h-5 sm:w-6 sm:h-6" />
                         </button>
@@ -493,7 +547,7 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                 </div>
 
                 {/* SCROLLABLE CONTENT BODY */}
-                <div className="flex-1 overflow-y-auto bg-white dark:bg-neutral-900 p-3 sm:p-4">
+                <div className="flex-1 min-h-0 overflow-y-auto bg-white dark:bg-neutral-900 p-3 sm:p-4 pb-28">
                     <div className="flex flex-col gap-4 sm:gap-6 w-full mx-auto">
 
                         {/* --- GRID FORM --- */}
@@ -611,68 +665,100 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                         </div>
 
                         {/* --- BATCHES TABLE (Only for Edit Mode) --- */}
-                        {initialData && formData.batches && formData.batches.length > 0 && (
+                        {initialData && (
                             <div className="mt-2 border-t border-gray-100 pt-4">
-                                <h3 className="text-xs sm:text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                                    <span className="w-1 h-3 sm:w-1.5 sm:h-4 bg-[#5c9a38] rounded-full"></span>
-                                    Quản lý lô hàng hiện tại
-                                </h3>
-                                <div className="border border-gray-200 dark:border-neutral-800 rounded-lg overflow-x-auto bg-gray-50/30 dark:bg-neutral-800/20">
-                                    <table className="w-full text-[10px] sm:text-xs text-left min-w-[500px]">
-                                        <thead className="bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 font-bold uppercase tracking-wider">
-                                            <tr>
-                                                <th className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700">Số lô</th>
-                                                <th className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700 text-center">Hạn dùng</th>
-                                                <th className="px-3 sm:px-4 py-2 text-right">Số lượng tồn</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-200 dark:divide-neutral-800 bg-white dark:bg-neutral-900">
-                                            {formData.batches.map((batch, idx) => (
-                                                <tr key={`${batch.batchNumber}-${idx}`} className="hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors">
-                                                    <td className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700 font-medium text-gray-700 dark:text-gray-300">
-                                                        {batch.batchNumber}
-                                                    </td>
-                                                    <td className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700">
-                                                        <div className="relative group">
+                                <div className="flex items-center justify-between mb-3">
+                                    <h3 className="text-xs sm:text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                                        <span className="w-1 h-3 sm:w-1.5 sm:h-4 bg-[#5c9a38] rounded-full"></span>
+                                        Quản lý lô hàng hiện tại
+                                    </h3>
+                                    <button
+                                        type="button"
+                                        onClick={addBatch}
+                                        className="flex items-center gap-1.5 bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white text-[10px] sm:text-xs font-semibold px-2.5 py-1.5 rounded transition-colors shadow-sm"
+                                    >
+                                        <PlusCircle size={13} /> Thêm lô
+                                    </button>
+                                </div>
+                                {formData.batches && formData.batches.length > 0 ? (
+                                    <div className="border border-gray-200 dark:border-neutral-800 rounded-lg overflow-x-auto bg-gray-50/30 dark:bg-neutral-800/20">
+                                        <table className="w-full text-[10px] sm:text-xs text-left min-w-[540px]">
+                                            <thead className="bg-gray-100 dark:bg-neutral-800 text-gray-700 dark:text-gray-300 font-bold uppercase tracking-wider">
+                                                <tr>
+                                                    <th className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700">Số lô</th>
+                                                    <th className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700 text-center">Hạn dùng</th>
+                                                    <th className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700 text-right">Số lượng tồn</th>
+                                                    <th className="w-8 sm:w-10"></th>
+                                                </tr>
+                                            </thead>
+                                            <tbody className="divide-y divide-gray-200 dark:divide-neutral-800 bg-white dark:bg-neutral-900">
+                                                {formData.batches.map((batch, idx) => (
+                                                    <tr key={idx} className="hover:bg-gray-50 dark:hover:bg-neutral-800 transition-colors">
+                                                        <td className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700">
                                                             <input
                                                                 type="text"
-                                                                value={batch.expiryDate || ""}
-                                                                onChange={(e) => handleBatchExpiryChange(batch.batchNumber, formatDateInput(e.target.value))}
-                                                                className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1 pr-7 text-center focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-mono"
-                                                                placeholder="DD/MM/YYYY"
+                                                                value={batch.batchNumber}
+                                                                onChange={(e) => handleBatchNumberChange(idx, e.target.value)}
+                                                                className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1 text-xs sm:text-sm focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-medium font-mono"
+                                                                placeholder="Nhập số lô..."
                                                             />
+                                                        </td>
+                                                        <td className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700">
+                                                            <div className="relative group">
+                                                                <input
+                                                                    type="text"
+                                                                    value={batch.expiryDate || ""}
+                                                                    onChange={(e) => handleBatchExpiryChange(idx, formatDateInput(e.target.value))}
+                                                                    className="w-full border border-gray-300 dark:border-neutral-700 rounded px-2 py-1 pr-7 text-center focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] bg-white dark:bg-neutral-900 text-gray-900 dark:text-gray-100 font-mono"
+                                                                    placeholder="DD/MM/YYYY"
+                                                                />
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => batchDateInputRefs.current[idx]?.showPicker()}
+                                                                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#5c9a38] transition-colors"
+                                                                >
+                                                                    <CalendarIcon size={12} />
+                                                                </button>
+                                                                <input
+                                                                    type="date"
+                                                                    ref={(el) => { batchDateInputRefs.current[idx] = el }}
+                                                                    className="absolute opacity-0 pointer-events-none"
+                                                                    onChange={(e) => {
+                                                                        if (e.target.value) {
+                                                                            const d = new Date(e.target.value)
+                                                                            handleBatchExpiryChange(idx, `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`)
+                                                                        }
+                                                                    }}
+                                                                />
+                                                            </div>
+                                                        </td>
+                                                        <td className="px-3 sm:px-4 py-2 border-r border-gray-200 dark:border-neutral-700 text-right">
+                                                            <NumericInput
+                                                                value={batch.quantity / (initialData.conversionRate || 1)}
+                                                                onChange={(v) => handleBatchQuantityChange(idx, v)}
+                                                                className="w-[80px] sm:w-[100px] ml-auto text-right border border-gray-300 dark:border-neutral-700 rounded px-2 py-1 focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-neutral-900"
+                                                            />
+                                                        </td>
+                                                        <td className="px-1 sm:px-2 py-2 text-center">
                                                             <button
                                                                 type="button"
-                                                                onClick={() => batchDateInputRefs.current[idx]?.showPicker()}
-                                                                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#5c9a38] transition-colors"
+                                                                onClick={() => removeBatch(idx)}
+                                                                className="text-red-400 hover:text-red-600 p-1 transition-colors rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                                title="Xóa lô này"
                                                             >
-                                                                <CalendarIcon size={12} />
+                                                                <Trash2 size={13} />
                                                             </button>
-                                                            <input
-                                                                type="date"
-                                                                ref={(el) => { batchDateInputRefs.current[idx] = el }}
-                                                                className="absolute opacity-0 pointer-events-none"
-                                                                onChange={(e) => {
-                                                                    if (e.target.value) {
-                                                                        const d = new Date(e.target.value)
-                                                                        handleBatchExpiryChange(batch.batchNumber, `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`)
-                                                                    }
-                                                                }}
-                                                            />
-                                                        </div>
-                                                    </td>
-                                                    <td className="px-3 sm:px-4 py-2 text-right">
-                                                        <NumericInput
-                                                            value={batch.quantity / (initialData.conversionRate || 1)}
-                                                            onChange={(v) => handleBatchQuantityChange(batch.batchNumber, v)}
-                                                            className="w-[80px] sm:w-[100px] ml-auto text-right border border-gray-300 dark:border-neutral-700 rounded px-2 py-1 focus:outline-none focus:border-[#5c9a38] focus:ring-1 focus:ring-[#5c9a38] font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-neutral-900"
-                                                        />
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                                        </td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                ) : (
+                                    <div className="border border-dashed border-gray-300 dark:border-neutral-700 rounded-lg py-6 text-center text-xs text-gray-400 italic">
+                                        Chưa có lô hàng nào. Nhấn &ldquo;Thêm lô&rdquo; để thêm mới.
+                                    </div>
+                                )}
                             </div>
                         )}
 
@@ -777,22 +863,22 @@ export function AddProductModal({ isOpen, onClose, onSuccess, initialData }: Add
                 </div>
 
                 {/* FOOTER ACTIONS */}
-                <div className="flex flex-wrap items-center justify-end px-3 sm:px-4 py-2 sm:py-3 border-t border-gray-200 dark:border-neutral-800 bg-gray-50 dark:bg-neutral-900/50 gap-2">
+                <div className="sticky bottom-0 z-20 flex flex-col sm:flex-row gap-2 px-3 sm:px-4 py-3 border-t border-gray-200 dark:border-neutral-800 bg-white/95 dark:bg-neutral-900/95 backdrop-blur">
                     <button
                         onClick={() => handleSubmit('save_new')}
-                        className="bg-white dark:bg-neutral-800 hover:bg-gray-100 dark:hover:bg-neutral-700 text-[#5c9a38] border border-[#5c9a38] px-3 sm:px-4 py-2 rounded text-[11px] sm:text-sm font-bold transition-all active:scale-95 flex-1 sm:flex-none"
+                        className="w-full sm:w-auto bg-white dark:bg-neutral-800 hover:bg-gray-100 dark:hover:bg-neutral-700 text-[#5c9a38] border border-[#5c9a38] py-2 px-4 rounded text-sm font-bold transition-all active:scale-95"
                     >
                         ✓ Lưu & Thêm mới
                     </button>
                     <button
                         onClick={() => handleSubmit('save')}
-                        className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white px-4 sm:px-8 py-2 rounded text-[11px] sm:text-sm font-black transition-all active:scale-95 shadow-lg shadow-green-500/10 flex-1 sm:flex-none"
+                        className="w-full sm:w-auto bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white py-2 px-4 rounded text-sm font-black transition-all active:scale-95 shadow-lg shadow-green-500/10"
                     >
                         ✓ LƯU HÀNG HÓA
                     </button>
                     <button
                         onClick={onClose}
-                        className="text-gray-500 hover:bg-gray-100 dark:hover:bg-neutral-800 px-3 sm:px-4 py-2 rounded text-[11px] sm:text-sm font-bold transition-all flex items-center justify-center gap-1 flex-1 sm:flex-none border border-transparent hover:border-gray-200 dark:hover:border-neutral-700"
+                        className="w-full sm:w-auto text-gray-500 hover:bg-gray-100 dark:hover:bg-neutral-800 py-2 px-4 rounded text-sm font-bold transition-all flex items-center justify-center gap-1 border border-transparent hover:border-gray-200 dark:hover:border-neutral-700"
                     >
                         <X className="w-4 h-4" /> Thoát
                     </button>

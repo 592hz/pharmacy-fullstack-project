@@ -1,11 +1,13 @@
 import { useState, useMemo, useEffect } from "react"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import { Download, Upload, Plus, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, FileText } from "lucide-react"
+import { Download, Upload, Plus, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, FileText, Copy, Trash2, CheckSquare, Square } from "lucide-react"
 import { toast } from "sonner"
 import { type ExportOrder } from "@/lib/schemas"
 import { exportSlipService } from "@/services/export-slip.service"
 import { getErrorMessage } from "@/lib/utils"
 import { useDebounce } from "@/hooks/use-debounce"
+
+const DRAFT_STORAGE_KEY = "export_order_draft"
 
 const PAGE_SIZE_OPTIONS = [10, 20, 50]
 
@@ -29,6 +31,7 @@ export default function ExportManagePage() {
     const [slips, setSlips] = useState<ExportOrder[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [showFilters, setShowFilters] = useState(false)
+    const [localDraft, setLocalDraft] = useState<any>(null)
 
     const fetchSlips = async () => {
         setIsLoading(true)
@@ -62,10 +65,14 @@ export default function ExportManagePage() {
     const [page, setPage] = useState(1)
     const [pageSize, setPageSize] = useState(10)
 
+    // ── Multi Selection state ────────────────────────────────────────────────
+    const [selectedIds, setSelectedIds] = useState<string[]>([])
+    const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false)
+
     useEffect(() => {
         const date = searchParams.get("date")
         const type = searchParams.get("type")
-        
+
         if (date) setFilterDate(date)
         if (type === "Ngày" || type === "Từ ngày" || type === "Tháng" || type === "Quý" || type === "Năm") {
             setDateFilterType(type)
@@ -74,10 +81,19 @@ export default function ExportManagePage() {
 
     useEffect(() => {
         fetchSlips()
+        const savedDraft = localStorage.getItem(DRAFT_STORAGE_KEY)
+        if (savedDraft) {
+            try {
+                setLocalDraft(JSON.parse(savedDraft))
+            } catch (e) {
+                console.error("Failed to parse local draft", e)
+            }
+        }
     }, [])
 
     useEffect(() => {
         setPage(1)
+        setSelectedIds([])
     }, [dateFilterType, filterYear, filterMonth, filterDate, filterStartDate, filterEndDate, filterQuarter, debouncedFilterKeyword, filterPrescription])
 
     // ── Delete confirm state ─────────────────────────────────────────────────
@@ -115,8 +131,8 @@ export default function ExportManagePage() {
                 const matchesCustomer = s.customerName.toLowerCase().includes(kw)
                 const matchesId = (s.id || "").toLowerCase().includes(kw)
                 const matchesPhone = (s.customerPhone || "").toLowerCase().includes(kw)
-                const matchesItems = s.items?.some(item => 
-                    item.name.toLowerCase().includes(kw) || 
+                const matchesItems = s.items?.some(item =>
+                    item.name.toLowerCase().includes(kw) ||
                     item.code.toLowerCase().includes(kw)
                 )
 
@@ -133,6 +149,25 @@ export default function ExportManagePage() {
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
     const paged = filtered.slice((page - 1) * pageSize, page * pageSize)
+
+    // ── Multi-select helpers ─────────────────────────────────────────────────
+    const toggleSelectAll = () => {
+        const selectableIds = paged.map(s => s.id!)
+        const allSelected = selectableIds.length > 0 && selectableIds.every(id => selectedIds.includes(id))
+        if (allSelected) {
+            setSelectedIds(prev => prev.filter(id => !selectableIds.includes(id)))
+        } else {
+            setSelectedIds(prev => [...new Set([...prev, ...selectableIds])])
+        }
+    }
+
+    const toggleSelectItem = (id: string) => {
+        setSelectedIds(prev => 
+            prev.includes(id) 
+                ? prev.filter(i => i !== id) 
+                : [...prev, id]
+        )
+    }
 
     // ── Handlers ─────────────────────────────────────────────────────────────
     const handleSearch = () => {
@@ -157,7 +192,8 @@ export default function ExportManagePage() {
             setIsDeleting(true)
             try {
                 await exportSlipService.delete(slipToDelete.id)
-                toast.success(`Đã xóa phiếu xuất ${slipToDelete.id}`)
+                toast.success(`Đã đưa phiếu xuất ${slipToDelete.id} vào thùng rác`)
+                setSelectedIds(prev => prev.filter(id => id !== slipToDelete.id))
                 setSlipToDelete(null)
                 setDeleteStep(0)
                 fetchSlips()
@@ -172,6 +208,48 @@ export default function ExportManagePage() {
     const cancelDelete = () => {
         setSlipToDelete(null)
         setDeleteStep(0)
+    }
+
+    const handleBulkDeleteClick = () => {
+        setShowBulkDeleteConfirm(true)
+    }
+
+    const confirmBulkDelete = async () => {
+        if (isDeleting) return
+        setIsDeleting(true)
+        try {
+            await exportSlipService.bulkDelete(selectedIds)
+            toast.success(`Đã đưa ${selectedIds.length} phiếu xuất vào thùng rác!`)
+            setSelectedIds([])
+            setShowBulkDeleteConfirm(false)
+            fetchSlips()
+        } catch (error: unknown) {
+            toast.error(`Lỗi xóa hàng loạt: ${getErrorMessage(error)}`)
+        } finally {
+            setIsDeleting(false)
+        }
+    }
+
+    const handleCopy = (slip: ExportOrder) => {
+        // Simple helper for current time in dd/mm/yyyy HH:mm format
+        const now = new Date()
+        const dateStr = `${String(now.getDate()).padStart(2, '0')}/${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+
+        const copyData = {
+            notes: slip.notes || "",
+            items: slip.items || [],
+            paymentMethod: slip.paymentMethod || "Tiền mặt",
+            isPrescription: slip.isPrescription || false,
+            doctorName: slip.doctorName || "",
+            customerId: slip.customerId || "",
+            customerName: slip.customerName || "Khách lẻ",
+            symptoms: slip.symptoms || "",
+            dateValue: dateStr,
+            timestamp: now.getTime()
+        }
+        localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(copyData))
+        toast.success(`Đã sao chép nội dung phiếu ${slip.id}`)
+        navigate("/export-manage/create")
     }
 
     // ── Pagination helpers ───────────────────────────────────────────────────
@@ -343,13 +421,21 @@ export default function ExportManagePage() {
 
                     {/* ── Main Content Area ──────────────────────────────── */}
                     <div className="flex-1 flex flex-col min-w-0">
-                        <div className="flex items-center gap-2 mb-4">
+                        <div className="flex items-center gap-2 mb-4 flex-wrap">
                             <button
                                 onClick={() => navigate("/export-manage/create")}
                                 className="bg-[#5c9a38] hover:bg-[#4d822f] text-white px-4 py-1.5 rounded flex items-center gap-2 text-sm font-bold shadow-sm transition-all active:scale-95"
                             >
                                 <Plus size={16} /> Bán Hàng
                             </button>
+                            {selectedIds.length > 0 && (
+                                <button
+                                    onClick={handleBulkDeleteClick}
+                                    className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded flex items-center gap-1.5 text-sm font-bold shadow-sm transition-all active:scale-95 animate-in fade-in zoom-in duration-200"
+                                >
+                                    <Trash2 size={16} /> Xóa mục đã chọn ({selectedIds.length})
+                                </button>
+                            )}
                             <button className="p-2 border border-gray-300 dark:border-neutral-700 rounded hover:bg-gray-100 dark:hover:bg-neutral-800 bg-[#5c9a38] text-white">
                                 <Download size={16} />
                             </button>
@@ -369,6 +455,15 @@ export default function ExportManagePage() {
                             <table className="w-full text-xs text-left border-collapse whitespace-nowrap">
                                 <thead className="bg-[#f8f9fa] dark:bg-neutral-900 border-b border-gray-200 dark:border-neutral-800 font-bold text-gray-700 dark:text-gray-400">
                                     <tr>
+                                        <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-800 w-8 text-center">
+                                            <button onClick={toggleSelectAll} className="text-gray-400 hover:text-[#5c9a38] transition-colors">
+                                                {paged.length > 0 && paged.every(s => selectedIds.includes(s.id!)) ? (
+                                                    <CheckSquare size={16} className="text-[#5c9a38]" />
+                                                ) : (
+                                                    <Square size={16} />
+                                                )}
+                                            </button>
+                                        </th>
                                         <th className="px-1 py-3 border-r border-gray-200 dark:border-neutral-800 w-20 text-center uppercase text-[10px]">#</th>
                                         <th className="px-1 py-3 border-r border-gray-200 dark:border-neutral-800 w-10 text-center uppercase text-[10px] hidden sm:table-cell">STT</th>
                                         <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase text-[10px]">Số phiếu</th>
@@ -381,14 +476,82 @@ export default function ExportManagePage() {
                                     </tr>
                                 </thead>
                                 <tbody>
+                                    {localDraft && page === 1 && (
+                                        <tr className="bg-orange-50/50 dark:bg-orange-900/10 border-b border-orange-100 dark:border-orange-900/30 text-[11px] sm:text-xs">
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-center" />
+                                            <td className="px-1 py-2 border-r border-gray-200 dark:border-neutral-800 flex items-center justify-center gap-1">
+                                                <button
+                                                    onClick={() => navigate("/export-manage/create")}
+                                                    className="bg-orange-500 text-white px-2 py-0.5 rounded text-[9px] font-bold hover:bg-orange-600"
+                                                >
+                                                    Tiếp tục
+                                                </button>
+                                                <button
+                                                    onClick={() => {
+                                                        if (window.confirm("Xóa bản nháp này?")) {
+                                                            localStorage.removeItem(DRAFT_STORAGE_KEY)
+                                                            setLocalDraft(null)
+                                                            toast.success("Đã xóa bản nháp")
+                                                        }
+                                                    }}
+                                                    className="bg-red-500 text-white px-2 py-0.5 rounded text-[9px] font-bold hover:bg-red-600"
+                                                >
+                                                    Xóa
+                                                </button>
+                                            </td>
+                                            <td className="px-1 py-2 border-r border-gray-200 dark:border-neutral-800 text-center hidden sm:table-cell text-orange-500 font-bold">
+                                                DRAFT
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800">
+                                                <span className="bg-orange-100 dark:bg-orange-900/40 text-orange-700 dark:text-orange-300 px-1.5 py-0.5 rounded text-[9px] font-black uppercase">Bản nháp</span>
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-orange-400">
+                                                {localDraft.timestamp ? fmtDate(new Date(localDraft.timestamp).toISOString()) : "Vừa xong"}
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800">
+                                                <div className="flex flex-col gap-0.5">
+                                                    <span className="font-bold text-gray-800 dark:text-gray-200">{localDraft.customerName || "Khách lẻ"}</span>
+                                                    {localDraft.isPrescription && <span className="text-[9px] text-red-600 font-black uppercase italic leading-none">Bán theo đơn</span>}
+                                                </div>
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-red-500 italic font-medium truncate max-w-[120px] hidden md:table-cell">
+                                                {localDraft.symptoms}
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-right font-bold text-orange-600">
+                                                {vnd(localDraft.items?.reduce((sum: number, i: any) => sum + (i.totalAmount || 0), 0) || 0)}
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-gray-500 hidden lg:table-cell">
+                                                Bản nháp
+                                            </td>
+                                            <td className="px-2 py-2 text-gray-400 italic truncate max-w-[150px] hidden xl:table-cell">
+                                                {localDraft.notes}
+                                            </td>
+                                        </tr>
+                                    )}
                                     {paged.map((slip, idx) => (
-                                        <tr key={slip.id || idx} className="hover:bg-gray-50 dark:hover:bg-neutral-800/20 items-center border-b border-gray-100 dark:border-neutral-800 text-[11px] sm:text-xs">
+                                        <tr key={slip.id || idx} className={`hover:bg-gray-50 dark:hover:bg-neutral-800/20 items-center border-b border-gray-100 dark:border-neutral-800 text-[11px] sm:text-xs transition-colors ${selectedIds.includes(slip.id || '') ? 'bg-green-50/20 dark:bg-green-900/10' : ''}`}>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-center">
+                                                <button onClick={() => toggleSelectItem(slip.id!)} className="text-gray-400 hover:text-[#5c9a38] transition-colors">
+                                                    {selectedIds.includes(slip.id!) ? (
+                                                        <CheckSquare size={16} className="text-[#5c9a38]" />
+                                                    ) : (
+                                                        <Square size={16} />
+                                                    )}
+                                                </button>
+                                            </td>
                                             <td className="px-1 py-2 border-r border-gray-200 dark:border-neutral-800 flex items-center justify-center gap-1">
                                                 <button
                                                     onClick={() => handleView(slip.id!)}
                                                     className="bg-[#5c9a38] text-white px-2 py-0.5 rounded text-[9px] font-bold hover:bg-[#4d822f]"
                                                 >
                                                     Xem
+                                                </button>
+                                                <button
+                                                    onClick={() => handleCopy(slip)}
+                                                    className="bg-blue-500 text-white px-2 py-0.5 rounded text-[9px] font-bold hover:bg-blue-600"
+                                                    title="Sao chép phiếu này"
+                                                >
+                                                    <Copy size={10} />
                                                 </button>
                                                 <button
                                                     onClick={() => handleDeleteClick(slip)}
@@ -464,7 +627,7 @@ export default function ExportManagePage() {
                                 <select
                                     value={pageSize}
                                     onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1) }}
-                                    className="border border-gray-300 rounded px-2 py-1 text-xs outline-none ml-2"
+                                    className="border border-gray-300 rounded px-2 py-1 text-xs outline-none ml-2 bg-transparent"
                                 >
                                     {PAGE_SIZE_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
                                 </select>
@@ -486,7 +649,7 @@ export default function ExportManagePage() {
                         </h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
                             {deleteStep === 1
-                                ? `Bạn có chắc chắn muốn xóa phiếu xuất "${slipToDelete.id}"? Hành động này không thể hoàn tác.`
+                                ? `Bạn có chắc chắn muốn xóa phiếu xuất "${slipToDelete.id}"? Phiếu này sẽ được chuyển vào Thùng rác.`
                                 : `Vui lòng xác nhận LẦN CUỐI. Bạn thực sự muốn xóa phiếu xuất "${slipToDelete.id}"?`}
                         </p>
                         <div className="flex items-center justify-center gap-3">
@@ -502,6 +665,39 @@ export default function ExportManagePage() {
                                 className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 shadow-sm disabled:opacity-50"
                             >
                                 {isDeleting ? "Đang xóa..." : (deleteStep === 1 ? "Xóa bỏ" : "Xác nhận xóa")}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ── Bulk Delete Confirmation Modal ─────────────────────────────────── */}
+            {showBulkDeleteConfirm && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="relative w-full max-w-md rounded-xl bg-white shadow-2xl dark:bg-neutral-900 p-6 text-center border dark:border-neutral-800">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30 mb-4">
+                            <span className="text-red-600 text-xl font-bold">!</span>
+                        </div>
+                        <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-2">
+                            Xác nhận xóa nhiều phiếu xuất
+                        </h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
+                            Bạn có chắc chắn muốn xóa {selectedIds.length} phiếu xuất đã chọn và đưa chúng vào thùng rác?
+                        </p>
+                        <div className="flex items-center justify-center gap-3">
+                            <button
+                                onClick={() => setShowBulkDeleteConfirm(false)}
+                                className="rounded-md bg-white px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 hover:bg-gray-50 dark:bg-neutral-800 dark:text-gray-300 dark:border-neutral-700"
+                            >
+                                Hủy bỏ
+                            </button>
+                            <button
+                                onClick={confirmBulkDelete}
+                                disabled={isDeleting}
+                                className="rounded-md bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {isDeleting && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+                                {isDeleting ? "Đang xóa..." : "Xác nhận xóa"}
                             </button>
                         </div>
                     </div>

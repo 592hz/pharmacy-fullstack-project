@@ -5,13 +5,14 @@ import { productService } from "@/services/product.service"
 import { productCategoryService } from "@/services/product-category.service"
 import { supplierService } from "@/services/supplier.service"
 import { purchaseOrderService } from "@/services/purchase-order.service"
+import { exportSlipService } from "@/services/export-slip.service"
 import { getErrorMessage } from "@/lib/utils"
 import type { IProduct } from "@/types/product"
 import type { IProductCategory } from "@/types/category"
 import type { ISupplier } from "@/types/supplier"
 import type { IPurchaseOrder } from "@/types/purchase-order"
 
-type TrashItemType = "categories" | "products" | "suppliers" | "orders"
+type TrashItemType = "categories" | "products" | "suppliers" | "orders" | "exports"
 
 interface TrashItem {
     id: string
@@ -27,6 +28,7 @@ export default function TrashPage() {
     const [isLoading, setIsLoading] = useState(true)
     const [selectedIds, setSelectedIds] = useState<string[]>([])
     const [itemToPermanentDelete, setItemToPermanentDelete] = useState<{ id?: string, ids?: string[], name?: string, type: TrashItemType, mode: 'single' | 'bulk' | 'empty' } | null>(null)
+    const [isActionInProgress, setIsActionInProgress] = useState(false)
 
     const fetchDeletedItems = useCallback(async () => {
         setIsLoading(true)
@@ -66,6 +68,14 @@ export default function TrashPage() {
                     name: `Phiếu nhập ${o.id} - ${o.supplierName}`,
                     deletedAt: o.deletedAt
                 }))
+            } else if (activeTab === "exports") {
+                const res = await exportSlipService.getDeleted()
+                data = res.map((e: any) => ({
+                    id: e.id || "",
+                    code: e.id || "",
+                    name: `Phiếu xuất ${e.id} - ${e.customerName}`,
+                    deletedAt: e.deletedAt
+                }))
             }
             setItems(data)
         } catch (error: unknown) {
@@ -80,6 +90,8 @@ export default function TrashPage() {
     }, [fetchDeletedItems])
 
     const handleRestore = async (id: string, type: TrashItemType) => {
+        if (isActionInProgress) return
+        setIsActionInProgress(true)
         try {
             if (type === "categories") {
                 await productCategoryService.restore(id)
@@ -89,17 +101,23 @@ export default function TrashPage() {
                 await supplierService.restore(id)
             } else if (type === "orders") {
                 await purchaseOrderService.restore(id)
+            } else if (type === "exports") {
+                await exportSlipService.restore(id)
             }
             toast.success("Đã khôi phục thành công!")
             setItems(prev => prev.filter(item => item.id !== id))
             setSelectedIds(prev => prev.filter(selectedId => selectedId !== id))
         } catch (error: unknown) {
             toast.error("Lỗi khi khôi phục: " + getErrorMessage(error))
+        } finally {
+            setIsActionInProgress(false)
         }
     }
 
     const handleBulkRestore = async () => {
         if (selectedIds.length === 0) return
+        if (isActionInProgress) return
+        setIsActionInProgress(true)
         try {
             if (activeTab === "categories") {
                 await productCategoryService.bulkRestore(selectedIds)
@@ -109,17 +127,23 @@ export default function TrashPage() {
                 await supplierService.bulkRestore(selectedIds)
             } else if (activeTab === "orders") {
                 await purchaseOrderService.bulkRestore(selectedIds)
+            } else if (activeTab === "exports") {
+                await exportSlipService.bulkRestore(selectedIds)
             }
             toast.success(`Đã khôi phục ${selectedIds.length} mục thành công!`)
             setItems(prev => prev.filter(item => !selectedIds.includes(item.id)))
             setSelectedIds([])
         } catch (error: unknown) {
             toast.error("Lỗi khi khôi phục hàng loạt: " + getErrorMessage(error))
+        } finally {
+            setIsActionInProgress(false)
         }
     }
 
     const confirmPermanentDelete = async () => {
         if (!itemToPermanentDelete) return
+        if (isActionInProgress) return
+        setIsActionInProgress(true)
         try {
             const { id, ids, type, mode } = itemToPermanentDelete
             
@@ -128,6 +152,7 @@ export default function TrashPage() {
                 else if (type === "products") await productService.permanentDelete(id)
                 else if (type === "suppliers") await supplierService.permanentDelete(id)
                 else if (type === "orders") await purchaseOrderService.permanentDelete(id)
+                else if (type === "exports") await exportSlipService.permanentDelete(id)
                 setItems(prev => prev.filter(item => item.id !== id))
                 setSelectedIds(prev => prev.filter(selectedId => selectedId !== id))
             } else if (mode === 'bulk' && ids) {
@@ -135,6 +160,7 @@ export default function TrashPage() {
                 else if (type === "products") await productService.bulkPermanentDelete(ids)
                 else if (type === "suppliers") await supplierService.bulkPermanentDelete(ids)
                 else if (type === "orders") await purchaseOrderService.bulkPermanentDelete(ids)
+                else if (type === "exports") await exportSlipService.bulkPermanentDelete(ids)
                 setItems(prev => prev.filter(item => !ids.includes(item.id)))
                 setSelectedIds([])
             } else if (mode === 'empty') {
@@ -142,6 +168,7 @@ export default function TrashPage() {
                 else if (type === "products") await productService.emptyTrash()
                 else if (type === "suppliers") await supplierService.emptyTrash()
                 else if (type === "orders") await purchaseOrderService.emptyTrash()
+                else if (type === "exports") await exportSlipService.emptyTrash()
                 setItems([])
                 setSelectedIds([])
             }
@@ -150,6 +177,8 @@ export default function TrashPage() {
             setItemToPermanentDelete(null)
         } catch (error: unknown) {
             toast.error("Lỗi khi xóa vĩnh viễn: " + getErrorMessage(error))
+        } finally {
+            setIsActionInProgress(false)
         }
     }
 
@@ -189,7 +218,7 @@ export default function TrashPage() {
 
                     {/* Tabs */}
                     <div className="flex border-b border-gray-200 dark:border-neutral-800 mb-6 overflow-x-auto">
-                        {(["categories", "products", "suppliers", "orders"] as const).map((tab) => (
+                        {(["categories", "products", "suppliers", "orders", "exports"] as const).map((tab) => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
@@ -200,7 +229,8 @@ export default function TrashPage() {
                             >
                                 {tab === "categories" ? "Nhóm sản phẩm" : 
                                  tab === "products" ? "Sản phẩm" : 
-                                 tab === "suppliers" ? "Nhà cung cấp" : "Phiếu nhập hàng"}
+                                 tab === "suppliers" ? "Nhà cung cấp" : 
+                                 tab === "orders" ? "Phiếu nhập hàng" : "Phiếu xuất hàng"}
                             </button>
                         ))}
                     </div>
@@ -339,8 +369,15 @@ export default function TrashPage() {
                             Hành động này <span className="text-red-500 font-bold">không thể khôi phục</span>.
                         </p>
                         <div className="flex justify-end gap-2">
-                            <button onClick={() => setItemToPermanentDelete(null)} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-md">Hủy</button>
-                            <button onClick={confirmPermanentDelete} className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md">Xóa vĩnh viễn</button>
+                            <button onClick={() => setItemToPermanentDelete(null)} disabled={isActionInProgress} className="px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 rounded-md disabled:opacity-50">Hủy</button>
+                            <button 
+                                onClick={confirmPermanentDelete} 
+                                disabled={isActionInProgress}
+                                className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                            >
+                                {isActionInProgress && <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+                                {isActionInProgress ? "Đang xử lý..." : "Xóa vĩnh viễn"}
+                            </button>
                         </div>
                     </div>
                 </div>

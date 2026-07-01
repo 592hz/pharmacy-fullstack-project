@@ -7,7 +7,7 @@ export interface IPaymentMethod extends Document {
 }
 
 const PaymentMethodSchema: Schema = new Schema({
-    name: { type: String, required: true, unique: true },
+    name: { type: String, required: [true, 'Tên phương thức thanh toán không được để trống'], unique: true },
     notes: { type: String },
     isDefault: { type: Boolean, default: false }
 }, { 

@@ -128,12 +128,12 @@ export const productSchema = z.object({
     baseQuantity: z.number().optional(),
 })
 
-export type Product = z.infer<typeof productSchema> & { 
-    id: string; 
-    name: string; 
-    unit: string; 
-    importPrice: number; 
-    retailPrice: number; 
+export type Product = z.infer<typeof productSchema> & {
+    id: string;
+    name: string;
+    unit: string;
+    importPrice: number;
+    retailPrice: number;
     wholesalePrice: number;
     baseQuantity: number;
     registrationNo?: string;
@@ -224,6 +224,7 @@ export const exportOrderItemSchema = z.object({
     discountPercent: z.number().min(0).max(100).default(0),
     discountAmount: z.number().default(0),
     remainingAmount: z.number(),
+    parentDoseId: z.string().optional(),
 })
 
 export const exportOrderSchema = z.object({
@@ -288,6 +289,7 @@ export type PurchaseOrderItem = z.infer<typeof purchaseOrderItemSchema>
 
 // ─── DASHBOARD ───
 export const lowStockProductSchema = z.object({
+    id: z.string().optional(),
     name: z.string(),
     quantity: z.number(),
     unit: z.string(),
@@ -296,6 +298,7 @@ export const lowStockProductSchema = z.object({
 export type LowStockProduct = z.infer<typeof lowStockProductSchema>
 
 export const nearExpiryProductSchema = z.object({
+    id: z.string().optional(),
     name: z.string(),
     batchNumber: z.string(),
     expiryDate: z.string(),
@@ -307,9 +310,9 @@ export type NearExpiryProduct = z.infer<typeof nearExpiryProductSchema>
 
 export const dashboardSummarySchema = z.object({
     stats: z.object({
-        today: z.object({ revenue: z.number().min(0), profit: z.number() }),
-        month: z.object({ revenue: z.number().min(0), profit: z.number() }),
-        year: z.object({ revenue: z.number().min(0), profit: z.number() }),
+        today: z.object({ revenue: z.number().min(0), profit: z.number(), netProfit: z.number().optional() }),
+        month: z.object({ revenue: z.number().min(0), profit: z.number(), netProfit: z.number().optional() }),
+        year: z.object({ revenue: z.number().min(0), profit: z.number(), netProfit: z.number().optional() }),
         totalIncome: z.number().min(0),
         totalExpense: z.number().min(0),
         lowStockCount: z.number().min(0),
@@ -318,6 +321,7 @@ export const dashboardSummarySchema = z.object({
         lowStockProducts: z.array(lowStockProductSchema),
         nearExpiryProducts: z.array(nearExpiryProductSchema),
     }),
+
     chartData: z.object({
         month: z.array(z.object({
             name: z.string(),
