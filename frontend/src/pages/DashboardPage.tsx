@@ -154,6 +154,7 @@ export default function DashboardPage() {
                         <p className="text-[10px] text-muted-foreground">Từ thu chi ngoài</p>
                     </div>
                 </div>
+
                 {/* biểu đồ thống kê doanh thu */}
                 <div className="flex items-center space-x-4 rounded-xl border bg-white dark:bg-neutral-900 p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
                     <div className="flex min-w-[48px] h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-500 dark:bg-red-900/40">
@@ -164,6 +165,29 @@ export default function DashboardPage() {
                         <p className="text-lg font-bold tracking-tight text-foreground truncate">{formatCurrency(statsData.totalExpense)}</p>
                         <p className="text-[10px] text-muted-foreground">Từ thu chi ngoài</p>
                     </div>
+                </div>
+            </div>
+            {/* Cụm 1: Hôm nay */}
+            <div className="space-y-3">
+                <div className="flex items-center gap-2 px-1">
+                    <div className="w-1 h-4 bg-blue-500 rounded-full"></div>
+                    <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Thống kê hôm nay</h3>
+                </div>
+                <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 relative">
+                    {stats.slice(0, 3).map((item, index) => (
+                        <div key={index} className="flex items-center justify-between rounded-xl border bg-white dark:bg-neutral-900 p-3 sm:p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
+                            <div className="space-y-0.5 sm:space-y-1">
+                                <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase">{item.title}</p>
+                                <p className="text-sm sm:text-xl font-black tracking-tight text-foreground truncate">
+                                    {item.value.replace(" \u20ab", "")} <span className="text-[10px] font-normal font-mono opacity-50 sm:text-xs">đ</span>
+                                </p>
+                                <p className="text-[9px] sm:text-xs text-muted-foreground">{item.sub}</p>
+                            </div>
+                            <div className={`flex h-8 w-8 sm:h-11 sm:w-11 items-center justify-center rounded-full shrink-0 ${item.color}`}>
+                                <item.icon className="w-4 h-4 sm:w-5 sm:h-5" />
+                            </div>
+                        </div>
+                    ))}
                 </div>
             </div>
             {/* Thống kê doanh thu ngày tháng năm */}
@@ -227,30 +251,6 @@ export default function DashboardPage() {
             </div>
             {/* Nhóm chỉ số Thống kê */}
             <div className="grid gap-6">
-                {/* Cụm 1: Hôm nay */}
-                <div className="space-y-3">
-                    <div className="flex items-center gap-2 px-1">
-                        <div className="w-1 h-4 bg-blue-500 rounded-full"></div>
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Thống kê hôm nay</h3>
-                    </div>
-                    <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 relative">
-                        {stats.slice(0, 3).map((item, index) => (
-                            <div key={index} className="flex items-center justify-between rounded-xl border bg-white dark:bg-neutral-900 p-3 sm:p-4 shadow-sm transition-all hover:bg-neutral-50 dark:hover:bg-neutral-800/50">
-                                <div className="space-y-0.5 sm:space-y-1">
-                                    <p className="text-[10px] sm:text-xs font-medium text-muted-foreground uppercase">{item.title}</p>
-                                    <p className="text-sm sm:text-xl font-black tracking-tight text-foreground truncate">
-                                        {item.value.replace(" \u20ab", "")} <span className="text-[10px] font-normal font-mono opacity-50 sm:text-xs">đ</span>
-                                    </p>
-                                    <p className="text-[9px] sm:text-xs text-muted-foreground">{item.sub}</p>
-                                </div>
-                                <div className={`flex h-8 w-8 sm:h-11 sm:w-11 items-center justify-center rounded-full shrink-0 ${item.color}`}>
-                                    <item.icon className="w-4 h-4 sm:w-5 sm:h-5" />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
                 {/* Cụm 2: Tháng này */}
                 <div className="space-y-3">
                     <div className="flex items-center gap-2 px-1">

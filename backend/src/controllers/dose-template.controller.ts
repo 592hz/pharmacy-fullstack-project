@@ -29,7 +29,7 @@ export const deleteTemplate = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         await DoseTemplate.findByIdAndDelete(id);
-        res.status(200).json({ message: 'Template deleted successfully' });
+        res.status(200).json({ message: 'Xóa liều mẫu thành công' });
     } catch (error: any) {
         res.status(500).json({ message: error.message });
     }

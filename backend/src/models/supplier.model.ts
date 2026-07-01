@@ -18,8 +18,8 @@ export interface ISupplier extends Document {
 }
 
 const SupplierSchema: Schema = new Schema({
-    code: { type: String, required: true, unique: true },
-    name: { type: String, required: true },
+    code: { type: String, required: [true, 'Mã nhà cung cấp không được để trống'], unique: true },
+    name: { type: String, required: [true, 'Tên nhà cung cấp không được để trống'] },
     address: { type: String },
     taxCode: { type: String },
     phone: { type: String },

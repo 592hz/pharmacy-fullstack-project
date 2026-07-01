@@ -5,7 +5,7 @@ export interface IUnit extends Document {
 }
 
 const UnitSchema: Schema = new Schema({
-    name: { type: String, required: true, unique: true }
+    name: { type: String, required: [true, 'Tên đơn vị tính không được để trống'], unique: true }
 }, { 
     timestamps: true,
     toJSON: { virtuals: true },

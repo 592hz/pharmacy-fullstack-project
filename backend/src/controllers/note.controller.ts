@@ -23,8 +23,8 @@ export const createNote = async (req: Request, res: Response) => {
 export const deleteNote = async (req: Request, res: Response) => {
     try {
         const deletedNote = await Note.findByIdAndDelete(req.params.id);
-        if (!deletedNote) return res.status(404).json({ message: 'Note not found' });
-        res.status(200).json({ message: 'Note deleted successfully' });
+        if (!deletedNote) return res.status(404).json({ message: 'Không tìm thấy ghi chú' });
+        res.status(200).json({ message: 'Xóa ghi chú thành công' });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -37,7 +37,7 @@ export const updateNote = async (req: Request, res: Response) => {
             req.body, 
             { new: true, runValidators: true }
         );
-        if (!updatedNote) return res.status(404).json({ message: 'Note not found' });
+        if (!updatedNote) return res.status(404).json({ message: 'Không tìm thấy ghi chú' });
         res.status(200).json(updatedNote);
     } catch (error) {
         res.status(400).json({ message: (error as Error).message });

@@ -141,7 +141,7 @@ export const getExportSlipById = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
         const slip = await ExportSlip.findOne({ id, isDeleted: { $ne: true } } as any);
-        if (!slip) return res.status(404).json({ message: 'Export slip not found' });
+        if (!slip) return res.status(404).json({ message: 'Không tìm thấy hóa đơn xuất kho' });
         res.status(200).json(slip);
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
@@ -169,7 +169,7 @@ export const updateExportSlip = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
         const updatedSlip = await ExportSlip.findOneAndUpdate({ id } as any, req.body, { new: true });
-        if (!updatedSlip) return res.status(404).json({ message: 'Export slip not found' });
+        if (!updatedSlip) return res.status(404).json({ message: 'Không tìm thấy hóa đơn xuất kho' });
         res.status(200).json(updatedSlip);
     } catch (error) {
         res.status(400).json({ message: (error as Error).message });
@@ -185,12 +185,12 @@ export const deleteExportSlip = async (req: Request, res: Response) => {
             { isDeleted: true, deletedAt: new Date() },
             { new: true }
         );
-        if (!deletedSlip) return res.status(404).json({ message: 'Export slip not found' });
+        if (!deletedSlip) return res.status(404).json({ message: 'Không tìm thấy hóa đơn xuất kho' });
 
         // Restore stock when moving to trash
         await restoreExportStock(deletedSlip.items);
 
-        res.status(200).json({ message: 'Export slip moved to trash' });
+        res.status(200).json({ message: 'Đã chuyển hóa đơn xuất kho vào thùng rác' });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -205,7 +205,7 @@ export const restoreExportSlip = async (req: Request, res: Response) => {
             { isDeleted: false, deletedAt: undefined },
             { new: true }
         );
-        if (!restoredSlip) return res.status(404).json({ message: 'Export slip not found' });
+        if (!restoredSlip) return res.status(404).json({ message: 'Không tìm thấy hóa đơn xuất kho' });
 
         // Re-reduce stock when restored
         await reduceExportStock(restoredSlip.items);
@@ -221,8 +221,8 @@ export const permanentlyDeleteExportSlip = async (req: Request, res: Response) =
     try {
         const id = req.params.id as string;
         const deletedSlip = await ExportSlip.findOneAndDelete({ id } as any);
-        if (!deletedSlip) return res.status(404).json({ message: 'Export slip not found' });
-        res.status(200).json({ message: 'Export slip permanently deleted' });
+        if (!deletedSlip) return res.status(404).json({ message: 'Không tìm thấy hóa đơn xuất kho' });
+        res.status(200).json({ message: 'Đã xóa vĩnh viễn hóa đơn xuất kho' });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -233,7 +233,7 @@ export const bulkDeleteExportSlips = async (req: Request, res: Response) => {
     try {
         const { ids } = req.body;
         if (!ids || !Array.isArray(ids)) {
-            return res.status(400).json({ message: 'IDs array is required' });
+            return res.status(400).json({ message: 'Danh sách ID là bắt buộc' });
         }
 
         const slipsToDelete = await ExportSlip.find({ id: { $in: ids }, isDeleted: { $ne: true } });
@@ -244,7 +244,7 @@ export const bulkDeleteExportSlips = async (req: Request, res: Response) => {
             await restoreExportStock(slip.items);
         }
 
-        res.status(200).json({ message: `${slipsToDelete.length} export slips moved to trash` });
+        res.status(200).json({ message: `Đã chuyển ${slipsToDelete.length} hóa đơn xuất kho vào thùng rác` });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -255,7 +255,7 @@ export const bulkRestoreExportSlips = async (req: Request, res: Response) => {
     try {
         const { ids } = req.body;
         if (!ids || !Array.isArray(ids)) {
-            return res.status(400).json({ message: 'IDs array is required' });
+            return res.status(400).json({ message: 'Danh sách ID là bắt buộc' });
         }
 
         const slipsToRestore = await ExportSlip.find({ id: { $in: ids }, isDeleted: true });
@@ -267,7 +267,7 @@ export const bulkRestoreExportSlips = async (req: Request, res: Response) => {
             await reduceExportStock(slip.items);
         }
 
-        res.status(200).json({ message: `${slipsToRestore.length} export slips restored` });
+        res.status(200).json({ message: `Đã khôi phục ${slipsToRestore.length} hóa đơn xuất kho` });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -278,11 +278,11 @@ export const bulkPermanentlyDeleteExportSlips = async (req: Request, res: Respon
     try {
         const { ids } = req.body;
         if (!ids || !Array.isArray(ids)) {
-            return res.status(400).json({ message: 'IDs array is required' });
+            return res.status(400).json({ message: 'Danh sách ID là bắt buộc' });
         }
 
         const result = await ExportSlip.deleteMany({ id: { $in: ids } });
-        res.status(200).json({ message: `${result.deletedCount} export slips permanently deleted` });
+        res.status(200).json({ message: `Đã xóa vĩnh viễn ${result.deletedCount} hóa đơn xuất kho` });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -292,7 +292,7 @@ export const bulkPermanentlyDeleteExportSlips = async (req: Request, res: Respon
 export const emptyExportSlipTrash = async (_req: Request, res: Response) => {
     try {
         const result = await ExportSlip.deleteMany({ isDeleted: true });
-        res.status(200).json({ message: `${result.deletedCount} export slips permanently deleted from trash` });
+        res.status(200).json({ message: `Đã xóa vĩnh viễn ${result.deletedCount} hóa đơn xuất kho khỏi thùng rác` });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }

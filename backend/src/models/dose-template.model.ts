@@ -12,11 +12,11 @@ export interface IDoseTemplate extends Document {
 }
 
 const DoseTemplateSchema: Schema = new Schema({
-    name: { type: String, required: true },
-    price: { type: Number, required: true },
+    name: { type: String, required: [true, 'Tên liều mẫu không được để trống'] },
+    price: { type: Number, required: [true, 'Giá liều mẫu không được để trống'] },
     components: [{
-        product: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
-        quantity: { type: Number, required: true }
+        product: { type: Schema.Types.ObjectId, ref: 'Product', required: [true, 'Mã sản phẩm trong liều mẫu là bắt buộc'] },
+        quantity: { type: Number, required: [true, 'Số lượng sản phẩm trong liều mẫu là bắt buộc'] }
     }]
 }, { timestamps: true });
 

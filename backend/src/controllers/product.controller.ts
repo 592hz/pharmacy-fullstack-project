@@ -16,7 +16,7 @@ export const getProductById: RequestHandler = async (req, res) => {
     try {
         const id = req.params.id as string;
         const product = await Product.findOne({ id }).populate('categoryId').populate('supplierId');
-        if (!product) return res.status(404).json({ message: 'Product not found' });
+        if (!product) return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
         res.status(200).json(product);
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
@@ -37,7 +37,7 @@ export const updateProduct: RequestHandler = async (req, res) => {
     try {
         const id = req.params.id as string;
         const updatedProduct = await Product.findOneAndUpdate({ id }, req.body, { new: true });
-        if (!updatedProduct) return res.status(404).json({ message: 'Product not found' });
+        if (!updatedProduct) return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
         res.status(200).json(updatedProduct);
     } catch (error) {
         res.status(400).json({ message: (error as Error).message });
@@ -52,8 +52,8 @@ export const deleteProduct: RequestHandler = async (req, res) => {
             { isDeleted: true, deletedAt: new Date() },
             { new: true }
         );
-        if (!deletedProduct) return res.status(404).json({ message: 'Product not found' });
-        res.status(200).json({ message: 'Product moved to trash' });
+        if (!deletedProduct) return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
+        res.status(200).json({ message: 'Đã chuyển sản phẩm vào thùng rác' });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -79,7 +79,7 @@ export const restoreProduct: RequestHandler = async (req, res) => {
             { isDeleted: false, deletedAt: null },
             { new: true }
         );
-        if (!product) return res.status(404).json({ message: 'Product not found' });
+        if (!product) return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
         res.status(200).json(product);
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
@@ -90,8 +90,8 @@ export const permanentlyDeleteProduct: RequestHandler = async (req, res) => {
     try {
         const { id } = req.params;
         const result = await Product.findOneAndDelete({ id: id as string });
-        if (!result) return res.status(404).json({ message: 'Product not found' });
-        res.status(200).json({ message: 'Product permanently deleted' });
+        if (!result) return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
+        res.status(200).json({ message: 'Đã xóa vĩnh viễn sản phẩm' });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -101,7 +101,7 @@ export const bulkCreateProducts: RequestHandler = async (req, res) => {
     try {
         const productsRaw = req.body.products as Record<string, unknown>[];
         if (!Array.isArray(productsRaw)) {
-            return res.status(400).json({ message: 'Products should be an array' });
+            return res.status(400).json({ message: 'Danh sách sản phẩm phải là một mảng' });
         }
 
         // 1. Get or Create Default Supplier "Ngọc Mỹ"
@@ -177,7 +177,7 @@ export const bulkRestoreProducts = async (req: Request, res: Response) => {
     try {
         const { ids } = req.body;
         if (!ids || !Array.isArray(ids)) {
-            return res.status(400).json({ message: 'IDs array is required' });
+            return res.status(400).json({ message: 'Danh sách ID là bắt buộc' });
         }
 
         const result = await Product.updateMany(
@@ -185,7 +185,7 @@ export const bulkRestoreProducts = async (req: Request, res: Response) => {
             { isDeleted: false, deletedAt: null }
         );
 
-        res.status(200).json({ message: `${result.modifiedCount} products restored` });
+        res.status(200).json({ message: `Đã khôi phục ${result.modifiedCount} sản phẩm` });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -195,12 +195,12 @@ export const bulkPermanentlyDeleteProducts = async (req: Request, res: Response)
     try {
         const { ids } = req.body;
         if (!ids || !Array.isArray(ids)) {
-            return res.status(400).json({ message: 'IDs array is required' });
+            return res.status(400).json({ message: 'Danh sách ID là bắt buộc' });
         }
 
         const result = await Product.deleteMany({ id: { $in: ids } });
 
-        res.status(200).json({ message: `${result.deletedCount} products permanently deleted` });
+        res.status(200).json({ message: `Đã xóa vĩnh viễn ${result.deletedCount} sản phẩm` });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -209,7 +209,7 @@ export const bulkPermanentlyDeleteProducts = async (req: Request, res: Response)
 export const emptyProductTrash = async (_req: Request, res: Response) => {
     try {
         const result = await Product.deleteMany({ isDeleted: true });
-        res.status(200).json({ message: `${result.deletedCount} products permanently deleted` });
+        res.status(200).json({ message: `Đã xóa vĩnh viễn ${result.deletedCount} sản phẩm` });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -221,7 +221,7 @@ export const deleteAllProducts: RequestHandler = async (req, res) => {
             { isDeleted: { $ne: true } },
             { isDeleted: true, deletedAt: new Date() }
         );
-        res.status(200).json({ message: `${result.modifiedCount} products moved to trash` });
+        res.status(200).json({ message: `Đã chuyển ${result.modifiedCount} sản phẩm vào thùng rác` });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }

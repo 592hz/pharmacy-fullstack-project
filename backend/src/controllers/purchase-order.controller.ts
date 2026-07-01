@@ -84,7 +84,7 @@ export const getPurchaseOrderById = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
         const order = await PurchaseOrder.findOne({ id, isDeleted: { $ne: true } });
-        if (!order) return res.status(404).json({ message: 'Purchase order not found' });
+        if (!order) return res.status(404).json({ message: 'Không tìm thấy phiếu nhập hàng' });
         res.status(200).json(order);
     } catch (error: unknown) {
         res.status(500).json({ message: (error as Error).message });
@@ -126,7 +126,7 @@ export const updatePurchaseOrder = async (req: Request, res: Response) => {
         
         // 1. Get old order to reverse stock
         const oldOrder = await PurchaseOrder.findOne({ id, isDeleted: { $ne: true } });
-        if (!oldOrder) return res.status(404).json({ message: 'Purchase order not found' });
+        if (!oldOrder) return res.status(404).json({ message: 'Không tìm thấy phiếu nhập hàng' });
 
         // 2. Reverse old stock
         await adjustStock(oldOrder.items, -1);
@@ -141,7 +141,7 @@ export const updatePurchaseOrder = async (req: Request, res: Response) => {
         if (!updatedOrder) {
             // Rollback if update fails (though unlikely with findOne first)
             await adjustStock(oldOrder.items, 1);
-            return res.status(404).json({ message: 'Purchase order not found' });
+            return res.status(404).json({ message: 'Không tìm thấy phiếu nhập hàng' });
         }
 
         // 4. Apply new stock
@@ -178,7 +178,7 @@ export const deletePurchaseOrder = async (req: Request, res: Response) => {
             { isDeleted: true, deletedAt: new Date() },
             { new: true }
         );
-        if (!deletedOrder) return res.status(404).json({ message: 'Order not found' });
+        if (!deletedOrder) return res.status(404).json({ message: 'Không tìm thấy phiếu' });
 
         // Reverse stock when moving to trash
         await adjustStock(deletedOrder.items, -1);
@@ -190,7 +190,7 @@ export const deletePurchaseOrder = async (req: Request, res: Response) => {
             console.error('Failed to delete expense category entry on trash:', catErr);
         }
 
-        res.status(200).json({ message: 'Order moved to trash' });
+        res.status(200).json({ message: 'Đã chuyển phiếu nhập hàng vào thùng rác' });
     } catch (error: unknown) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -204,7 +204,7 @@ export const restoreOrder = async (req: Request, res: Response) => {
             { isDeleted: false, deletedAt: undefined },
             { new: true }
         );
-        if (!restoredOrder) return res.status(404).json({ message: 'Order not found' });
+        if (!restoredOrder) return res.status(404).json({ message: 'Không tìm thấy phiếu' });
 
         // Re-apply stock when restoring
         await adjustStock(restoredOrder.items, 1);
@@ -234,7 +234,7 @@ export const permanentlyDeleteOrder = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
         const deletedOrder = await PurchaseOrder.findOneAndDelete({ id });
-        if (!deletedOrder) return res.status(404).json({ message: 'Order not found' });
+        if (!deletedOrder) return res.status(404).json({ message: 'Không tìm thấy phiếu' });
 
         // Delete corresponding expense category entry
         try {
@@ -243,7 +243,7 @@ export const permanentlyDeleteOrder = async (req: Request, res: Response) => {
             console.error('Failed to delete expense category entry on permanent delete:', catErr);
         }
 
-        res.status(200).json({ message: 'Order permanently deleted' });
+        res.status(200).json({ message: 'Đã xóa vĩnh viễn phiếu nhập hàng' });
     } catch (error: unknown) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -253,7 +253,7 @@ export const bulkDeletePurchaseOrders = async (req: Request, res: Response) => {
     try {
         const { ids } = req.body;
         if (!ids || !Array.isArray(ids)) {
-            return res.status(400).json({ message: 'IDs array is required' });
+            return res.status(400).json({ message: 'Danh sách ID là bắt buộc' });
         }
 
         const ordersToDelete = await PurchaseOrder.find({ id: { $in: ids }, isDeleted: { $ne: true } });
@@ -273,7 +273,7 @@ export const bulkDeletePurchaseOrders = async (req: Request, res: Response) => {
             }
         }
 
-        res.status(200).json({ message: `${ordersToDelete.length} orders moved to trash` });
+        res.status(200).json({ message: `Đã chuyển ${ordersToDelete.length} phiếu nhập hàng vào thùng rác` });
     } catch (error: unknown) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -283,7 +283,7 @@ export const bulkRestoreOrders = async (req: Request, res: Response) => {
     try {
         const { ids } = req.body;
         if (!ids || !Array.isArray(ids)) {
-            return res.status(400).json({ message: 'IDs array is required' });
+            return res.status(400).json({ message: 'Danh sách ID là bắt buộc' });
         }
 
         const ordersToRestore = await PurchaseOrder.find({ id: { $in: ids }, isDeleted: true });
@@ -312,7 +312,7 @@ export const bulkRestoreOrders = async (req: Request, res: Response) => {
             }
         }
 
-        res.status(200).json({ message: `${ordersToRestore.length} orders restored and stock adjusted` });
+        res.status(200).json({ message: `Đã khôi phục ${ordersToRestore.length} phiếu nhập hàng và cập nhật tồn kho` });
     } catch (error: unknown) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -322,7 +322,7 @@ export const bulkPermanentlyDeleteOrders = async (req: Request, res: Response) =
     try {
         const { ids } = req.body;
         if (!ids || !Array.isArray(ids)) {
-            return res.status(400).json({ message: 'IDs array is required' });
+            return res.status(400).json({ message: 'Danh sách ID là bắt buộc' });
         }
 
         const result = await PurchaseOrder.deleteMany({ id: { $in: ids } });
@@ -333,7 +333,7 @@ export const bulkPermanentlyDeleteOrders = async (req: Request, res: Response) =
             console.error('Failed to delete categories for bulk permanently deleted orders:', catErr);
         }
 
-        res.status(200).json({ message: `${result.deletedCount} orders permanently deleted` });
+        res.status(200).json({ message: `Đã xóa vĩnh viễn ${result.deletedCount} phiếu nhập hàng` });
     } catch (error: unknown) {
         res.status(500).json({ message: (error as Error).message });
     }
@@ -352,7 +352,7 @@ export const emptyOrderTrash = async (_req: Request, res: Response) => {
             console.error('Failed to empty category trash:', catErr);
         }
 
-        res.status(200).json({ message: `${result.deletedCount} orders permanently deleted` });
+        res.status(200).json({ message: `Đã xóa vĩnh viễn ${result.deletedCount} phiếu nhập hàng` });
     } catch (error: unknown) {
         res.status(500).json({ message: (error as Error).message });
     }

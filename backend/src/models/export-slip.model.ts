@@ -37,31 +37,31 @@ export interface IExportSlip extends Document {
 }
 
 const ExportSlipItemSchema = new Schema({
-    id: { type: String, required: true },
-    code: { type: String, required: true },
-    name: { type: String, required: true },
-    unit: { type: String, required: true },
+    id: { type: String, required: [true, 'Mã sản phẩm không được để trống'] },
+    code: { type: String, required: [true, 'Mã vạch/Mã sản phẩm không được để trống'] },
+    name: { type: String, required: [true, 'Tên sản phẩm không được để trống'] },
+    unit: { type: String, required: [true, 'Đơn vị tính không được để trống'] },
     batchNumber: { type: String },
     expiryDate: { type: String },
-    quantity: { type: Number, required: true },
-    retailPrice: { type: Number, required: true },
-    importPrice: { type: Number, required: true },
-    totalAmount: { type: Number, required: true },
+    quantity: { type: Number, required: [true, 'Số lượng không được để trống'] },
+    retailPrice: { type: Number, required: [true, 'Giá bán lẻ không được để trống'] },
+    importPrice: { type: Number, required: [true, 'Giá nhập không được để trống'] },
+    totalAmount: { type: Number, required: [true, 'Tổng tiền không được để trống'] },
     discountPercent: { type: Number, default: 0 },
     discountAmount: { type: Number, default: 0 },
-    remainingAmount: { type: Number, required: true }
+    remainingAmount: { type: Number, required: [true, 'Số tiền còn lại không được để trống'] }
 });
 
 const ExportSlipSchema: Schema = new Schema({
-    id: { type: String, required: true, unique: true },
-    exportDate: { type: Date, required: true },
-    customerId: { type: String, required: true },
-    customerName: { type: String, required: true },
+    id: { type: String, required: [true, 'Mã hóa đơn xuất không được để trống'], unique: true },
+    exportDate: { type: Date, required: [true, 'Ngày xuất hóa đơn không được để trống'] },
+    customerId: { type: String, required: [true, 'Mã khách hàng không được để trống'] },
+    customerName: { type: String, required: [true, 'Tên khách hàng không được để trống'] },
     customerPhone: { type: String },
-    totalAmount: { type: Number, required: true },
-    grandTotal: { type: Number, required: true },
+    totalAmount: { type: Number, required: [true, 'Tổng số tiền không được để trống'] },
+    grandTotal: { type: Number, required: [true, 'Tổng cộng tiền thanh toán không được để trống'] },
     notes: { type: String },
-    createdBy: { type: String, required: true },
+    createdBy: { type: String, required: [true, 'Người tạo hóa đơn không được để trống'] },
     paymentMethod: { type: String },
     paymentStatus: { type: String, default: 'Đã thanh toán' },
     items: [ExportSlipItemSchema],

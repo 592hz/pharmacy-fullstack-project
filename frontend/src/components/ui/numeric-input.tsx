@@ -11,7 +11,7 @@ export interface NumericInputProps extends Omit<React.ComponentProps<"input">, '
 const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps>(
   ({ className, value, onChange, ...props }, ref) => {
     const [localValue, setLocalValue] = useState<string>(
-      value === 0 ? "" : value.toString()
+      value === 0 ? "" : formatNumberVN(value)
     )
 
     // Use a secondary state to track the previous prop value for synchronization
@@ -23,14 +23,55 @@ const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps>(
     }
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const val = e.target.value
+      const input = e.target
+      const rawVal = input.value
+
+      if (rawVal === "") {
+        setLocalValue("")
+        if (onChange) onChange(0)
+        return
+      }
+
       // Allow numbers, dots and commas
-      if (val === "" || /^[0-9.,]*$/.test(val)) {
-        setLocalValue(val)
-        if (onChange) {
-          // parseFloatSafe now handles dot as thousands and comma as decimal
-          onChange(parseFloatSafe(val))
+      if (/^[0-9.,]*$/.test(rawVal)) {
+        const selectionStart = input.selectionStart || 0
+        const valBeforeCursor = rawVal.substring(0, selectionStart)
+        const digitsBeforeCursor = valBeforeCursor.replace(/[^0-9]/g, "").length
+
+        const numericValue = parseFloatSafe(rawVal)
+        const endsWithComma = rawVal.endsWith(",")
+        const hasComma = rawVal.includes(",")
+
+        let formatted = formatNumberVN(numericValue)
+        if (endsWithComma) {
+          formatted = formatted + ","
+        } else if (hasComma) {
+          const valParts = rawVal.split(",")
+          const integerPart = parseFloatSafe(valParts[0])
+          formatted = formatNumberVN(integerPart) + "," + valParts.slice(1).join("")
         }
+
+        setLocalValue(formatted)
+        if (onChange) {
+          onChange(numericValue)
+        }
+
+        // Restore cursor position
+        setTimeout(() => {
+          if (!input) return
+          let newSelectionStart = 0
+          let digitCount = 0
+          for (let i = 0; i < formatted.length; i++) {
+            if (digitCount === digitsBeforeCursor) {
+              break
+            }
+            newSelectionStart++
+            if (/[0-9]/.test(formatted[i])) {
+              digitCount++
+            }
+          }
+          input.setSelectionRange(newSelectionStart, newSelectionStart)
+        }, 0)
       }
     }
 
