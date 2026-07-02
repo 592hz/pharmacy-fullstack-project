@@ -1,5 +1,6 @@
 import { Request, Response, RequestHandler } from 'express';
 import fs from 'fs';
+import mongoose from 'mongoose';
 import Product from '../models/product.model.js';
 import ProductCategory from '../models/product-category.model.js';
 import Supplier from '../models/supplier.model.js';
@@ -30,6 +31,13 @@ export const getProductById: RequestHandler = async (req, res) => {
 
 export const createProduct: RequestHandler = async (req, res) => {
     try {
+        if (req.body.supplierId && !mongoose.Types.ObjectId.isValid(req.body.supplierId)) {
+            req.body.supplierId = null;
+        }
+        if (req.body.categoryId && !mongoose.Types.ObjectId.isValid(req.body.categoryId)) {
+            req.body.categoryId = null;
+        }
+
         const newProduct = new Product(req.body);
         const savedProduct = await newProduct.save();
         res.status(201).json(savedProduct);
@@ -41,6 +49,18 @@ export const createProduct: RequestHandler = async (req, res) => {
 export const updateProduct: RequestHandler = async (req, res) => {
     try {
         const id = req.params.id as string;
+        
+        if (req.body.supplierId !== undefined) {
+            if (!req.body.supplierId || !mongoose.Types.ObjectId.isValid(req.body.supplierId)) {
+                req.body.supplierId = null;
+            }
+        }
+        if (req.body.categoryId !== undefined) {
+            if (!req.body.categoryId || !mongoose.Types.ObjectId.isValid(req.body.categoryId)) {
+                req.body.categoryId = null;
+            }
+        }
+
         const updatedProduct = await Product.findOneAndUpdate({ id }, req.body, { new: true });
         if (!updatedProduct) return res.status(404).json({ message: 'Không tìm thấy sản phẩm' });
         res.status(200).json(updatedProduct);
@@ -129,6 +149,13 @@ export const bulkCreateProducts: RequestHandler = async (req, res) => {
 
         for (const prodData of productsRaw) {
             try {
+                if (prodData.supplierId && !mongoose.Types.ObjectId.isValid(prodData.supplierId as string)) {
+                    delete prodData.supplierId;
+                }
+                if (prodData.categoryId && !mongoose.Types.ObjectId.isValid(prodData.categoryId as string)) {
+                    delete prodData.categoryId;
+                }
+
                 // Handle existing products by updating their info, stock, and restoring them if deleted
                 const prodId = prodData.id as string;
                 const existing = await Product.findOne({ id: prodId });
