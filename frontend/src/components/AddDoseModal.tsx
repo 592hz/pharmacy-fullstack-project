@@ -95,6 +95,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
 
     // Calculations
     const totalImportPrice = selectedComponents.reduce((sum, c) => {
+        if (!c.product) return sum
         return sum + (c.quantity * (c.product.importPrice || 0))
     }, 0)
 
@@ -115,10 +116,12 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
             await doseTemplateService.createTemplate({
                 name: doseName,
                 price: finalPrice,
-                components: selectedComponents.map(c => ({
-                    product: c.product._id,
-                    quantity: c.quantity
-                }))
+                components: selectedComponents
+                    .filter(c => c.product)
+                    .map(c => ({
+                        product: c.product._id,
+                        quantity: c.quantity
+                    }))
             } as any);
             toast.success("Đã lưu mẫu liều thuốc thành công");
             loadTemplates();
@@ -133,11 +136,25 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
         setDoseName(template.name);
         setSelectedPrice(template.price);
         setCustomPrice(template.price.toString());
-        setSelectedComponents(template.components.map(c => ({
-            product: c.product,
-            quantity: c.quantity
-        })));
+        
+        const validComponents = template.components
+            .filter(c => c.product !== null && c.product !== undefined)
+            .map(c => ({
+                product: c.product,
+                quantity: c.quantity
+            }));
+
+        setSelectedComponents(validComponents);
         toast.success(`Đã áp dụng mẫu: ${template.name}`);
+
+        const missingComponentNames = template.components
+            .filter(c => c.product === null || c.product === undefined)
+            .map(c => c.productName || c.productCode || "Sản phẩm không xác định")
+            .filter(Boolean);
+
+        if (missingComponentNames.length > 0) {
+            toast.warning(`Sản phẩm sau trong liều mẫu đã bị xóa khỏi hệ thống: ${missingComponentNames.join(", ")}.`);
+        }
     }
 
     const handleConfirm = () => {
@@ -171,8 +188,10 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
         }
 
         // 2. Create component items (these carry the import price and reduce stock)
-        const componentItems: ExportOrderItem[] = selectedComponents.flatMap(comp => {
-            const product = comp.product
+        const componentItems: ExportOrderItem[] = selectedComponents
+            .filter(comp => comp.product)
+            .flatMap(comp => {
+                const product = comp.product
             const totalQty = comp.quantity
             const sortedBatches = sortBatchesFEFO(product.batches?.filter(b => b.quantity > 0) || [])
 
@@ -441,7 +460,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                                 </div>
                             ) : (
                                 <div className="space-y-3">
-                                    {selectedComponents.map(comp => (
+                                    {selectedComponents.filter(comp => comp.product).map(comp => (
                                         <div key={comp.product.id} className="bg-white dark:bg-neutral-900 p-4 rounded-2xl border border-gray-100 dark:border-neutral-800 shadow-sm flex items-center justify-between group">
                                             <div className="flex-1 mr-4">
                                                 <div className="font-bold text-gray-800 dark:text-gray-100 text-sm leading-tight mb-1">{comp.product.name}</div>

@@ -3,6 +3,8 @@ import type { IProduct } from '@/types/product';
 
 export interface IDoseTemplateComponent {
     product: IProduct;
+    productName?: string;
+    productCode?: string;
     quantity: number;
 }
 

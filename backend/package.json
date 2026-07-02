@@ -9,7 +9,9 @@
     "build": "tsc",
     "lint": "tsc --noEmit",
     "start": "tsx src/index.ts",
-    "seed": "tsx src/scripts/seed.ts"
+    "seed": "tsx src/scripts/seed.ts",
+    "backup": "tsx src/scripts/backup.ts",
+    "restore": "tsx src/scripts/restore.ts"
   },
   "keywords": [],
   "author": "",

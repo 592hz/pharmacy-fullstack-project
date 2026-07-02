@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Search, List, Download, RefreshCw, Plus, FileText, Upload, Trash2 } from "lucide-react"
+import { Search, List, Download, RefreshCw, Plus, FileText, Upload, Trash2, History } from "lucide-react"
 import { Link } from "react-router-dom"
 import { useRef } from "react"
 import * as XLSX from "xlsx"
@@ -208,6 +208,61 @@ export default function ProductsPage() {
             setIsAddModalOpen(false)
         } catch (error: unknown) {
             toast.error(`Lỗi: ${getErrorMessage(error)}`)
+        }
+    }
+
+    const handleExportExcel = () => {
+        if (products.length === 0) {
+            toast.error("Không có dữ liệu sản phẩm để tải về!")
+            return
+        }
+
+        try {
+            const exportData = products.map(product => {
+                const totalQty = product.batches && product.batches.length > 0
+                    ? product.batches.reduce((sum, b) => sum + b.quantity, 0)
+                    : product.baseQuantity;
+
+                return {
+                    "Mã Sản Phẩm": product.id,
+                    "Tên Sản Phẩm": product.name,
+                    "Đơn Vị Tính": product.unit,
+                    "Giá Nhập": product.importPrice || 0,
+                    "Giá Bán Lẻ": product.retailPrice || 0,
+                    "Giá Bán Sỉ": product.wholesalePrice || 0,
+                    "Số Đăng Ký": product.registrationNo || "",
+                    "Nhà Sản Xuất": product.manufacturer || "",
+                    "Nhóm Sản Phẩm": (product.categoryId as any)?.name || "",
+                    "Nhà Cung Cấp": (product.supplierId as any)?.name || "",
+                    "Số Lượng Tồn": totalQty
+                }
+            })
+
+            const worksheet = XLSX.utils.json_to_sheet(exportData)
+            const workbook = XLSX.utils.book_new()
+            XLSX.utils.book_append_sheet(workbook, worksheet, "Sản phẩm")
+            XLSX.writeFile(workbook, `Danh_Sach_San_Pham_${new Date().toLocaleDateString("vi-VN").replace(/\//g, "-")}.xlsx`)
+            toast.success("Tải về danh sách sản phẩm thành công!")
+        } catch (error) {
+            toast.error("Lỗi khi xuất file Excel: " + getErrorMessage(error))
+        }
+    }
+
+    const handleReconstructFromHistory = async () => {
+        const confirmRecovery = window.confirm(
+            "Hệ thống sẽ quét toàn bộ lịch sử hóa đơn nhập/xuất để tìm các sản phẩm đã bị xóa vĩnh viễn và tự động khôi phục chúng cùng số lô, hạn dùng và tồn kho tương ứng.\n\nBạn có muốn tiếp tục?"
+        );
+        if (!confirmRecovery) return;
+
+        const loadingToast = toast.loading("Đang quét lịch sử hóa đơn và khôi phục sản phẩm...");
+        try {
+            const res = await productService.reconstructFromHistory();
+            toast.dismiss(loadingToast);
+            toast.success(res.message);
+            fetchData();
+        } catch (error) {
+            toast.dismiss(loadingToast);
+            toast.error("Lỗi khi khôi phục từ lịch sử: " + getErrorMessage(error));
         }
     }
 
@@ -472,7 +527,7 @@ export default function ProductsPage() {
                             <button className="w-10 h-10 flex items-center justify-center bg-[#5c9a38] text-white rounded-md hover:bg-[#5c9a38]/90 shadow-sm transition-transform active:scale-95">
                                 <List size={18} />
                             </button>
-                            <button className="w-10 h-10 flex items-center justify-center bg-[#5c9a38] text-white rounded-md hover:bg-[#5c9a38]/90 shadow-sm transition-transform active:scale-95" title="Tải về danh sách">
+                            <button onClick={handleExportExcel} className="w-10 h-10 flex items-center justify-center bg-[#5c9a38] text-white rounded-md hover:bg-[#5c9a38]/90 shadow-sm transition-transform active:scale-95" title="Tải về danh sách">
                                 <Download size={18} />
                             </button>
                             <input
@@ -495,6 +550,13 @@ export default function ProductsPage() {
                                 title="Làm mới"
                             >
                                 <RefreshCw size={18} />
+                            </button>
+                            <button
+                                onClick={handleReconstructFromHistory}
+                                className="w-10 h-10 flex items-center justify-center bg-amber-500 text-white rounded-md hover:bg-amber-600 shadow-sm transition-transform active:scale-95"
+                                title="Khôi phục sản phẩm từ lịch sử hóa đơn"
+                            >
+                                <History size={18} />
                             </button>
                             <Link
                                 to="/trash"

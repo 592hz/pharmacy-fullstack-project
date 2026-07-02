@@ -101,10 +101,17 @@ export function ManageDoseTemplatesModal({ isOpen, onClose, onSelectTemplate }: 
                                     </div>
                                     <div className="flex flex-wrap gap-1.5">
                                         {tpl.components.map((c, idx) => (
-                                            <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-neutral-700 text-[11px] font-bold text-gray-600 dark:text-gray-300 rounded-lg">
-                                                {c.product.name}
-                                                <span className="text-blue-500">x{c.quantity}</span>
-                                            </span>
+                                            c.product ? (
+                                                <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-gray-100 dark:bg-neutral-700 text-[11px] font-bold text-gray-600 dark:text-gray-300 rounded-lg">
+                                                    {c.product.name}
+                                                    <span className="text-blue-500">x{c.quantity}</span>
+                                                </span>
+                                            ) : (
+                                                <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-red-50 dark:bg-red-950/30 text-[11px] font-bold text-red-600 dark:text-red-400 rounded-lg border border-red-200 dark:border-red-900/30" title="Sản phẩm này đã bị xóa khỏi hệ thống">
+                                                    {c.productName || c.productCode || "Sản phẩm bị xóa"}
+                                                    <span className="text-red-500">x{c.quantity} (Đã bị xóa)</span>
+                                                </span>
+                                            )
                                         ))}
                                     </div>
                                 </div>

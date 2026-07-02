@@ -133,7 +133,7 @@ export const getSummary = async (req: Request, res: Response) => {
             chartDataMonth.push({
                 name: dayStr,
                 DoanhThu: dayStats.revenue,
-                LoiNhuan: dayStats.netProfit
+                LoiNhuan: dayStats.profit
 
             });
         }

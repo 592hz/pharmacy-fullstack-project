@@ -8,6 +8,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import connectDB from './config/db.js';
+import { runAutoBackup } from './utils/auto-backup.js';
 import categoryRoutes from './routes/category.routes.js';
 import productRoutes from './routes/product.routes.js';
 import supplierRoutes from './routes/supplier.routes.js';
@@ -53,6 +54,8 @@ app.get('/', (req, res) => {
 
 // Connect to Database
 connectDB().then(() => {
+    runAutoBackup();
+    
     app.listen(Number(PORT), '0.0.0.0', () => {
         const networkInterfaces = os.networkInterfaces();
         const addresses: string[] = [];

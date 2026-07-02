@@ -1,0 +1,5 @@
+# Ignore all backup files in this directory
+*
+
+# Except this file so the backups directory structure is tracked in Git
+!.gitignore

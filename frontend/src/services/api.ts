@@ -71,6 +71,7 @@ export const productsApi = {
     emptyProductTrash: () => api.delete<{ message: string }>('/products/trash/empty'),
     deleteAllProducts: () => api.delete<{ message: string }>('/products/all'),
     bulkCreateProducts: (products: Partial<IProduct>[]) => api.post<IBulkCreateResponse>('/products/bulk', { products }),
+    reconstructProductsFromHistory: () => api.post<{ message: string; count: number }>('/products/reconstruct-from-history', {}),
 };
 
 
