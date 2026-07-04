@@ -44,8 +44,8 @@ export const getSummary = async (req: Request, res: Response) => {
         const todaySlips = exportSlips.filter(s => dayjs(s.exportDate).isSame(now, 'day'));
         const todayCategories = allCategories.filter(c => dayjs(c.date).isSame(now, 'day'));
 
-        const monthSlips = exportSlips.filter(s => dayjs(s.exportDate).isAfter(startOfMonth));
-        const monthCategories = allCategories.filter(c => dayjs(c.date).isAfter(startOfMonth));
+        const monthSlips = exportSlips.filter(s => dayjs(s.exportDate).isSame(now, 'month'));
+        const monthCategories = allCategories.filter(c => dayjs(c.date).isSame(now, 'month'));
 
         const statsToday = calculateStats(todaySlips, todayCategories);
         const statsMonth = calculateStats(monthSlips, monthCategories);
