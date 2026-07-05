@@ -31,7 +31,7 @@ export const runAutoBackup = async () => {
             notes,
             doseTemplates
         ] = await Promise.all([
-            User.find({}),
+            User.find({}).select('+password'),
             Category.find({}),
             Unit.find({}),
             PaymentMethod.find({}),

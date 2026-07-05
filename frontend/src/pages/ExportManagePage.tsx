@@ -144,7 +144,7 @@ export default function ExportManagePage() {
             if (filterPrescription && !s.isPrescription) return false
 
             return true
-        })
+        }).sort((a, b) => new Date(b.exportDate).getTime() - new Date(a.exportDate).getTime())
     }, [slips, dateFilterType, filterYear, filterMonth, filterDate, filterStartDate, filterEndDate, filterQuarter, debouncedFilterKeyword, filterPrescription])
 
     const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
