@@ -14,7 +14,8 @@ export const getRevenueReport = async (req: Request, res: Response) => {
 
         // 1. Fetch Export Slips for range
         const exportSlips = await ExportSlip.find({
-            exportDate: { $gte: start.toDate(), $lte: end.toDate() }
+            exportDate: { $gte: start.toDate(), $lte: end.toDate() },
+            isDeleted: { $ne: true }
         });
 
         // 2. Fetch Export Slips for PREVIOUS period of equal length
@@ -23,7 +24,8 @@ export const getRevenueReport = async (req: Request, res: Response) => {
         const prevEnd = start.subtract(1, 'day');
         
         const prevExportSlips = await ExportSlip.find({
-            exportDate: { $gte: prevStart.toDate(), $lte: prevEnd.toDate() }
+            exportDate: { $gte: prevStart.toDate(), $lte: prevEnd.toDate() },
+            isDeleted: { $ne: true }
         });
 
         // 3. Fetch Income/Expense (Categories) for current and previous ranges
@@ -59,7 +61,7 @@ export const getRevenueReport = async (req: Request, res: Response) => {
         // 4. Monthly aggregation for the current year
         const yearStart = now.startOf('year');
         const [yearSlips, yearCategories] = await Promise.all([
-            ExportSlip.find({ exportDate: { $gte: yearStart.toDate() } }),
+            ExportSlip.find({ exportDate: { $gte: yearStart.toDate() }, isDeleted: { $ne: true } }),
             Category.find({ date: { $gte: yearStart.toDate() } })
         ]);
 

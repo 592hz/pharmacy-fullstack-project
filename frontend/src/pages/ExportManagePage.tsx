@@ -14,6 +14,13 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50]
 const vnd = (n: number) =>
     new Intl.NumberFormat("vi-VN").format(n)
 
+const calcProfit = (items: any[]): number => {
+    if (!items || items.length === 0) return 0
+    return items.reduce((sum, item) => {
+        return sum + (item.retailPrice - item.importPrice) * item.quantity
+    }, 0)
+}
+
 const fmtDate = (iso: string) => {
     const d = new Date(iso)
     const dd = String(d.getDate()).padStart(2, "0")
@@ -162,9 +169,9 @@ export default function ExportManagePage() {
     }
 
     const toggleSelectItem = (id: string) => {
-        setSelectedIds(prev => 
-            prev.includes(id) 
-                ? prev.filter(i => i !== id) 
+        setSelectedIds(prev =>
+            prev.includes(id)
+                ? prev.filter(i => i !== id)
                 : [...prev, id]
         )
     }
@@ -471,8 +478,9 @@ export default function ExportManagePage() {
                                         <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase text-[10px] min-w-[120px]">Khách hàng</th>
                                         <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase text-[10px] hidden md:table-cell">Triệu chứng</th>
                                         <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-800 text-right uppercase text-[10px]">Tổng cộng</th>
-                                        <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase text-[10px] hidden lg:table-cell">Người tạo</th>
-                                        <th className="px-2 py-3 uppercase text-[10px] hidden xl:table-cell">Ghi chú</th>
+                                        <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-800 text-right uppercase text-[10px] hidden lg:table-cell">Lợi nhuận</th>
+                                        <th className="px-2 py-3 border-r border-gray-200 dark:border-neutral-800 uppercase text-[10px] hidden xl:table-cell">Người tạo</th>
+                                        <th className="px-2 py-3 uppercase text-[10px] hidden 2xl:table-cell">Ghi chú</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -520,10 +528,13 @@ export default function ExportManagePage() {
                                             <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-right font-bold text-orange-600">
                                                 {vnd(localDraft.items?.reduce((sum: number, i: any) => sum + (i.totalAmount || 0), 0) || 0)}
                                             </td>
-                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-gray-500 hidden lg:table-cell">
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-right font-bold text-gray-400 hidden lg:table-cell">
+                                                —
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-gray-500 hidden xl:table-cell">
                                                 Bản nháp
                                             </td>
-                                            <td className="px-2 py-2 text-gray-400 italic truncate max-w-[150px] hidden xl:table-cell">
+                                            <td className="px-2 py-2 text-gray-400 italic truncate max-w-[150px] hidden 2xl:table-cell">
                                                 {localDraft.notes}
                                             </td>
                                         </tr>
@@ -581,10 +592,20 @@ export default function ExportManagePage() {
                                             <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-right font-bold text-gray-900 dark:text-gray-100">
                                                 {vnd(slip.totalAmount)}
                                             </td>
-                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-gray-500 hidden lg:table-cell">
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-right font-bold hidden lg:table-cell">
+                                                {(() => {
+                                                    const profit = calcProfit(slip.items)
+                                                    return (
+                                                        <span className={profit >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500'}>
+                                                            {profit >= 0 ? '+' : ''}{vnd(profit)}
+                                                        </span>
+                                                    )
+                                                })()}
+                                            </td>
+                                            <td className="px-2 py-2 border-r border-gray-200 dark:border-neutral-800 text-gray-500 hidden xl:table-cell">
                                                 {slip.createdBy}
                                             </td>
-                                            <td className="px-2 py-2 text-gray-400 italic truncate max-w-[150px] hidden xl:table-cell">
+                                            <td className="px-2 py-2 text-gray-400 italic truncate max-w-[150px] hidden 2xl:table-cell">
                                                 {slip.notes}
                                             </td>
                                         </tr>

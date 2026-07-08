@@ -95,10 +95,10 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
     try {
         const newOrder = new PurchaseOrder(req.body);
         const savedOrder = await newOrder.save();
-        
+
         // Update product stock and batches
         await adjustStock(savedOrder.items, 1);
-        
+
         // Auto create expense category entry
         try {
             const expenseCategory = new Category({
@@ -113,7 +113,7 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
         } catch (catErr) {
             console.error('Failed to create automatic expense category entry:', catErr);
         }
-        
+
         res.status(201).json(savedOrder);
     } catch (error: unknown) {
         res.status(400).json({ message: (error as Error).message });
@@ -123,7 +123,7 @@ export const createPurchaseOrder = async (req: Request, res: Response) => {
 export const updatePurchaseOrder = async (req: Request, res: Response) => {
     try {
         const id = req.params.id as string;
-        
+
         // 1. Get old order to reverse stock
         const oldOrder = await PurchaseOrder.findOne({ id, isDeleted: { $ne: true } });
         if (!oldOrder) return res.status(404).json({ message: 'Không tìm thấy phiếu nhập hàng' });
@@ -133,11 +133,11 @@ export const updatePurchaseOrder = async (req: Request, res: Response) => {
 
         // 3. Update order
         const updatedOrder = await PurchaseOrder.findOneAndUpdate(
-            { id }, 
-            req.body, 
+            { id },
+            req.body,
             { new: true }
         );
-        
+
         if (!updatedOrder) {
             // Rollback if update fails (though unlikely with findOne first)
             await adjustStock(oldOrder.items, 1);
@@ -257,7 +257,7 @@ export const bulkDeletePurchaseOrders = async (req: Request, res: Response) => {
         }
 
         const ordersToDelete = await PurchaseOrder.find({ id: { $in: ids }, isDeleted: { $ne: true } });
-        
+
         for (const order of ordersToDelete) {
             order.isDeleted = true;
             order.deletedAt = new Date();
@@ -287,7 +287,7 @@ export const bulkRestoreOrders = async (req: Request, res: Response) => {
         }
 
         const ordersToRestore = await PurchaseOrder.find({ id: { $in: ids }, isDeleted: true });
-        
+
         for (const order of ordersToRestore) {
             order.isDeleted = false;
             // @ts-ignore
@@ -326,7 +326,7 @@ export const bulkPermanentlyDeleteOrders = async (req: Request, res: Response) =
         }
 
         const result = await PurchaseOrder.deleteMany({ id: { $in: ids } });
-        
+
         try {
             await Category.deleteMany({ purchaseOrderId: { $in: ids } });
         } catch (catErr) {

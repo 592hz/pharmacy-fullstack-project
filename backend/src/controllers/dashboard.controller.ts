@@ -8,16 +8,28 @@ import customParseFormat from 'dayjs/plugin/customParseFormat.js';
 
 dayjs.extend(customParseFormat);
 
+// ── UTC+7 helpers (không cần plugin timezone) ─────────────────────────────────
+const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
+const toVN = (d: Date) => new Date(d.getTime() + VN_OFFSET_MS);
+const isSameDay = (a: Date, b: Date) => { const av = toVN(a), bv = toVN(b); return av.getUTCFullYear() === bv.getUTCFullYear() && av.getUTCMonth() === bv.getUTCMonth() && av.getUTCDate() === bv.getUTCDate(); };
+const isSameMonth = (a: Date, b: Date) => { const av = toVN(a), bv = toVN(b); return av.getUTCFullYear() === bv.getUTCFullYear() && av.getUTCMonth() === bv.getUTCMonth(); };
+const startOfDayVN = (d: Date) => { const v = toVN(d); return new Date(Date.UTC(v.getUTCFullYear(), v.getUTCMonth(), v.getUTCDate()) - VN_OFFSET_MS); };
+const startOfMonthVN = (d: Date) => { const v = toVN(d); return new Date(Date.UTC(v.getUTCFullYear(), v.getUTCMonth(), 1) - VN_OFFSET_MS); };
+const startOfYearVN = (d: Date) => { const v = toVN(d); return new Date(Date.UTC(v.getUTCFullYear(), 0, 1) - VN_OFFSET_MS); };
+const getDayOfMonthVN = (d: Date) => toVN(d).getUTCDate();
+const formatDayMonthVN = (d: Date) => { const v = toVN(d); return `${String(v.getUTCDate()).padStart(2,'0')}/${String(v.getUTCMonth()+1).padStart(2,'0')}`; };
+
 export const getSummary = async (req: Request, res: Response) => {
     try {
-        const now = dayjs();
-        const startOfDay = now.startOf('day').toDate();
-        const startOfMonth = now.startOf('month').toDate();
-        const startOfYear = now.startOf('year').toDate();
+        const now = new Date();
+        const startOfDay = startOfDayVN(now);
+        const startOfMonth = startOfMonthVN(now);
+        const startOfYear = startOfYearVN(now);
 
         // 1. Doanh thu & Lợi nhuận (Today, Month, Year)
         const exportSlips = await ExportSlip.find({
-            exportDate: { $gte: startOfYear }
+            exportDate: { $gte: startOfYear },
+            isDeleted: { $ne: true }   // Loại trừ phiếu đã xóa
         });
 
         const allCategories = await Category.find({
@@ -41,11 +53,11 @@ export const getSummary = async (req: Request, res: Response) => {
             return { revenue, profit, income, expense, netProfit: profit + income - expense };
         };
 
-        const todaySlips = exportSlips.filter(s => dayjs(s.exportDate).isSame(now, 'day'));
-        const todayCategories = allCategories.filter(c => dayjs(c.date).isSame(now, 'day'));
+        const todaySlips = exportSlips.filter(s => isSameDay(s.exportDate, now));
+        const todayCategories = allCategories.filter(c => isSameDay(new Date(c.date), now));
 
-        const monthSlips = exportSlips.filter(s => dayjs(s.exportDate).isSame(now, 'month'));
-        const monthCategories = allCategories.filter(c => dayjs(c.date).isSame(now, 'month'));
+        const monthSlips = exportSlips.filter(s => isSameMonth(s.exportDate, now));
+        const monthCategories = allCategories.filter(c => isSameMonth(new Date(c.date), now));
 
         const statsToday = calculateStats(todaySlips, todayCategories);
         const statsMonth = calculateStats(monthSlips, monthCategories);
@@ -59,7 +71,8 @@ export const getSummary = async (req: Request, res: Response) => {
         const lowStockProducts: any[] = [];
         const nearExpiryProducts: any[] = [];
 
-        const sixMonthsFromNow = now.add(6, 'month');
+        const sixMonthsFromNow = new Date(now.getTime());
+        sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
 
         allProducts.forEach(p => {
             // 1. Tính tổng tồn kho (theo đơn vị cơ bản - viên/gói/...)
@@ -124,17 +137,19 @@ export const getSummary = async (req: Request, res: Response) => {
 
         // 4. Dữ liệu biểu đồ (Tháng hiện tại - theo ngày)
         const chartDataMonth: any[] = [];
-        for (let i = 0; i < now.date(); i++) {
-            const date = now.startOf('month').add(i, 'day');
-            const dayStr = date.format('DD/MM');
-            const daySlips = monthSlips.filter(s => dayjs(s.exportDate).isSame(date, 'day'));
-            const dayCategories = monthCategories.filter(c => dayjs(c.date).isSame(date, 'day'));
+        const todayDayVN = getDayOfMonthVN(now);
+        for (let i = 0; i < todayDayVN; i++) {
+            // Tạo Date cho ngày i+1 của tháng hiện tại theo giờ VN
+            const vnNow = toVN(now);
+            const dayDate = new Date(Date.UTC(vnNow.getUTCFullYear(), vnNow.getUTCMonth(), i + 1) - VN_OFFSET_MS);
+            const dayStr = formatDayMonthVN(dayDate);
+            const daySlips = monthSlips.filter(s => isSameDay(s.exportDate, dayDate));
+            const dayCategories = monthCategories.filter(c => isSameDay(new Date(c.date), dayDate));
             const dayStats = calculateStats(daySlips, dayCategories);
             chartDataMonth.push({
                 name: dayStr,
                 DoanhThu: dayStats.revenue,
                 LoiNhuan: dayStats.profit
-
             });
         }
 
