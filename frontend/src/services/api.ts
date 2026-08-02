@@ -32,9 +32,24 @@ const getHeaders = () => {
 };
 
 export const api = {
-    get: <T>(url: string) => fetch(`${API_BASE_URL}${url}`, {
-        headers: getHeaders()
-    }).then((res) => handleResponse<T>(res)),
+    get: <T>(url: string, options?: { params?: Record<string, any> }) => {
+        let fullUrl = `${API_BASE_URL}${url}`;
+        if (options?.params) {
+            const query = new URLSearchParams();
+            Object.entries(options.params).forEach(([key, val]) => {
+                if (val !== undefined && val !== null) {
+                    query.append(key, String(val));
+                }
+            });
+            const queryString = query.toString();
+            if (queryString) {
+                fullUrl += (fullUrl.includes('?') ? '&' : '?') + queryString;
+            }
+        }
+        return fetch(fullUrl, {
+            headers: getHeaders()
+        }).then((res) => handleResponse<T>(res));
+    },
     post: <T>(url: string, data: unknown) => fetch(`${API_BASE_URL}${url}`, {
         method: 'POST',
         headers: getHeaders(),

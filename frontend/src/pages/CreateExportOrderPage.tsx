@@ -62,8 +62,16 @@ export default function CreateExportOrderPage() {
     const [allCustomers, setAllCustomers] = useState<Customer[]>(() => cacheService.get("customers") || [])
     const [isLoading, setIsLoading] = useState(!allProducts.length)
 
+    const generateExportOrderId = () => {
+        const now = new Date();
+        const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+        const timePart = `${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+        const randomPart = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+        return `PX${datePart}${timePart}${randomPart}`;
+    };
+
     // Metadata
-    const [orderId, setOrderId] = useState(() => `PX${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`)
+    const [orderId, setOrderId] = useState(generateExportOrderId)
     const [dateValue, setDateValue] = useState(() => formatDateTimeToVN(new Date().toISOString()))
     const [dateError, setDateError] = useState("")
 
@@ -557,10 +565,33 @@ export default function CreateExportOrderPage() {
             setSymptoms("")
             setDoctorName("")
             setIsPrescription(false)
-            setOrderId(`PX${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, "0")}${String(new Date().getDate()).padStart(2, "0")}${String(Math.floor(Math.random() * 1000)).padStart(3, "0")}`)
+            setOrderId(generateExportOrderId())
             setDateValue(formatDateTimeToVN(new Date().toISOString()))
         } catch (error: unknown) {
-            toast.error("Lỗi khi tạo phiếu bán hàng: " + getErrorMessage(error))
+            const errorMsg = getErrorMessage(error)
+            if (errorMsg.includes("E11000") || errorMsg.includes("duplicate") || errorMsg.includes("Mã hóa đơn")) {
+                toast.error("Phát hiện trùng mã phiếu. Đang tự động tạo lại mã mới...")
+                const freshOrderId = generateExportOrderId()
+                setOrderId(freshOrderId)
+                try {
+                    await exportSlipService.create({ ...newSlip, id: freshOrderId })
+                    clearDraft()
+                    toast.success("Tạo phiếu bán hàng thành công!")
+                    setItems([])
+                    setCustomerId("")
+                    setCustomerName("Khách lẻ")
+                    setNotes("")
+                    setSymptoms("")
+                    setDoctorName("")
+                    setIsPrescription(false)
+                    setOrderId(generateExportOrderId())
+                    setDateValue(formatDateTimeToVN(new Date().toISOString()))
+                } catch (retryError) {
+                    toast.error("Lỗi khi tạo phiếu bán hàng: " + getErrorMessage(retryError))
+                }
+            } else {
+                toast.error("Lỗi khi tạo phiếu bán hàng: " + errorMsg)
+            }
         }
     }
 

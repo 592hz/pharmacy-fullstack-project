@@ -5,6 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip,
 import { type DashboardSummary, type NearExpiryProduct, type LowStockProduct } from "@/lib/schemas"
 import { dashboardService } from "@/services/dashboard.service"
 import { getErrorMessage } from "@/lib/utils"
+import FallingPetals from "@/components/FallingPetals"
 
 const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(value)
@@ -16,15 +17,20 @@ export default function DashboardPage() {
     const [summary, setSummary] = useState<DashboardSummary | null>(null)
     const [lowStockLimit, setLowStockLimit] = useState(5)
     const [nearExpiryLimit, setNearExpiryLimit] = useState(5)
+    const [chartMode, setChartMode] = useState<"week" | "month" | "custom" | "year">("month")
 
     const currentMonthNum = useMemo(() => new Date().getMonth() + 1, [])
     const currentYearNum = useMemo(() => new Date().getFullYear(), [])
+
+    const [customMonth, setCustomMonth] = useState<number>(currentMonthNum)
+    const [customYear, setCustomYear] = useState<number>(currentYearNum)
 
     useEffect(() => {
         const fetchData = async () => {
             setIsLoading(true)
             try {
-                const data = await dashboardService.getSummary()
+                const params = chartMode === "custom" ? { month: customMonth, year: customYear } : undefined
+                const data = await dashboardService.getSummary(params)
                 setSummary(data)
             } catch (error: unknown) {
                 console.error("Dashboard data fetch error:", getErrorMessage(error))
@@ -33,11 +39,14 @@ export default function DashboardPage() {
             }
         }
         fetchData()
-    }, [])
+    }, [chartMode, customMonth, customYear])
 
     const getChartData = () => {
-        if (!summary) return []
-        return summary.chartData.month
+        if (!summary || !summary.chartData) return []
+        if (chartMode === "week") return summary.chartData.week || []
+        if (chartMode === "year") return summary.chartData.year || []
+        if (chartMode === "custom") return summary.chartData.customMonth || summary.chartData.month || []
+        return summary.chartData.month || []
     }
 
     if (isLoading && !summary) {
@@ -86,14 +95,14 @@ export default function DashboardPage() {
         {
             title: "Doanh thu tháng",
             value: formatCurrency(statsData.month.revenue),
-            sub: `Tháng ${currentMonthNum}`,
+            sub: chartMode === "custom" ? `Tháng ${customMonth}/${customYear}` : `Tháng ${currentMonthNum}`,
             icon: Calendar,
             color: "text-orange-500 bg-orange-100 dark:bg-orange-900/40",
         },
         {
             title: "LN bán hàng tháng",
             value: formatCurrency(statsData.month.profit),
-            sub: `Tháng ${currentMonthNum}`,
+            sub: chartMode === "custom" ? `Tháng ${customMonth}/${customYear}` : `Tháng ${currentMonthNum}`,
             icon: TrendingUp,
             color: "text-green-500 bg-green-100 dark:bg-green-900/40",
         },
@@ -128,7 +137,10 @@ export default function DashboardPage() {
     ]
 
     return (
-        <div className="flex flex-1 flex-col gap-6 p-4">
+        <div className="flex flex-1 flex-col gap-6 p-4 relative">
+            {/* Hiệu ứng hoa rơi nhiều màu sắc */}
+            <FallingPetals />
+
             {/* Các thông tin phụ - 3 thẻ này giờ chiếm trọn hàng */}
             <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-3">
                 <Link
@@ -149,7 +161,9 @@ export default function DashboardPage() {
                         <TrendingUp size={22} />
                     </div>
                     <div className="overflow-hidden">
-                        <p className="text-sm font-medium text-muted-foreground truncate">Tổng thu tháng</p>
+                        <p className="text-sm font-medium text-muted-foreground truncate">
+                            Tổng thu tháng {chartMode === "custom" ? `${customMonth}/${customYear}` : `${currentMonthNum}`}
+                        </p>
                         <p className="text-lg font-bold tracking-tight text-foreground truncate">{formatCurrency(statsData.totalIncome)}</p>
                         <p className="text-[10px] text-muted-foreground">Từ thu chi ngoài</p>
                     </div>
@@ -161,7 +175,9 @@ export default function DashboardPage() {
                         <DollarSign size={22} />
                     </div>
                     <div className="overflow-hidden">
-                        <p className="text-sm font-medium text-muted-foreground truncate">Tổng chi tháng</p>
+                        <p className="text-sm font-medium text-muted-foreground truncate">
+                            Tổng chi tháng {chartMode === "custom" ? `${customMonth}/${customYear}` : `${currentMonthNum}`}
+                        </p>
                         <p className="text-lg font-bold tracking-tight text-foreground truncate">{formatCurrency(statsData.totalExpense)}</p>
                         <p className="text-[10px] text-muted-foreground">Từ thu chi ngoài</p>
                     </div>
@@ -192,10 +208,94 @@ export default function DashboardPage() {
             </div>
             {/* Thống kê doanh thu ngày tháng năm */}
             <div className="flex min-h-[450px] flex-col rounded-xl border bg-white dark:bg-neutral-900 p-6 shadow-sm">
-                <div className="mb-6 flex items-center justify-between">
+                <div className="mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
-                        <h2 className="text-lg font-semibold tracking-tight text-foreground">Thống kê doanh thu</h2>
-                        <p className="text-sm text-muted-foreground">Biểu đồ doanh thu và lợi nhuận tháng {currentMonthNum}</p>
+                        <h2 className="text-lg font-semibold tracking-tight text-foreground">Thống kê doanh thu & Lợi nhuận</h2>
+                        <p className="text-sm text-muted-foreground">
+                            {chartMode === "week" && "Biểu đồ doanh thu và lợi nhuận 7 ngày qua"}
+                            {chartMode === "month" && `Biểu đồ doanh thu và lợi nhuận tháng ${currentMonthNum}/${currentYearNum}`}
+                            {chartMode === "custom" && `Biểu đồ doanh thu và lợi nhuận tháng ${customMonth}/${customYear}`}
+                            {chartMode === "year" && `Biểu đồ doanh thu và lợi nhuận 12 tháng năm ${currentYearNum}`}
+                        </p>
+                    </div>
+
+                    {/* Bộ lọc khung thời gian biểu đồ */}
+                    <div className="flex flex-wrap items-center gap-2 self-stretch sm:self-auto">
+                        {chartMode === "custom" && (
+                            <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-neutral-800 px-3 py-1.5 rounded-xl border border-gray-200 dark:border-neutral-700 shadow-sm">
+                                <span className="text-xs font-medium text-gray-500">Chọn:</span>
+                                <select
+                                    value={customMonth}
+                                    onChange={(e) => setCustomMonth(Number(e.target.value))}
+                                    className="bg-transparent text-xs font-bold text-gray-800 dark:text-gray-200 outline-none cursor-pointer"
+                                >
+                                    {Array.from({ length: 12 }, (_, i) => i + 1).map(m => (
+                                        <option key={m} value={m} className="bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100">
+                                            Tháng {m}
+                                        </option>
+                                    ))}
+                                </select>
+                                <span className="text-gray-400 text-xs font-bold">/</span>
+                                <select
+                                    value={customYear}
+                                    onChange={(e) => setCustomYear(Number(e.target.value))}
+                                    className="bg-transparent text-xs font-bold text-gray-800 dark:text-gray-200 outline-none cursor-pointer"
+                                >
+                                    {[currentYearNum - 2, currentYearNum - 1, currentYearNum, currentYearNum + 1].map(y => (
+                                        <option key={y} value={y} className="bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100">
+                                            {y}
+                                        </option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
+
+                        <div className="flex items-center gap-1 bg-gray-100 dark:bg-neutral-800 p-1 rounded-xl border border-gray-200 dark:border-neutral-700">
+                            <button
+                                type="button"
+                                onClick={() => setChartMode("week")}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                    chartMode === "week"
+                                        ? "bg-white dark:bg-neutral-900 text-[#5c9a38] shadow-sm"
+                                        : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-200"
+                                }`}
+                            >
+                                7 ngày qua
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setChartMode("month")}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                    chartMode === "month"
+                                        ? "bg-white dark:bg-neutral-900 text-[#5c9a38] shadow-sm"
+                                        : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-200"
+                                }`}
+                            >
+                                Tháng này
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setChartMode("custom")}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                    chartMode === "custom"
+                                        ? "bg-white dark:bg-neutral-900 text-[#5c9a38] shadow-sm"
+                                        : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-200"
+                                }`}
+                            >
+                                Chọn tháng
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setChartMode("year")}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                    chartMode === "year"
+                                        ? "bg-white dark:bg-neutral-900 text-[#5c9a38] shadow-sm"
+                                        : "text-gray-500 hover:text-gray-900 dark:hover:text-gray-200"
+                                }`}
+                            >
+                                Năm nay
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -255,7 +355,9 @@ export default function DashboardPage() {
                 <div className="space-y-3">
                     <div className="flex items-center gap-2 px-1">
                         <div className="w-1 h-4 bg-orange-500 rounded-full"></div>
-                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Thống kê tháng {currentMonthNum}</h3>
+                        <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">
+                            Thống kê tháng {chartMode === "custom" ? `${customMonth}/${customYear}` : currentMonthNum}
+                        </h3>
                     </div>
                     <div className="grid gap-3 grid-cols-2 lg:grid-cols-3 relative">
                         {stats.slice(3, 6).map((item, index) => (

@@ -136,7 +136,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
         setDoseName(template.name);
         setSelectedPrice(template.price);
         setCustomPrice(template.price.toString());
-        
+
         const validComponents = template.components
             .filter(c => c.product !== null && c.product !== undefined)
             .map(c => ({
@@ -192,25 +192,48 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
             .filter(comp => comp.product)
             .flatMap(comp => {
                 const product = comp.product
-            const totalQty = comp.quantity
-            const sortedBatches = sortBatchesFEFO(product.batches?.filter(b => b.quantity > 0) || [])
+                const totalQty = comp.quantity
+                const sortedBatches = sortBatchesFEFO(product.batches?.filter(b => b.quantity > 0) || [])
 
-            const rows: ExportOrderItem[] = []
-            let remaining = totalQty
+                const rows: ExportOrderItem[] = []
+                let remaining = totalQty
 
-            if (sortedBatches.length > 0) {
-                for (const batch of sortedBatches) {
-                    if (remaining <= 0) break
-                    const qtyFromBatch = Math.min(batch.quantity, remaining)
+                if (sortedBatches.length > 0) {
+                    for (const batch of sortedBatches) {
+                        if (remaining <= 0) break
+                        const qtyFromBatch = Math.min(batch.quantity, remaining)
+                        rows.push({
+                            id: `comp-${Date.now()}-${Math.random()}`,
+                            code: product.id || "",
+                            name: `[Trong liều] ${product.name}`,
+                            unit: product.unit || "",
+                            batchNumber: batch.batchNumber,
+                            expiryDate: batch.expiryDate || "",
+                            quantity: qtyFromBatch,
+                            retailPrice: 0, // Components are bundled, price is 0
+                            importPrice: product.importPrice || 0,
+                            totalAmount: 0,
+                            discountPercent: 0,
+                            discountAmount: 0,
+                            remainingAmount: 0,
+                            parentDoseId: doseId
+                        })
+                        remaining -= qtyFromBatch
+                    }
+                }
+
+                // Fallback if no batches or remaining qty
+                if (remaining > 0) {
+                    const defaultBatch = product.batches?.[0]
                     rows.push({
                         id: `comp-${Date.now()}-${Math.random()}`,
                         code: product.id || "",
                         name: `[Trong liều] ${product.name}`,
                         unit: product.unit || "",
-                        batchNumber: batch.batchNumber,
-                        expiryDate: batch.expiryDate || "",
-                        quantity: qtyFromBatch,
-                        retailPrice: 0, // Components are bundled, price is 0
+                        batchNumber: defaultBatch?.batchNumber || "CHƯA-LÔ",
+                        expiryDate: defaultBatch?.expiryDate || "31/12/2029",
+                        quantity: remaining,
+                        retailPrice: 0,
                         importPrice: product.importPrice || 0,
                         totalAmount: 0,
                         discountPercent: 0,
@@ -218,33 +241,10 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                         remainingAmount: 0,
                         parentDoseId: doseId
                     })
-                    remaining -= qtyFromBatch
                 }
-            }
 
-            // Fallback if no batches or remaining qty
-            if (remaining > 0) {
-                const defaultBatch = product.batches?.[0]
-                rows.push({
-                    id: `comp-${Date.now()}-${Math.random()}`,
-                    code: product.id || "",
-                    name: `[Trong liều] ${product.name}`,
-                    unit: product.unit || "",
-                    batchNumber: defaultBatch?.batchNumber || "CHƯA-LÔ",
-                    expiryDate: defaultBatch?.expiryDate || "31/12/2029",
-                    quantity: remaining,
-                    retailPrice: 0,
-                    importPrice: product.importPrice || 0,
-                    totalAmount: 0,
-                    discountPercent: 0,
-                    discountAmount: 0,
-                    remainingAmount: 0,
-                    parentDoseId: doseId
-                })
-            }
-
-            return rows
-        })
+                return rows
+            })
 
         onAdd(mainDoseItem, componentItems)
         onClose()
@@ -314,11 +314,10 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                                     <button
                                         key={tpl._id}
                                         onClick={() => handleSelectTemplate(tpl)}
-                                        className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all ${
-                                            doseName === tpl.name 
-                                                ? "border-green-500 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400" 
+                                        className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all ${doseName === tpl.name
+                                                ? "border-green-500 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400"
                                                 : "border-gray-200 dark:border-neutral-700 hover:border-green-400 hover:text-green-500 bg-white dark:bg-neutral-900 text-gray-600 dark:text-gray-300"
-                                        }`}
+                                            }`}
                                     >
                                         {tpl.name}
                                     </button>

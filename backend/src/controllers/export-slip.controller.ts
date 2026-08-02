@@ -150,14 +150,42 @@ export const getExportSlipById = async (req: Request, res: Response) => {
 
 export const createExportSlip = async (req: Request, res: Response) => {
     try {
-        const newSlip = new ExportSlip(req.body);
-        const savedSlip = await newSlip.save();
-        
-        console.log(`[ExportSlip] Created slip with ${savedSlip.items.length} items. Updating stock...`);
+        let slipData = { ...req.body };
+        let savedSlip: any = null;
+        let retries = 5;
+
+        const generateId = () => {
+            const now = new Date();
+            const datePart = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, "0")}${String(now.getDate()).padStart(2, "0")}`;
+            const timePart = `${String(now.getHours()).padStart(2, "0")}${String(now.getMinutes()).padStart(2, "0")}${String(now.getSeconds()).padStart(2, "0")}`;
+            const randomPart = String(Math.floor(Math.random() * 10000)).padStart(4, "0");
+            return `PX${datePart}${timePart}${randomPart}`;
+        };
+
+        while (retries > 0) {
+            try {
+                if (!slipData.id) {
+                    slipData.id = generateId();
+                }
+                const newSlip = new ExportSlip(slipData);
+                savedSlip = await newSlip.save();
+                break;
+            } catch (err: any) {
+                if ((err.code === 11000 || err.message?.includes('duplicate')) && retries > 1) {
+                    console.warn(`[ExportSlip] Duplicate ID ${slipData.id}. Regenerating ID and retrying... (${retries - 1} retries left)`);
+                    slipData.id = generateId();
+                    retries--;
+                } else {
+                    throw err;
+                }
+            }
+        }
+
+        console.log(`[ExportSlip] Created slip ${savedSlip.id} with ${savedSlip.items.length} items. Updating stock...`);
 
         // Update product stock and batches (reduction)
         await reduceExportStock(savedSlip.items);
-        
+
         res.status(201).json(savedSlip);
     } catch (error) {
         console.error(`[ExportSlip] Error in createExportSlip:`, error);

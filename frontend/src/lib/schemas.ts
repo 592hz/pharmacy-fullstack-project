@@ -323,11 +323,28 @@ export const dashboardSummarySchema = z.object({
     }),
 
     chartData: z.object({
+        week: z.array(z.object({
+            name: z.string(),
+            DoanhThu: z.number(),
+            LoiNhuan: z.number(),
+        })).optional(),
         month: z.array(z.object({
             name: z.string(),
             DoanhThu: z.number(),
             LoiNhuan: z.number(),
-        }))
+        })),
+        year: z.array(z.object({
+            name: z.string(),
+            DoanhThu: z.number(),
+            LoiNhuan: z.number(),
+        })).optional(),
+        customMonth: z.array(z.object({
+            name: z.string(),
+            DoanhThu: z.number(),
+            LoiNhuan: z.number(),
+        })).optional(),
+        selectedMonth: z.number().optional(),
+        selectedYear: z.number().optional(),
     })
 })
 
