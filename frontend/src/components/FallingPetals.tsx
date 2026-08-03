@@ -82,7 +82,7 @@ const ENCOURAGING_MESSAGES = [
     "Nhớ nghỉ ngơi điều độ nha Mỹ Mỹ ơi! ☕🛋️",
     "Mỹ Mỹ chính là niềm tự hào và động lực đấy! 🌟👑",
     "Bão giông dừng sau cánh cửa, Mỹ Mỹ luôn an yên! ☀️🌻",
-    "Gửi Mỹ Mỹ ngàn nụ hôn và năng lượng tích cực! 💋⚡",
+    "Gửi Mỹ Mỹ ngàn bông hoa và năng lượng tích cực! 💋⚡",
     "Chúc Mỹ Mỹ mỗi giờ trôi qua đều trọn vẹn niềm vui! ⏰💖",
     "Mỹ Mỹ tuyệt vời nhất thế giới luôn nha! 🏆🥰"
 ];
