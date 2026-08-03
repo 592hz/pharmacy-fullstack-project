@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { lazy, Suspense } from "react"
-import { Toaster } from "sonner"
+import { Toaster } from "@/components/ui/sonner"
 
 import DashboardLayout from "@/layouts/DashboardLayout"
 import AuthLayout from "@/layouts/AuthLayout"
@@ -34,7 +34,7 @@ const RevenueReportPage = lazy(() => import("@/pages/RevenueReportPage"))
 export function App() {
   return (
     <AuthProvider>
-      <Toaster position="top-right" richColors />
+      <Toaster position="top-right" duration={1000} richColors />
       <BrowserRouter>
         <Suspense fallback={<LoadingScreen />}>
           <Routes>
