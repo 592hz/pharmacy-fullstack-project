@@ -111,18 +111,6 @@ const INITIAL_MASCOTS: MascotItem[] = [
         badgeText: "Tím 🔮",
         msgIndex: 2,
         lastCollision: 0
-    },
-    {
-        id: 3,
-        name: "Bé Đỏ",
-        x: 82,
-        direction: -1,
-        speed: 0.14,
-        bodyColor: "#F28482", // Đỏ pastel
-        spikeColor: "#F7CAD0",
-        badgeText: "Đỏ ❤️",
-        msgIndex: 5,
-        lastCollision: 0
     }
 ];
 
@@ -464,8 +452,8 @@ export const FallingPetals: React.FC<{ defaultActive?: boolean; count?: number }
                     onClick={() => setIsPetalsActive((prev) => !prev)}
                     title={isPetalsActive ? "Tắt hiệu ứng hoa rơi" : "Bật hiệu ứng hoa rơi"}
                     className={`flex items-center gap-1.5 backdrop-blur-md border shadow-lg px-3 py-1.5 rounded-full text-xs font-bold transition-all hover:scale-105 active:scale-95 ${isPetalsActive
-                            ? "bg-white/90 dark:bg-neutral-800/90 text-pink-600 dark:text-pink-400 border-pink-200/80 dark:border-neutral-700"
-                            : "bg-white/70 dark:bg-neutral-800/70 text-gray-500 dark:text-gray-400 hover:text-pink-500 border-gray-200 dark:border-neutral-700 opacity-80"
+                        ? "bg-white/90 dark:bg-neutral-800/90 text-pink-600 dark:text-pink-400 border-pink-200/80 dark:border-neutral-700"
+                        : "bg-white/70 dark:bg-neutral-800/70 text-gray-500 dark:text-gray-400 hover:text-pink-500 border-gray-200 dark:border-neutral-700 opacity-80"
                         }`}
                 >
                     {isPetalsActive ? (
@@ -487,8 +475,8 @@ export const FallingPetals: React.FC<{ defaultActive?: boolean; count?: number }
                     onClick={() => setIsMascotActive((prev) => !prev)}
                     title={isMascotActive ? "Tắt biệt đội nhân vật" : "Bật biệt đội nhân vật"}
                     className={`flex items-center gap-1.5 backdrop-blur-md border shadow-lg px-3 py-1.5 rounded-full text-xs font-bold transition-all hover:scale-105 active:scale-95 ${isMascotActive
-                            ? "bg-white/90 dark:bg-neutral-800/90 text-emerald-600 dark:text-emerald-400 border-emerald-200/80 dark:border-neutral-700"
-                            : "bg-white/70 dark:bg-neutral-800/70 text-gray-500 dark:text-gray-400 hover:text-emerald-500 border-gray-200 dark:border-neutral-700 opacity-80"
+                        ? "bg-white/90 dark:bg-neutral-800/90 text-emerald-600 dark:text-emerald-400 border-emerald-200/80 dark:border-neutral-700"
+                        : "bg-white/70 dark:bg-neutral-800/70 text-gray-500 dark:text-gray-400 hover:text-emerald-500 border-gray-200 dark:border-neutral-700 opacity-80"
                         }`}
                 >
                     <Users size={14} className={isMascotActive ? "animate-bounce" : ""} />
