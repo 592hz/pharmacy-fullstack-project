@@ -26,15 +26,15 @@ const SYMBOLS = [
 ];
 
 const ENCOURAGING_MESSAGES = [
-    "Bé ơi hôm nay cố gắng rồi! 💪✨",
-    "Chúc bé một ngày ngập tràn may mắn! 🍀✨",
-    "Mọi điều tuyệt vời đang chờ bé phía trước! 🌟💖",
-    "Cố lên nhé, bé đang làm rất tốt! 🚀🔥",
+    "Mỹ Mỹ ơi hôm nay cố gắng rồi! 💪✨",
+    "Chúc Mỹ Mỹ một ngày ngập tràn may mắn! 🍀✨",
+    "Mọi điều tuyệt vời đang chờ Mỹ Mỹ phía trước! 🌟💖",
+    "Cố lên nhé, Mỹ Mỹ đang làm rất tốt! 🚀🔥",
     "Chúc buôn may bán đắt và thuận lợi nhé! 💰🎉",
-    "Nụ cười của bé làm bừng sáng cả ngày đấy! 😊✨",
+    "Nụ cười của Mỹ Mỹ làm bừng sáng cả ngày đấy! 😊✨",
     "Luôn tin tưởng vào bản thân mình nhé! 💖🌈",
     "Một ngày mới tràn đầy năng lượng và niềm vui! ☀️🍀",
-    "Vẫn đang làm rất xuất sắc nha bé ơi! 👏⭐"
+    "Vẫn đang làm rất xuất sắc nha MỸ MỸ ơi! 👏⭐"
 ];
 
 const CuteDinoIcon: React.FC<{ className?: string }> = ({ className = "w-14 h-14" }) => (
