@@ -14,7 +14,7 @@ import {
   SidebarHeader,
   SidebarRail,
 } from "@/components/ui/sidebar"
-import { AudioLinesIcon, TerminalIcon, TerminalSquareIcon, BotIcon, FrameIcon, PieChartIcon, LayoutDashboard, Trash2, PlusSquare, ShoppingCart } from "lucide-react"
+import { AudioLinesIcon, TerminalIcon, TerminalSquareIcon, BotIcon, FrameIcon, PieChartIcon, LayoutDashboard, Trash2, PlusSquare, ShoppingCart, Gamepad2 } from "lucide-react"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useAuth();
@@ -107,6 +107,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         title: "Ghi chú",
         url: "/notes",
         icon: <BotIcon />,
+      },
+      {
+        title: "Góc Giải Trí 🎮",
+        url: "/entertainment",
+        icon: <Gamepad2 />,
       },
     ],
     projects: isAdmin ? [

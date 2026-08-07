@@ -29,6 +29,7 @@ const NotesPage = lazy(() => import("@/pages/NotesPage"))
 const StockManagementPage = lazy(() => import("@/pages/StockManagementPage"))
 const TrashPage = lazy(() => import("@/pages/TrashPage"))
 const RevenueReportPage = lazy(() => import("@/pages/RevenueReportPage"))
+const EntertainmentPage = lazy(() => import("@/pages/EntertainmentPage"))
 
 
 export function App() {
@@ -67,6 +68,7 @@ export function App() {
               <Route path="notes" element={<NotesPage />} />
               <Route path="stock" element={<StockManagementPage />} />
               <Route path="reports/revenue" element={<RevenueReportPage />} />
+              <Route path="entertainment" element={<EntertainmentPage />} />
               <Route path="trash" element={<TrashPage />} />
             </Route>
 
