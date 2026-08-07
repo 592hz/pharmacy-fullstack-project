@@ -32,6 +32,7 @@ interface Body {
     vy: number;
     radius: number;
     isMerging?: boolean;
+    settled?: boolean;
 }
 
 // Audio Synthesizer
@@ -115,7 +116,7 @@ export const PillDropMergeModal: React.FC<{ isOpen: boolean; onClose: () => void
     // Active physics bodies
     const bodiesRef = useRef<Body[]>([]);
     const nextBodyId = useRef<number>(1);
-    const gameOverTimerRef = useRef<number | null>(null);
+    const overflowStartRef = useRef<number | null>(null);
 
     const getRandomStartLevel = useCallback(() => {
         // Random level 0, 1, 2, or 3 (2, 4, 8, 16)
@@ -131,10 +132,7 @@ export const PillDropMergeModal: React.FC<{ isOpen: boolean; onClose: () => void
         setCanDrop(true);
         setCurrentIndex(getRandomStartLevel());
         setNextIndex(getRandomStartLevel());
-        if (gameOverTimerRef.current) {
-            clearTimeout(gameOverTimerRef.current);
-            gameOverTimerRef.current = null;
-        }
+        overflowStartRef.current = null;
     }, [getRandomStartLevel]);
 
     useEffect(() => {
@@ -377,7 +375,7 @@ export const PillDropMergeModal: React.FC<{ isOpen: boolean; onClose: () => void
             });
 
             // 3. Render Particles
-            particlesRef.current.forEach((pt, idx) => {
+            particlesRef.current.forEach((pt) => {
                 pt.x += pt.vx;
                 pt.y += pt.vy;
                 pt.life -= 0.04;
@@ -421,19 +419,38 @@ export const PillDropMergeModal: React.FC<{ isOpen: boolean; onClose: () => void
             }
 
             // 5. Check Overfill Game Over
-            const overflowBody = bodiesRef.current.find(b => b.y - b.radius < topOverflowY && Math.abs(b.vy) < 0.5);
-            if (overflowBody) {
-                if (!gameOverTimerRef.current) {
-                    gameOverTimerRef.current = window.setTimeout(() => {
-                        setIsGameOver(true);
-                        playDropSound('over', isMuted);
-                    }, 2500);
+            // Mark bodies as settled once they drop into the container
+            bodiesRef.current.forEach((b) => {
+                if (b.y > topOverflowY + 15) {
+                    b.settled = true;
+                }
+            });
+
+            const overflowBody = bodiesRef.current.find(b => b.settled && (b.y - b.radius <= topOverflowY));
+            const criticalOverflow = bodiesRef.current.find(b => b.settled && (b.y - b.radius <= 55));
+
+            if (criticalOverflow) {
+                // Instant game over if pushed all the way to top
+                setIsGameOver(true);
+                playDropSound('over', isMuted);
+            } else if (overflowBody) {
+                // Red warning banner
+                ctx.fillStyle = 'rgba(239, 68, 68, 0.25)';
+                ctx.fillRect(0, 0, width, topOverflowY);
+
+                ctx.fillStyle = '#EF4444';
+                ctx.font = 'bold 11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('⚠️ CẢNH BÁO TRÀN ỐNG THUỐC!', width / 2, topOverflowY - 12);
+
+                if (!overflowStartRef.current) {
+                    overflowStartRef.current = Date.now();
+                } else if (Date.now() - overflowStartRef.current > 1000) {
+                    setIsGameOver(true);
+                    playDropSound('over', isMuted);
                 }
             } else {
-                if (gameOverTimerRef.current) {
-                    clearTimeout(gameOverTimerRef.current);
-                    gameOverTimerRef.current = null;
-                }
+                overflowStartRef.current = null;
             }
 
             animId = requestAnimationFrame(render);
