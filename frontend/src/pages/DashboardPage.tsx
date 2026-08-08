@@ -49,14 +49,6 @@ export default function DashboardPage() {
         return summary.chartData.month || []
     }
 
-    if (isLoading && !summary) {
-        return (
-            <div className="flex h-full items-center justify-center min-h-[400px]">
-                <Loader2 className="animate-spin text-[#5c9a38]" size={48} />
-            </div>
-        )
-    }
-
     const statsData = summary?.stats || {
         today: { revenue: 0, profit: 0, netProfit: 0 },
         month: { revenue: 0, profit: 0, netProfit: 0 },
@@ -300,53 +292,60 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="flex-1 min-h-[350px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart
-                            data={getChartData()}
-                            margin={{ top: 10, right: 10, left: 30, bottom: 0 }}
-                            barSize={32}
-                        >
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#888" strokeOpacity={0.2} />
-                            <XAxis
-                                dataKey="name"
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fill: '#888', fontSize: 13 }}
-                                dy={10}
-                            />
-                            <YAxis
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fill: '#888', fontSize: 13 }}
-                                tickFormatter={(value) => `${value / 1000000}tr`}
-                                dx={-10}
-                            />
-                            <RechartsTooltip
-                                cursor={{ fill: 'transparent' }}
-                                contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                formatter={(value: unknown, name: string | number | undefined) => [formatCurrency(Number(value) || 0), String(name || "")]}
-                                labelStyle={{ fontWeight: 'bold', color: '#111827', marginBottom: '8px' }}
-                            />
-                            <Legend
-                                verticalAlign="top"
-                                height={36}
-                                iconType="circle"
-                                wrapperStyle={{ paddingBottom: '20px' }}
-                            />
-                            <Bar
-                                dataKey="DoanhThu"
-                                name="Doanh thu"
-                                fill="#3b82f6"
-                                radius={[4, 4, 0, 0]}
-                            />
-                            <Bar
-                                dataKey="LoiNhuan"
-                                name="Lợi nhuận"
-                                fill="#10b981"
-                                radius={[4, 4, 0, 0]}
-                            />
-                        </BarChart>
-                    </ResponsiveContainer>
+                    {isLoading && !summary ? (
+                        <div className="w-full h-[350px] flex flex-col items-center justify-center bg-gray-50/50 dark:bg-neutral-800/30 rounded-xl border border-dashed border-gray-200 dark:border-neutral-800 gap-3 text-muted-foreground animate-pulse">
+                            <Loader2 className="animate-spin text-[#5c9a38]" size={32} />
+                            <span className="text-xs font-medium">Đang tải dữ liệu biểu đồ...</span>
+                        </div>
+                    ) : (
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                                data={getChartData()}
+                                margin={{ top: 10, right: 10, left: 30, bottom: 0 }}
+                                barSize={32}
+                            >
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#888" strokeOpacity={0.2} />
+                                <XAxis
+                                    dataKey="name"
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#888', fontSize: 13 }}
+                                    dy={10}
+                                />
+                                <YAxis
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#888', fontSize: 13 }}
+                                    tickFormatter={(value) => `${value / 1000000}tr`}
+                                    dx={-10}
+                                />
+                                <RechartsTooltip
+                                    cursor={{ fill: 'transparent' }}
+                                    contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                    formatter={(value: unknown, name: string | number | undefined) => [formatCurrency(Number(value) || 0), String(name || "")]}
+                                    labelStyle={{ fontWeight: 'bold', color: '#111827', marginBottom: '8px' }}
+                                />
+                                <Legend
+                                    verticalAlign="top"
+                                    height={36}
+                                    iconType="circle"
+                                    wrapperStyle={{ paddingBottom: '20px' }}
+                                />
+                                <Bar
+                                    dataKey="DoanhThu"
+                                    name="Doanh thu"
+                                    fill="#3b82f6"
+                                    radius={[4, 4, 0, 0]}
+                                />
+                                <Bar
+                                    dataKey="LoiNhuan"
+                                    name="Lợi nhuận"
+                                    fill="#10b981"
+                                    radius={[4, 4, 0, 0]}
+                                />
+                            </BarChart>
+                        </ResponsiveContainer>
+                    )}
                 </div>
             </div>
             {/* Nhóm chỉ số Thống kê */}

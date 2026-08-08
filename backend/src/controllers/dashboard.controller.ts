@@ -57,23 +57,33 @@ export const getSummary = async (req: Request, res: Response) => {
             latestDate = endOfReqMonth;
         }
 
-        // 1. Doanh thu & Lợi nhuận (Today, Selected/Current Month, Year)
-        const exportSlips = await ExportSlip.find({
-            exportDate: { $gte: earliestDate, $lte: latestDate },
-            isDeleted: { $ne: true }   // Loại trừ phiếu đã xóa
-        });
+        // Parallelized lean queries with explicit field selection for maximum performance
+        const [exportSlips, allCategories, allProducts] = await Promise.all([
+            ExportSlip.find({
+                exportDate: { $gte: earliestDate, $lte: latestDate },
+                isDeleted: { $ne: true }
+            })
+                .select('exportDate totalAmount items.retailPrice items.importPrice items.quantity')
+                .lean(),
 
-        const allCategories = await Category.find({
-            date: { $gte: earliestDate, $lte: latestDate }
-        });
+            Category.find({
+                date: { $gte: earliestDate, $lte: latestDate }
+            })
+                .select('type amount date')
+                .lean(),
+
+            Product.find({ isDeleted: { $ne: true } })
+                .select('_id id name unit baseUnitName conversionRate baseQuantity batches')
+                .lean()
+        ]);
 
         const calculateStats = (slips: any[], categories: any[]) => {
             let revenue = 0;
             let profit = 0;
             slips.forEach(slip => {
                 revenue += slip.totalAmount || 0;
-                slip.items.forEach((item: any) => {
-                    const itemProfit = (item.retailPrice - item.importPrice) * item.quantity;
+                slip.items?.forEach((item: any) => {
+                    const itemProfit = ((item.retailPrice || 0) - (item.importPrice || 0)) * (item.quantity || 0);
                     profit += itemProfit;
                 });
             });
@@ -109,9 +119,7 @@ export const getSummary = async (req: Request, res: Response) => {
         const statsMonth = calculateStats(selectedMonthSlips, selectedMonthCategories);
         const statsYear = calculateStats(yearSlips, yearCategories);
 
-
         // 3. Hàng sắp hết & Cận date
-        const allProducts = await Product.find();
         let lowStockCount = 0;
         let nearExpiryCount = 0;
         const lowStockProducts: any[] = [];
@@ -120,13 +128,13 @@ export const getSummary = async (req: Request, res: Response) => {
         const sixMonthsFromNow = new Date(now.getTime());
         sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
 
-        allProducts.forEach(p => {
+        allProducts.forEach((p: any) => {
+            const productId = p.id || p._id?.toString();
             // 1. Tính tổng tồn kho (theo đơn vị cơ bản - viên/gói/...)
             const totalBaseQty = p.batches?.reduce((sum: number, b: any) => sum + b.quantity, 0) || p.baseQuantity || 0;
             const conversionRate = p.conversionRate || 1;
 
             const unitName = (p.unit || '').toLowerCase();
-            const baseUnitName = (p.baseUnitName || '').toLowerCase();
 
             // 2. Xác định số lượng hiển thị và định mức (Threshold)
             let currentQty = 0;
@@ -147,7 +155,7 @@ export const getSummary = async (req: Request, res: Response) => {
             if (currentQty <= threshold) {
                 lowStockCount++;
                 lowStockProducts.push({
-                    id: p.id,
+                    id: productId,
                     name: p.name,
                     quantity: currentQty,
                     unit: p.unit || p.baseUnitName
@@ -161,7 +169,7 @@ export const getSummary = async (req: Request, res: Response) => {
                     if (expiry.isValid() && expiry.isBefore(sixMonthsFromNow) && b.quantity > 0) {
                         nearExpiryCount++;
                         nearExpiryProducts.push({
-                            id: p.id,
+                            id: productId,
                             name: p.name,
                             batchNumber: b.batchNumber,
                             expiryDate: b.expiryDate,

@@ -1,10 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { Sparkles, Flower2, Users, Gamepad2 } from 'lucide-react';
-import CatBobaBakeryModal from '@/components/CatBobaBakeryModal';
-import HerbGardenModal from '@/components/HerbGardenModal';
-import Capsule2048Modal from '@/components/Capsule2048Modal';
-import PillBubbleShooterModal from '@/components/PillBubbleShooterModal';
-import PillDropMergeModal from '@/components/PillDropMergeModal';
+import { Sparkles, Flower2, Users } from 'lucide-react';
 
 interface PetalItem {
     id: number;
@@ -104,18 +99,6 @@ const INITIAL_MASCOTS: MascotItem[] = [
         badgeText: "Xanh 🍀",
         msgIndex: 0,
         lastCollision: 0
-    },
-    {
-        id: 2,
-        name: "Bé Tím",
-        x: 48,
-        direction: -1,
-        speed: 0.16,
-        bodyColor: "#CDB4DB", // Tím pastel
-        spikeColor: "#F3C4FB",
-        badgeText: "Tím 🔮",
-        msgIndex: 2,
-        lastCollision: 0
     }
 ];
 
@@ -187,12 +170,6 @@ export const FallingPetals: React.FC<{ defaultActive?: boolean; count?: number }
 }) => {
     const [isPetalsActive, setIsPetalsActive] = useState<boolean>(defaultActive);
     const [isMascotActive, setIsMascotActive] = useState<boolean>(defaultActive);
-    const [isBakeryOpen, setIsBakeryOpen] = useState<boolean>(false);
-    const [isHerbGardenOpen, setIsHerbGardenOpen] = useState<boolean>(false);
-    const [isCapsuleOpen, setIsCapsuleOpen] = useState<boolean>(false);
-    const [isShooterOpen, setIsShooterOpen] = useState<boolean>(false);
-    const [isDropMergeOpen, setIsDropMergeOpen] = useState<boolean>(false);
-    const [isGameMenuOpen, setIsGameMenuOpen] = useState<boolean>(false);
     const [mascots, setMascots] = useState<MascotItem[]>(INITIAL_MASCOTS);
     const [explosions, setExplosions] = useState<ExplosionEffect[]>([]);
 
@@ -455,69 +432,8 @@ export const FallingPetals: React.FC<{ defaultActive?: boolean; count?: number }
                 </div>
             )}
 
-            {/* Cụm 3 nút góc dưới màn hình */}
+            {/* Cụm 2 nút góc dưới màn hình */}
             <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2 pointer-events-auto select-none">
-                {/* Menu chọn trò chơi mini-games */}
-                <div className="relative">
-                    {isGameMenuOpen && (
-                        <div className="absolute bottom-12 right-0 bg-white/95 dark:bg-neutral-850 backdrop-blur-md border border-pink-200 dark:border-neutral-700 p-2 rounded-2xl shadow-2xl flex flex-col gap-1.5 min-w-[200px] animate-pop-bounce z-50">
-                            <div className="text-[10px] font-black text-gray-400 uppercase tracking-wider px-2 pt-1">
-                                Trò Chơi Thư Giãn 🎮
-                            </div>
-                            <button
-                                type="button"
-                                onClick={() => { setIsBakeryOpen(true); setIsGameMenuOpen(false); }}
-                                className="w-full px-3 py-2 text-xs font-bold text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-neutral-800 hover:bg-amber-100 dark:hover:bg-neutral-700 rounded-xl flex items-center gap-2 transition text-left"
-                            >
-                                <span className="text-base">🐱</span>
-                                <span>Tiệm Trà Mèo & Bánh Ngọt</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => { setIsHerbGardenOpen(true); setIsGameMenuOpen(false); }}
-                                className="w-full px-3 py-2 text-xs font-bold text-emerald-900 dark:text-emerald-200 bg-emerald-50 dark:bg-neutral-800 hover:bg-emerald-100 dark:hover:bg-neutral-700 rounded-xl flex items-center gap-2 transition text-left"
-                            >
-                                <span className="text-base">🌿</span>
-                                <span>Vườn Dược Liệu & Đông Y</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => { setIsCapsuleOpen(true); setIsGameMenuOpen(false); }}
-                                className="w-full px-3 py-2 text-xs font-bold text-purple-900 dark:text-purple-200 bg-purple-50 dark:bg-neutral-800 hover:bg-purple-100 dark:hover:bg-neutral-700 rounded-xl flex items-center gap-2 transition text-left"
-                            >
-                                <span className="text-base">💊</span>
-                                <span>Ghép Viên Thuốc 2048</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => { setIsShooterOpen(true); setIsGameMenuOpen(false); }}
-                                className="w-full px-3 py-2 text-xs font-bold text-rose-900 dark:text-rose-200 bg-rose-50 dark:bg-neutral-800 hover:bg-rose-100 dark:hover:bg-neutral-700 rounded-xl flex items-center gap-2 transition text-left"
-                            >
-                                <span className="text-base">🎯</span>
-                                <span>Bắn Viên Thuốc Bào Chế</span>
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => { setIsDropMergeOpen(true); setIsGameMenuOpen(false); }}
-                                className="w-full px-3 py-2 text-xs font-bold text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-neutral-800 hover:bg-amber-100 dark:hover:bg-neutral-700 rounded-xl flex items-center gap-2 transition text-left"
-                            >
-                                <span className="text-base">🧪</span>
-                                <span>Thả Viên Thuốc Hợp Nhất</span>
-                            </button>
-                        </div>
-                    )}
-
-                    <button
-                        type="button"
-                        onClick={() => setIsGameMenuOpen(!isGameMenuOpen)}
-                        title="Mở Góc Giải Trí Mini-Games"
-                        className="flex items-center gap-1.5 backdrop-blur-md border shadow-xl px-3.5 py-1.5 rounded-full text-xs font-black transition-all hover:scale-105 active:scale-95 bg-gradient-to-r from-amber-400 via-rose-400 to-pink-500 text-white border-white/60 animate-bounce"
-                    >
-                        <Gamepad2 size={14} />
-                        <span>🎮 Mini Games ({isGameMenuOpen ? '▲' : '▼'})</span>
-                    </button>
-                </div>
-
                 {/* Nút bật/tắt hoa rơi */}
                 <button
                     type="button"
@@ -556,35 +472,6 @@ export const FallingPetals: React.FC<{ defaultActive?: boolean; count?: number }
                 </button>
             </div>
 
-            {/* Modal Mini-Game 1: Tiệm Trà Mèo & Bánh Ngọt */}
-            <CatBobaBakeryModal
-                isOpen={isBakeryOpen}
-                onClose={() => setIsBakeryOpen(false)}
-            />
-
-            {/* Modal Mini-Game 2: Nông Trại Dược Liệu & Đông Y */}
-            <HerbGardenModal
-                isOpen={isHerbGardenOpen}
-                onClose={() => setIsHerbGardenOpen(false)}
-            />
-
-            {/* Modal Mini-Game 3: Ghép Viên Thuốc 2048 */}
-            <Capsule2048Modal
-                isOpen={isCapsuleOpen}
-                onClose={() => setIsCapsuleOpen(false)}
-            />
-
-            {/* Modal Mini-Game 4: Bắn Viên Thuốc Bào Chế (Egg Shooter) */}
-            <PillBubbleShooterModal
-                isOpen={isShooterOpen}
-                onClose={() => setIsShooterOpen(false)}
-            />
-
-            {/* Modal Mini-Game 5: Thả Viên Thuốc Hợp Nhất (Suika Style Physics) */}
-            <PillDropMergeModal
-                isOpen={isDropMergeOpen}
-                onClose={() => setIsDropMergeOpen(false)}
-            />
         </>
     );
 };
