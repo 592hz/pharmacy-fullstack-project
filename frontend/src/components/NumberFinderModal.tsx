@@ -10,6 +10,18 @@ type MaxNumberMode = 25 | 50 | 100;
 
 const LOCAL_STORAGE_BEST_TIMES = 'schulte_number_finder_best_times';
 
+const GRID_SIZE_LABEL: Record<MaxNumberMode, string> = {
+    25: '30 giây',
+    50: '1 phút 15s',
+    100: '3 phút'
+};
+
+const TIME_LIMITS_MS: Record<MaxNumberMode, number> = {
+    25: 30 * 1000,
+    50: 75 * 1000,
+    100: 180 * 1000
+};
+
 // Web Audio sound synthesizer for sound effects
 const playSoundEffect = (type: 'correct' | 'wrong' | 'win' | 'lose', isMuted: boolean) => {
     if (isMuted) return;
@@ -76,6 +88,7 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
     const [isGameStarted, setIsGameStarted] = useState<boolean>(false);
     const [isCompleted, setIsCompleted] = useState<boolean>(false);
     const [isGameOver, setIsGameOver] = useState<boolean>(false);
+    const [gameOverReason, setGameOverReason] = useState<'mistakes' | 'timeout' | null>(null);
     const [wrongCount, setWrongCount] = useState<number>(0);
     const [isMuted, setIsMuted] = useState<boolean>(false);
     const [showHelp, setShowHelp] = useState<boolean>(false);
@@ -139,6 +152,7 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
         setIsGameStarted(false);
         setIsCompleted(false);
         setIsGameOver(false);
+        setGameOverReason(null);
         setElapsedMs(0);
     }, [maxNumber]);
 
@@ -157,19 +171,32 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
         }
     }, [isOpen, maxNumber, initGame]);
 
-    // Stopwatch Timer handler
+    // Time Limit for current mode
+    const currentLimitMs = TIME_LIMITS_MS[maxNumber];
+    const remainingMs = Math.max(0, currentLimitMs - elapsedMs);
+
+    // Stopwatch & Countdown Timer handler
     useEffect(() => {
         if (isGameStarted && !isCompleted && !isGameOver) {
             const startTime = Date.now() - elapsedMs;
             timerRef.current = setInterval(() => {
-                setElapsedMs(Date.now() - startTime);
+                const newElapsed = Date.now() - startTime;
+                if (newElapsed >= currentLimitMs) {
+                    setElapsedMs(currentLimitMs);
+                    setIsGameOver(true);
+                    setGameOverReason('timeout');
+                    playSoundEffect('lose', isMuted);
+                    if (timerRef.current) clearInterval(timerRef.current);
+                } else {
+                    setElapsedMs(newElapsed);
+                }
             }, 30);
 
             return () => {
                 if (timerRef.current) clearInterval(timerRef.current);
             };
         }
-    }, [isGameStarted, isCompleted, isGameOver, elapsedMs]);
+    }, [isGameStarted, isCompleted, isGameOver, elapsedMs, currentLimitMs, isMuted]);
 
     // Number Click Handler
     const handleNumberClick = (num: number) => {
@@ -204,10 +231,11 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
             if (newWrongCount > 2) {
                 // Over 2 mistakes => GAME OVER / THUA!
                 setIsGameOver(true);
+                setGameOverReason('mistakes');
                 playSoundEffect('lose', isMuted);
             } else {
                 playSoundEffect('wrong', isMuted);
-                setElapsedMs((prev) => prev + 1000); // 1-second penalty
+                setElapsedMs((prev) => prev + 1000); // 1-second penalty (reduces remaining countdown time)
             }
 
             setTimeout(() => setWrongClickId(null), 400);
@@ -247,7 +275,7 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
                                 Thử Thách Tìm Số Tốc Độ (Schulte Table)
                             </h2>
                             <p className="text-[10px] sm:text-xs text-white/80 font-semibold">
-                                Tìm từ 1 đến {maxNumber} - Chọn sai quá 2 lần là THUA!
+                                Mức 1..{maxNumber}: Giới hạn <b>{GRID_SIZE_LABEL[maxNumber]}</b> - Sai quá 2 lần là THUA!
                             </p>
                         </div>
                     </div>
@@ -288,8 +316,9 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
                             <h4 className="font-extrabold text-amber-100 flex items-center gap-1.5 text-xs">
                                 💡 Luật chơi Schulte Chuyên Nghiệp:
                             </h4>
-                            <p>• Nhấp chọn các số theo thứ tự tăng dần từ <b>1 đến {maxNumber}</b> (Tự quan sát tìm số, không có gợi ý).</p>
-                            <p>• Chỉ được phép chọn sai tối đa <b>2 lần</b>. Lần sai thứ 3 sẽ bị <b>THUA (Game Over)</b>!</p>
+                            <p>• Nhấp chọn các số theo thứ tự tăng dần từ <b>1 đến {maxNumber}</b>.</p>
+                            <p>• <b>Thời gian có hạn:</b> Mức 25 (30s), Mức 50 (75s), Mức 100 (3 phút)!</p>
+                            <p>• Chỉ được phép chọn sai tối đa <b>2 lần</b>. Lần sai thứ 3 hoặc hết giờ sẽ bị <b>THUA (Game Over)</b>!</p>
                         </div>
                     )}
 
@@ -303,17 +332,18 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
                                     key={mode}
                                     type="button"
                                     onClick={() => changeMode(mode)}
-                                    className={`px-2.5 py-1 rounded-lg font-black text-xs transition border ${maxNumber === mode
+                                    className={`px-2.5 py-1 rounded-lg font-black text-xs transition border flex items-center gap-1 ${maxNumber === mode
                                             ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md scale-105'
                                             : 'bg-slate-700/60 text-slate-300 border-slate-600 hover:bg-slate-700'
                                         }`}
                                 >
-                                    1..{mode}
+                                    <span>1..{mode}</span>
+                                    <span className="text-[9px] opacity-75">({GRID_SIZE_LABEL[mode]})</span>
                                 </button>
                             ))}
                         </div>
 
-                        {/* Mistakes counter & Timer Display */}
+                        {/* Mistakes counter & Countdown Timer Display */}
                         <div className="flex items-center gap-2 sm:gap-3">
                             {/* Mistakes counter */}
                             <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1 rounded-xl border border-slate-700">
@@ -328,11 +358,18 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
                                 </span>
                             </div>
 
-                            {/* Timer */}
-                            <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1 rounded-xl border border-slate-700">
-                                <Timer size={16} className="text-cyan-400 animate-spin-slow" />
-                                <span className="font-mono text-sm sm:text-base font-black text-cyan-300 tracking-wider">
-                                    {formatTime(elapsedMs)}
+                            {/* Remaining Countdown Timer */}
+                            <div className={`flex items-center gap-1.5 bg-slate-950 px-3 py-1 rounded-xl border ${remainingMs <= 10000 && isGameStarted
+                                    ? 'border-rose-500/80 animate-pulse'
+                                    : 'border-slate-700'
+                                }`}>
+                                <Timer size={16} className={remainingMs <= 10000 && isGameStarted ? 'text-rose-400 animate-spin' : 'text-cyan-400 animate-spin-slow'} />
+                                <span className="text-[10px] text-slate-400 font-bold uppercase hidden sm:inline">Còn lại:</span>
+                                <span className={`font-mono text-sm sm:text-base font-black tracking-wider ${remainingMs <= 10000 && isGameStarted
+                                        ? 'text-rose-400'
+                                        : 'text-cyan-300'
+                                    }`}>
+                                    {formatTime(remainingMs)}
                                 </span>
                             </div>
                         </div>
@@ -362,7 +399,7 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
                         <div className="bg-gradient-to-r from-emerald-600 via-teal-600 to-cyan-600 p-3 rounded-xl text-white shadow-xl flex items-center justify-between gap-3 border border-emerald-400 animate-fadeIn shrink-0">
                             <div className="flex items-center gap-2 text-yellow-300 font-black text-xs sm:text-sm">
                                 <Award size={18} />
-                                <span>HOÀN THÀNH 1..{maxNumber} TRONG: <b className="font-mono text-white">{formatTime(elapsedMs)}</b></span>
+                                <span>HOÀN THÀNH MỨC {maxNumber} TRONG: <b className="font-mono text-white">{formatTime(elapsedMs)}</b></span>
                             </div>
                             <button
                                 type="button"
@@ -380,7 +417,11 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
                         <div className="bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 p-3 rounded-xl text-white shadow-xl flex items-center justify-between gap-3 border border-rose-400 animate-fadeIn shrink-0">
                             <div className="flex items-center gap-2 font-black text-xs sm:text-sm">
                                 <span className="text-lg">💀</span>
-                                <span>BẠN ĐÃ THUA! Bạn đã chọn sai {wrongCount} lần (quá 2 lần cho phép).</span>
+                                <span>
+                                    {gameOverReason === 'timeout'
+                                        ? `HẾT GIỜ! Bạn chưa tìm xong bảng 1..${maxNumber} trong thời gian cho phép (${GRID_SIZE_LABEL[maxNumber]}).`
+                                        : `BẠN ĐÃ THUA! Chọn sai ${wrongCount} lần (quá 2 lần cho phép).`}
+                                </span>
                             </div>
                             <button
                                 type="button"
