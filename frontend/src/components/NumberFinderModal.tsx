@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Volume2, VolumeX, X, Trophy, RotateCcw, HelpCircle, Zap, Timer, Award, CheckCircle2 } from 'lucide-react';
+import { Volume2, VolumeX, X, Trophy, RotateCcw, HelpCircle, Zap, Timer, Award, CheckCircle2, Settings, Plus, Minus } from 'lucide-react';
 
 interface NumberFinderModalProps {
     isOpen: boolean;
@@ -9,17 +9,12 @@ interface NumberFinderModalProps {
 type MaxNumberMode = 25 | 50 | 100;
 
 const LOCAL_STORAGE_BEST_TIMES = 'schulte_number_finder_best_times';
+const LOCAL_STORAGE_CUSTOM_TIME_LIMITS = 'schulte_number_finder_time_limits';
 
-const GRID_SIZE_LABEL: Record<MaxNumberMode, string> = {
-    25: '30 giây',
-    50: '1 phút 15s',
-    100: '3 phút'
-};
-
-const TIME_LIMITS_MS: Record<MaxNumberMode, number> = {
-    25: 30 * 1000,
-    50: 75 * 1000,
-    100: 180 * 1000
+const DEFAULT_TIME_LIMITS_SEC: Record<MaxNumberMode, number> = {
+    25: 30,
+    50: 75,
+    100: 180
 };
 
 // Web Audio sound synthesizer for sound effects
@@ -92,7 +87,11 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
     const [wrongCount, setWrongCount] = useState<number>(0);
     const [isMuted, setIsMuted] = useState<boolean>(false);
     const [showHelp, setShowHelp] = useState<boolean>(false);
+    const [showSettings, setShowSettings] = useState<boolean>(false);
     const [wrongClickId, setWrongClickId] = useState<number | null>(null);
+
+    // Custom Time Limits states (in seconds)
+    const [timeLimitsSec, setTimeLimitsSec] = useState<Record<MaxNumberMode, number>>(DEFAULT_TIME_LIMITS_SEC);
 
     // Timer states
     const [elapsedMs, setElapsedMs] = useState<number>(0);
@@ -104,17 +103,52 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
 
     const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-    // Load best times from localStorage
+    // Format seconds into human readable text (e.g. 0s (Vô hạn), 30s, 1 phút 15s)
+    const formatSecondsLabel = useCallback((sec: number) => {
+        if (sec === 0) return 'Vô hạn (∞)';
+        if (sec < 60) return `${sec} giây`;
+        const mins = Math.floor(sec / 60);
+        const remainingSec = sec % 60;
+        return remainingSec > 0 ? `${mins} phút ${remainingSec}s` : `${mins} phút`;
+    }, []);
+
+    // Load best times and custom time limits from localStorage
     useEffect(() => {
         try {
-            const saved = localStorage.getItem(LOCAL_STORAGE_BEST_TIMES);
-            if (saved) {
-                setBestTimes(JSON.parse(saved));
+            const savedBest = localStorage.getItem(LOCAL_STORAGE_BEST_TIMES);
+            if (savedBest) {
+                setBestTimes(JSON.parse(savedBest));
+            }
+            const savedLimits = localStorage.getItem(LOCAL_STORAGE_CUSTOM_TIME_LIMITS);
+            if (savedLimits) {
+                setTimeLimitsSec(JSON.parse(savedLimits));
             }
         } catch {
             // Fallback default
         }
     }, []);
+
+    // Update time limit for a specific mode (0 = Untimed/Infinity)
+    const updateTimeLimitSec = (mode: MaxNumberMode, seconds: number) => {
+        const validSec = Math.max(0, Math.min(3600, isNaN(seconds) ? 0 : seconds));
+        const updated = { ...timeLimitsSec, [mode]: validSec };
+        setTimeLimitsSec(updated);
+        try {
+            localStorage.setItem(LOCAL_STORAGE_CUSTOM_TIME_LIMITS, JSON.stringify(updated));
+        } catch {
+            // Ignore storage errors
+        }
+    };
+
+    // Reset time limits to defaults
+    const resetDefaultTimeLimits = () => {
+        setTimeLimitsSec(DEFAULT_TIME_LIMITS_SEC);
+        try {
+            localStorage.removeItem(LOCAL_STORAGE_CUSTOM_TIME_LIMITS);
+        } catch {
+            // Ignore storage errors
+        }
+    };
 
     // Save best time
     const saveBestTime = useCallback((mode: MaxNumberMode, timeInMs: number) => {
@@ -172,8 +206,10 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
     }, [isOpen, maxNumber, initGame]);
 
     // Time Limit for current mode
-    const currentLimitMs = TIME_LIMITS_MS[maxNumber];
-    const remainingMs = Math.max(0, currentLimitMs - elapsedMs);
+    const currentLimitSec = timeLimitsSec[maxNumber] ?? DEFAULT_TIME_LIMITS_SEC[maxNumber];
+    const isUntimed = currentLimitSec === 0;
+    const currentLimitMs = currentLimitSec * 1000;
+    const remainingMs = isUntimed ? elapsedMs : Math.max(0, currentLimitMs - elapsedMs);
 
     // Stopwatch & Countdown Timer handler
     useEffect(() => {
@@ -181,7 +217,7 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
             const startTime = Date.now() - elapsedMs;
             timerRef.current = setInterval(() => {
                 const newElapsed = Date.now() - startTime;
-                if (newElapsed >= currentLimitMs) {
+                if (!isUntimed && newElapsed >= currentLimitMs) {
                     setElapsedMs(currentLimitMs);
                     setIsGameOver(true);
                     setGameOverReason('timeout');
@@ -196,7 +232,7 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
                 if (timerRef.current) clearInterval(timerRef.current);
             };
         }
-    }, [isGameStarted, isCompleted, isGameOver, elapsedMs, currentLimitMs, isMuted]);
+    }, [isGameStarted, isCompleted, isGameOver, elapsedMs, currentLimitMs, isUntimed, isMuted]);
 
     // Number Click Handler
     const handleNumberClick = (num: number) => {
@@ -275,12 +311,20 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
                                 Thử Thách Tìm Số Tốc Độ (Schulte Table)
                             </h2>
                             <p className="text-[10px] sm:text-xs text-white/80 font-semibold">
-                                Mức 1..{maxNumber}: Giới hạn <b>{GRID_SIZE_LABEL[maxNumber]}</b> - Sai quá 2 lần là THUA!
+                                Mức 1..{maxNumber}: Giới hạn <b>{formatSecondsLabel(timeLimitsSec[maxNumber])}</b> - Sai quá 2 lần là THUA!
                             </p>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-1.5">
+                        <button
+                            type="button"
+                            onClick={() => setShowSettings(!showSettings)}
+                            className={`p-1.5 rounded-lg text-white transition backdrop-blur-md ${showSettings ? 'bg-amber-500/40 text-amber-200 ring-2 ring-amber-400' : 'bg-white/10 hover:bg-white/20'}`}
+                            title="Tùy chỉnh thời gian cho từng chế độ"
+                        >
+                            <Settings size={16} />
+                        </button>
                         <button
                             type="button"
                             onClick={() => setShowHelp(!showHelp)}
@@ -310,6 +354,97 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
                 {/* Main Content Area (Compact Single Screen) */}
                 <div className="p-2 sm:p-3 flex-1 flex flex-col justify-between space-y-2 min-h-0 overflow-hidden">
 
+                    {/* Settings Panel */}
+                    {showSettings && (
+                        <div className="bg-slate-800/95 border border-amber-500/50 p-3 rounded-2xl text-xs space-y-3 animate-fadeIn shrink-0 shadow-2xl">
+                            <div className="flex items-center justify-between border-b border-slate-700/80 pb-2">
+                                <h4 className="font-extrabold text-amber-300 flex items-center gap-1.5 text-xs sm:text-sm">
+                                    ⚙️ Tùy Chỉnh Thời Gian Cho Từng Chế Độ (Giây):
+                                </h4>
+                                <button
+                                    type="button"
+                                    onClick={resetDefaultTimeLimits}
+                                    className="text-[11px] font-bold text-slate-400 hover:text-amber-400 underline flex items-center gap-1 transition"
+                                    title="Đặt lại về thời gian mặc định"
+                                >
+                                    <RotateCcw size={12} />
+                                    <span>Khôi phục mặc định</span>
+                                </button>
+                            </div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                {([25, 50, 100] as MaxNumberMode[]).map((mode) => {
+                                    const currentSec = timeLimitsSec[mode];
+                                    const presets = mode === 25 ? [0, 15, 30, 45, 60] : mode === 50 ? [0, 30, 60, 75, 120] : [0, 60, 120, 180, 300];
+
+                                    return (
+                                        <div key={mode} className="bg-slate-900/90 p-2.5 rounded-xl border border-slate-700 flex flex-col gap-2 shadow-inner">
+                                            <div className="flex justify-between items-center text-slate-300 font-bold">
+                                                <span className="text-xs">Mức {mode} số:</span>
+                                                <span className="text-amber-400 font-mono font-black text-xs">{formatSecondsLabel(currentSec)}</span>
+                                            </div>
+
+                                            {/* +/- Buttons & Number Input */}
+                                            <div className="flex items-center gap-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => updateTimeLimitSec(mode, currentSec - 5)}
+                                                    className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 transition shrink-0"
+                                                    title="- 5 giây"
+                                                >
+                                                    <Minus size={13} />
+                                                </button>
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    max={1800}
+                                                    value={currentSec}
+                                                    onChange={(e) => updateTimeLimitSec(mode, parseInt(e.target.value, 10))}
+                                                    className="bg-slate-950 border border-slate-600 rounded-lg px-2 py-1 text-amber-300 font-mono font-bold w-full text-xs text-center focus:border-amber-400 focus:outline-none shadow-inner"
+                                                />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => updateTimeLimitSec(mode, currentSec + 5)}
+                                                    className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 transition shrink-0"
+                                                    title="+ 5 giây"
+                                                >
+                                                    <Plus size={13} />
+                                                </button>
+                                            </div>
+
+                                            {/* Range Slider */}
+                                            <input
+                                                type="range"
+                                                min={0}
+                                                max={360}
+                                                step={5}
+                                                value={currentSec}
+                                                onChange={(e) => updateTimeLimitSec(mode, parseInt(e.target.value, 10))}
+                                                className="w-full accent-amber-500 cursor-pointer h-1.5 bg-slate-950 rounded-lg"
+                                            />
+
+                                            {/* Quick Presets */}
+                                            <div className="flex items-center justify-between gap-1 pt-0.5">
+                                                {presets.map((pSec) => (
+                                                    <button
+                                                        key={pSec}
+                                                        type="button"
+                                                        onClick={() => updateTimeLimitSec(mode, pSec)}
+                                                        className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold transition ${currentSec === pSec
+                                                            ? 'bg-amber-500 text-slate-950 font-black scale-105'
+                                                            : 'bg-slate-800 text-slate-400 hover:text-slate-200 hover:bg-slate-700'
+                                                            }`}
+                                                    >
+                                                        {pSec === 0 ? '0s ∞' : pSec < 60 ? `${pSec}s` : `${pSec / 60}m`}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    )}
+
                     {/* Instruction Alert Popup */}
                     {showHelp && (
                         <div className="bg-amber-950/90 border border-amber-500/40 p-2.5 rounded-xl text-xs text-amber-200 space-y-1 animate-fadeIn shrink-0">
@@ -317,7 +452,7 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
                                 💡 Luật chơi Schulte Chuyên Nghiệp:
                             </h4>
                             <p>• Nhấp chọn các số theo thứ tự tăng dần từ <b>1 đến {maxNumber}</b>.</p>
-                            <p>• <b>Thời gian có hạn:</b> Mức 25 (30s), Mức 50 (75s), Mức 100 (3 phút)!</p>
+                            <p>• <b>Thời gian có hạn:</b> Tùy chỉnh theo từng mức (đặt = 0s để chơi không giới hạn thời gian)!</p>
                             <p>• Chỉ được phép chọn sai tối đa <b>2 lần</b>. Lần sai thứ 3 hoặc hết giờ sẽ bị <b>THUA (Game Over)</b>!</p>
                         </div>
                     )}
@@ -333,43 +468,45 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
                                     type="button"
                                     onClick={() => changeMode(mode)}
                                     className={`px-2.5 py-1 rounded-lg font-black text-xs transition border flex items-center gap-1 ${maxNumber === mode
-                                            ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md scale-105'
-                                            : 'bg-slate-700/60 text-slate-300 border-slate-600 hover:bg-slate-700'
+                                        ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-md scale-105'
+                                        : 'bg-slate-700/60 text-slate-300 border-slate-600 hover:bg-slate-700'
                                         }`}
                                 >
                                     <span>1..{mode}</span>
-                                    <span className="text-[9px] opacity-75">({GRID_SIZE_LABEL[mode]})</span>
+                                    <span className="text-[9px] opacity-75">({formatSecondsLabel(timeLimitsSec[mode])})</span>
                                 </button>
                             ))}
                         </div>
 
-                        {/* Mistakes counter & Countdown Timer Display */}
+                        {/* Mistakes counter & Countdown/Stopwatch Timer Display */}
                         <div className="flex items-center gap-2 sm:gap-3">
                             {/* Mistakes counter */}
                             <div className="flex items-center gap-1.5 bg-slate-950 px-3 py-1 rounded-xl border border-slate-700">
                                 <span className="text-[10px] text-slate-400 font-bold uppercase">Lỗi sai:</span>
                                 <span className={`font-mono text-xs sm:text-sm font-black px-2 py-0.5 rounded-md ${wrongCount > 2
-                                        ? 'bg-rose-600 text-white'
-                                        : wrongCount === 2
-                                            ? 'bg-amber-500 text-slate-950 animate-pulse'
-                                            : 'bg-slate-800 text-emerald-400'
+                                    ? 'bg-rose-600 text-white'
+                                    : wrongCount === 2
+                                        ? 'bg-amber-500 text-slate-950 animate-pulse'
+                                        : 'bg-slate-800 text-emerald-400'
                                     }`}>
-                                    {wrongCount} / 2 ❌
+                                    {`${wrongCount} / 2 ❌`}
                                 </span>
                             </div>
 
-                            {/* Remaining Countdown Timer */}
-                            <div className={`flex items-center gap-1.5 bg-slate-950 px-3 py-1 rounded-xl border ${remainingMs <= 10000 && isGameStarted
-                                    ? 'border-rose-500/80 animate-pulse'
-                                    : 'border-slate-700'
+                            {/* Timer Display */}
+                            <div className={`flex items-center gap-1.5 bg-slate-950 px-3 py-1 rounded-xl border ${!isUntimed && remainingMs <= 10000 && isGameStarted
+                                ? 'border-rose-500/80 animate-pulse'
+                                : 'border-slate-700'
                                 }`}>
-                                <Timer size={16} className={remainingMs <= 10000 && isGameStarted ? 'text-rose-400 animate-spin' : 'text-cyan-400 animate-spin-slow'} />
-                                <span className="text-[10px] text-slate-400 font-bold uppercase hidden sm:inline">Còn lại:</span>
-                                <span className={`font-mono text-sm sm:text-base font-black tracking-wider ${remainingMs <= 10000 && isGameStarted
-                                        ? 'text-rose-400'
-                                        : 'text-cyan-300'
+                                <Timer size={16} className={!isUntimed && remainingMs <= 10000 && isGameStarted ? 'text-rose-400 animate-spin' : 'text-cyan-400 animate-spin-slow'} />
+                                <span className="text-[10px] text-slate-400 font-bold uppercase hidden sm:inline">
+                                    {isUntimed ? 'Thời gian:' : 'Còn lại:'}
+                                </span>
+                                <span className={`font-mono text-sm sm:text-base font-black tracking-wider ${!isUntimed && remainingMs <= 10000 && isGameStarted
+                                    ? 'text-rose-400'
+                                    : 'text-cyan-300'
                                     }`}>
-                                    {formatTime(remainingMs)}
+                                    {isUntimed ? formatTime(elapsedMs) : formatTime(remainingMs)}
                                 </span>
                             </div>
                         </div>
@@ -419,7 +556,7 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
                                 <span className="text-lg">💀</span>
                                 <span>
                                     {gameOverReason === 'timeout'
-                                        ? `HẾT GIỜ! Bạn chưa tìm xong bảng 1..${maxNumber} trong thời gian cho phép (${GRID_SIZE_LABEL[maxNumber]}).`
+                                        ? `HẾT GIỜ! Bạn chưa tìm xong bảng 1..${maxNumber} trong thời gian cho phép (${formatSecondsLabel(timeLimitsSec[maxNumber])}).`
                                         : `BẠN ĐÃ THUA! Chọn sai ${wrongCount} lần (quá 2 lần cho phép).`}
                                 </span>
                             </div>
@@ -447,12 +584,12 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
                                     onClick={() => handleNumberClick(num)}
                                     disabled={isFound || isCompleted || isGameOver}
                                     className={`h-full min-h-0 w-full rounded-lg font-black text-xs sm:text-sm lg:text-base transition-all duration-100 flex items-center justify-center select-none shadow-sm ${isFound
-                                            ? 'bg-slate-900/40 text-slate-700 border border-slate-850 cursor-not-allowed scale-95 opacity-30'
-                                            : isWrong
-                                                ? 'bg-rose-600 text-white border-2 border-rose-400 animate-shake scale-105'
-                                                : isGameOver
-                                                    ? 'bg-slate-800/50 text-slate-600 border border-slate-800 cursor-not-allowed'
-                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 hover:border-amber-400/50 hover:scale-105 active:scale-95'
+                                        ? 'bg-slate-900/40 text-slate-700 border border-slate-850 cursor-not-allowed scale-95 opacity-30'
+                                        : isWrong
+                                            ? 'bg-rose-600 text-white border-2 border-rose-400 animate-shake scale-105'
+                                            : isGameOver
+                                                ? 'bg-slate-800/50 text-slate-600 border border-slate-800 cursor-not-allowed'
+                                                : 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 hover:border-amber-400/50 hover:scale-105 active:scale-95'
                                         }`}
                                 >
                                     {isFound ? (
@@ -470,7 +607,7 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
                 {/* Footer Bar */}
                 <div className="bg-slate-950 border-t border-slate-800 px-4 py-2 text-center text-[11px] text-slate-400 font-bold flex items-center justify-between shrink-0">
                     <span>⚡ Bảng Schulte: Chọn Sai Quá 2 Lần Là Thua</span>
-                    <span>Tiến độ: {foundNumbers.size} / {maxNumber}</span>
+                    <span>Tiến độ: {`${foundNumbers.size} / ${maxNumber}`}</span>
                 </div>
 
             </div>
