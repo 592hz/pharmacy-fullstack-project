@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
-import { Sparkles, FlaskConical, Swords, Zap, LayoutGrid } from 'lucide-react';
+import { Sparkles, FlaskConical, Swords, Zap, LayoutGrid, CircleDot } from 'lucide-react';
 import PillDropMergeModal from '@/components/PillDropMergeModal';
 import GomokuCaroModal from '@/components/GomokuCaroModal';
 import NumberFinderModal from '@/components/NumberFinderModal';
 import PillTangramModal from '@/components/PillTangramModal';
+import GoMasterModal from '@/components/GoMasterModal';
 
 export const EntertainmentPage: React.FC = () => {
     const [isDropMergeGameOpen, setIsDropMergeGameOpen] = useState<boolean>(false);
     const [isCaroGameOpen, setIsCaroGameOpen] = useState<boolean>(false);
     const [isNumberFinderGameOpen, setIsNumberFinderGameOpen] = useState<boolean>(false);
     const [isTangramGameOpen, setIsTangramGameOpen] = useState<boolean>(false);
+    const [isGoGameOpen, setIsGoGameOpen] = useState<boolean>(false);
 
     return (
         <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto animate-fadeIn">
@@ -29,6 +31,15 @@ export const EntertainmentPage: React.FC = () => {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
+                    <button
+                        type="button"
+                        onClick={() => setIsGoGameOpen(true)}
+                        className="px-4 py-2.5 bg-amber-700 hover:bg-amber-600 text-white font-black text-xs rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition flex items-center gap-1.5 border border-white/40"
+                    >
+                        <CircleDot size={16} />
+                        <span>Cờ Vây Go ⚪⚫</span>
+                    </button>
+
                     <button
                         type="button"
                         onClick={() => setIsTangramGameOpen(true)}
@@ -69,6 +80,43 @@ export const EntertainmentPage: React.FC = () => {
 
             {/* Game Cards Showcase */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                {/* Card 0: Go Master (Cờ Vây) */}
+                <div className="bg-white dark:bg-neutral-800 rounded-3xl p-5 border border-amber-300 dark:border-amber-700/60 shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col justify-between group">
+                    <div className="space-y-3">
+                        <div className="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-neutral-700 flex items-center justify-center text-3xl shadow-inner group-hover:scale-110 transition-transform">
+                            ⚪⚫
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-extrabold text-base text-gray-900 dark:text-gray-100">
+                                    Tuyệt Đỉnh Cờ Vây (Go Master)
+                                </h3>
+                                <span className="bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-300 text-[10px] font-black px-2 py-0.5 rounded-full border border-amber-300">
+                                    MỚI HOT 🔥
+                                </span>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 line-clamp-2">
+                                Môn thể thao trí tuệ hàng đầu thế giới! Bao vây đất đai, tính toán Khí và triệt hạ quân đối phương trên bàn cờ gỗ sang trọng.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-1.5 pt-1 text-[11px] font-bold text-amber-800 dark:text-amber-300">
+                            <span className="bg-amber-50 dark:bg-neutral-700 px-2 py-0.5 rounded-md">⚪⚫ Bàn 9x9, 13x13, 19x19</span>
+                            <span className="bg-amber-50 dark:bg-neutral-700 px-2 py-0.5 rounded-md">🤖 Đấu AI 3 Cấp độ</span>
+                            <span className="bg-amber-50 dark:bg-neutral-700 px-2 py-0.5 rounded-md">📊 Tự động đếm Đất & Komi</span>
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => setIsGoGameOpen(true)}
+                        className="mt-5 w-full py-2.5 bg-gradient-to-r from-amber-700 via-amber-800 to-orange-900 hover:from-amber-800 hover:to-orange-950 text-white font-black text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5"
+                    >
+                        <CircleDot size={16} />
+                        <span>Đấu Cờ Vây ⚪⚫</span>
+                    </button>
+                </div>
 
                 {/* Card 1: Pill Tangram Grid Puzzle */}
                 <div className="bg-white dark:bg-neutral-800 rounded-3xl p-5 border border-emerald-200 dark:border-neutral-700 shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col justify-between group">
@@ -221,6 +269,11 @@ export const EntertainmentPage: React.FC = () => {
             </div>
 
             {/* Mini Game Modals */}
+            <GoMasterModal
+                isOpen={isGoGameOpen}
+                onClose={() => setIsGoGameOpen(false)}
+            />
+
             <PillTangramModal
                 isOpen={isTangramGameOpen}
                 onClose={() => setIsTangramGameOpen(false)}
@@ -245,3 +298,4 @@ export const EntertainmentPage: React.FC = () => {
 };
 
 export default EntertainmentPage;
+
