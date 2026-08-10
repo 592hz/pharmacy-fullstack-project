@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Volume2, VolumeX, X, Trophy, RotateCcw, HelpCircle, Zap, Timer, Award, CheckCircle2, Settings, Plus, Minus } from 'lucide-react';
+import { Volume2, VolumeX, X, Trophy, RotateCcw, HelpCircle, Zap, Timer, Award, CheckCircle2, Settings, Plus, Minus, Pause, Play } from 'lucide-react';
 
 interface NumberFinderModalProps {
     isOpen: boolean;
@@ -81,6 +81,7 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
     const [currentTarget, setCurrentTarget] = useState<number>(1);
     const [foundNumbers, setFoundNumbers] = useState<Set<number>>(new Set());
     const [isGameStarted, setIsGameStarted] = useState<boolean>(false);
+    const [isPaused, setIsPaused] = useState<boolean>(false);
     const [isCompleted, setIsCompleted] = useState<boolean>(false);
     const [isGameOver, setIsGameOver] = useState<boolean>(false);
     const [gameOverReason, setGameOverReason] = useState<'mistakes' | 'timeout' | null>(null);
@@ -184,6 +185,7 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
         setFoundNumbers(new Set());
         setWrongCount(0);
         setIsGameStarted(false);
+        setIsPaused(false);
         setIsCompleted(false);
         setIsGameOver(false);
         setGameOverReason(null);
@@ -213,7 +215,7 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
 
     // Stopwatch & Countdown Timer handler
     useEffect(() => {
-        if (isGameStarted && !isCompleted && !isGameOver) {
+        if (isGameStarted && !isPaused && !isCompleted && !isGameOver) {
             const startTime = Date.now() - elapsedMs;
             timerRef.current = setInterval(() => {
                 const newElapsed = Date.now() - startTime;
@@ -232,11 +234,11 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
                 if (timerRef.current) clearInterval(timerRef.current);
             };
         }
-    }, [isGameStarted, isCompleted, isGameOver, elapsedMs, currentLimitMs, isUntimed, isMuted]);
+    }, [isGameStarted, isPaused, isCompleted, isGameOver, elapsedMs, currentLimitMs, isUntimed, isMuted]);
 
     // Number Click Handler
     const handleNumberClick = (num: number) => {
-        if (isCompleted || isGameOver) return;
+        if (isCompleted || isGameOver || isPaused) return;
 
         // Auto start timer on first click
         if (!isGameStarted) {
@@ -317,6 +319,23 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
                     </div>
 
                     <div className="flex items-center gap-1.5">
+                        {!isCompleted && !isGameOver && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (!isGameStarted) setIsGameStarted(true);
+                                    setIsPaused(!isPaused);
+                                }}
+                                className={`p-1.5 rounded-lg transition backdrop-blur-md ${
+                                    isPaused
+                                        ? 'bg-amber-500 text-slate-950 ring-2 ring-amber-400 font-bold'
+                                        : 'bg-amber-500/30 text-amber-200 hover:bg-amber-500/50 border border-amber-400/40'
+                                }`}
+                                title={isPaused ? 'Tiếp tục' : 'Tạm dừng'}
+                            >
+                                {isPaused ? <Play size={16} fill="currentColor" /> : <Pause size={16} />}
+                            </button>
+                        )}
                         <button
                             type="button"
                             onClick={() => setShowSettings(!showSettings)}
@@ -511,8 +530,26 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
                             </div>
                         </div>
 
-                        {/* Reset & High Score */}
+                        {/* Reset, Pause & High Score */}
                         <div className="flex items-center gap-2">
+                            {!isCompleted && !isGameOver && (
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (!isGameStarted) setIsGameStarted(true);
+                                        setIsPaused(!isPaused);
+                                    }}
+                                    className={`px-3 py-1 font-black text-xs rounded-lg shadow transition flex items-center gap-1.5 ${
+                                        isPaused
+                                            ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 animate-pulse'
+                                            : 'bg-amber-600 hover:bg-amber-500 text-white border border-amber-500/50'
+                                    }`}
+                                >
+                                    {isPaused ? <Play size={14} fill="currentColor" /> : <Pause size={14} />}
+                                    <span>{isPaused ? 'Tiếp Tục' : 'Tạm Dừng'}</span>
+                                </button>
+                            )}
+
                             <div className="hidden md:flex items-center gap-1 bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-700 text-xs font-bold text-amber-400">
                                 <Trophy size={13} className="text-amber-400" />
                                 <span className="text-slate-100 font-mono font-black text-xs">
@@ -572,34 +609,56 @@ export const NumberFinderModal: React.FC<NumberFinderModalProps> = ({ isOpen, on
                     )}
 
                     {/* The 1..N Number Grid (Pure Self Search - No Guidance) */}
-                    <div className={`grid ${getGridCols()} flex-1 min-h-0 p-1.5 bg-slate-950 rounded-2xl border border-slate-800 shadow-2xl`}>
-                        {numbers.map((num) => {
-                            const isFound = foundNumbers.has(num);
-                            const isWrong = wrongClickId === num;
-
-                            return (
+                    <div className="relative flex-1 min-h-0 flex flex-col">
+                        {isPaused && (
+                            <div className="absolute inset-0 z-20 bg-slate-950/95 backdrop-blur-md rounded-2xl flex flex-col items-center justify-center space-y-4 animate-fadeIn border border-slate-700/80 p-4">
+                                <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-400/50 flex items-center justify-center text-amber-400 shadow-lg shadow-amber-500/10">
+                                    <Pause size={36} />
+                                </div>
+                                <div className="text-center px-4">
+                                    <h3 className="text-xl font-black text-white tracking-wide">TRÒ CHƠI ĐANG TẠM DỪNG</h3>
+                                    <p className="text-xs text-slate-400 mt-1">Bảng số đã tạm ẩn để đảm bảo tính công bằng khi bấm giờ.</p>
+                                </div>
                                 <button
-                                    key={num}
                                     type="button"
-                                    onClick={() => handleNumberClick(num)}
-                                    disabled={isFound || isCompleted || isGameOver}
-                                    className={`h-full min-h-0 w-full rounded-lg font-black text-xs sm:text-sm lg:text-base transition-all duration-100 flex items-center justify-center select-none shadow-sm ${isFound
-                                        ? 'bg-slate-900/40 text-slate-700 border border-slate-850 cursor-not-allowed scale-95 opacity-30'
-                                        : isWrong
-                                            ? 'bg-rose-600 text-white border-2 border-rose-400 animate-shake scale-105'
-                                            : isGameOver
-                                                ? 'bg-slate-800/50 text-slate-600 border border-slate-800 cursor-not-allowed'
-                                                : 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 hover:border-amber-400/50 hover:scale-105 active:scale-95'
-                                        }`}
+                                    onClick={() => setIsPaused(false)}
+                                    className="px-6 py-2.5 bg-gradient-to-r from-amber-500 via-orange-500 to-rose-500 hover:from-amber-400 hover:to-rose-400 text-slate-950 font-black text-sm rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
                                 >
-                                    {isFound ? (
-                                        <CheckCircle2 size={14} className="text-slate-600" />
-                                    ) : (
-                                        <span>{num}</span>
-                                    )}
+                                    <Play size={18} fill="currentColor" />
+                                    <span>TIẾP TỤC CHƠI</span>
                                 </button>
-                            );
-                        })}
+                            </div>
+                        )}
+
+                        <div className={`grid ${getGridCols()} flex-1 min-h-0 p-1.5 bg-slate-950 rounded-2xl border border-slate-800 shadow-2xl`}>
+                            {numbers.map((num) => {
+                                const isFound = foundNumbers.has(num);
+                                const isWrong = wrongClickId === num;
+
+                                return (
+                                    <button
+                                        key={num}
+                                        type="button"
+                                        onClick={() => handleNumberClick(num)}
+                                        disabled={isFound || isCompleted || isGameOver}
+                                        className={`h-full min-h-0 w-full rounded-lg font-black text-xs sm:text-sm lg:text-base transition-all duration-100 flex items-center justify-center select-none shadow-sm ${isFound
+                                            ? 'bg-slate-900/40 text-slate-700 border border-slate-850 cursor-not-allowed scale-95 opacity-30'
+                                            : isWrong
+                                                ? 'bg-rose-600 text-white border-2 border-rose-400 animate-shake scale-105'
+                                                : isGameOver
+                                                    ? 'bg-slate-800/50 text-slate-600 border border-slate-800 cursor-not-allowed'
+                                                    : 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700 hover:border-amber-400/50 hover:scale-105 active:scale-95'
+                                            }`}
+                                    >
+                                        {isFound ? (
+                                            <CheckCircle2 size={14} className="text-slate-600" />
+                                        ) : (
+                                            <span>{num}</span>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
 
                 </div>

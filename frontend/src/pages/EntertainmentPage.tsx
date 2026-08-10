@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Sparkles, FlaskConical, Swords, Zap, LayoutGrid, CircleDot } from 'lucide-react';
+import { Sparkles, FlaskConical, Swords, Zap, LayoutGrid, CircleDot, Hammer } from 'lucide-react';
 import PillDropMergeModal from '@/components/PillDropMergeModal';
 import GomokuCaroModal from '@/components/GomokuCaroModal';
 import NumberFinderModal from '@/components/NumberFinderModal';
 import PillTangramModal from '@/components/PillTangramModal';
 import GoMasterModal from '@/components/GoMasterModal';
+import WhackAMoleModal from '@/components/WhackAMoleModal';
 
 export const EntertainmentPage: React.FC = () => {
     const [isDropMergeGameOpen, setIsDropMergeGameOpen] = useState<boolean>(false);
@@ -12,6 +13,7 @@ export const EntertainmentPage: React.FC = () => {
     const [isNumberFinderGameOpen, setIsNumberFinderGameOpen] = useState<boolean>(false);
     const [isTangramGameOpen, setIsTangramGameOpen] = useState<boolean>(false);
     const [isGoGameOpen, setIsGoGameOpen] = useState<boolean>(false);
+    const [isWhackAMoleGameOpen, setIsWhackAMoleGameOpen] = useState<boolean>(false);
 
     return (
         <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto animate-fadeIn">
@@ -31,6 +33,15 @@ export const EntertainmentPage: React.FC = () => {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
+                    <button
+                        type="button"
+                        onClick={() => setIsWhackAMoleGameOpen(true)}
+                        className="px-4 py-2.5 bg-orange-600 hover:bg-orange-500 text-white font-black text-xs rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition flex items-center gap-1.5 border border-white/40"
+                    >
+                        <Hammer size={16} />
+                        <span>Đập Thú 🔨</span>
+                    </button>
+
                     <button
                         type="button"
                         onClick={() => setIsGoGameOpen(true)}
@@ -266,6 +277,43 @@ export const EntertainmentPage: React.FC = () => {
                     </button>
                 </div>
 
+                {/* Card 5: Whack-a-Mole (Đập Thú) */}
+                <div className="bg-white dark:bg-neutral-800 rounded-3xl p-5 border border-orange-200 dark:border-neutral-700 shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col justify-between group">
+                    <div className="space-y-3">
+                        <div className="w-14 h-14 rounded-2xl bg-orange-100 dark:bg-neutral-700 flex items-center justify-center text-3xl shadow-inner group-hover:scale-110 transition-transform">
+                            🔨
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-extrabold text-base text-gray-900 dark:text-gray-100">
+                                    Thử Thách Đập Thú (Whack-a-Mole)
+                                </h3>
+                                <span className="bg-orange-100 dark:bg-orange-950 text-orange-600 dark:text-orange-300 text-[10px] font-black px-2 py-0.5 rounded-full border border-orange-200">
+                                    MỚI HOT 🔥
+                                </span>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 line-clamp-2">
+                                Game phản xạ siêu nhạy! Nhanh tay đập Chuột, Mèo thần tài & Thuốc bổ, né Bom độc để đạt chuỗi Combo đỉnh cao.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-1.5 pt-1 text-[11px] font-bold text-orange-700 dark:text-orange-300">
+                            <span className="bg-orange-50 dark:bg-neutral-700 px-2 py-0.5 rounded-md">🐹 5 Loại sinh vật</span>
+                            <span className="bg-orange-50 dark:bg-neutral-700 px-2 py-0.5 rounded-md">🔥 Chuỗi Combo x2 Điểm</span>
+                            <span className="bg-orange-50 dark:bg-neutral-700 px-2 py-0.5 rounded-md">⏸️ Tính năng Tạm Dừng</span>
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => setIsWhackAMoleGameOpen(true)}
+                        className="mt-5 w-full py-2.5 bg-gradient-to-r from-orange-500 via-amber-600 to-rose-600 hover:from-orange-600 hover:to-rose-700 text-white font-black text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5"
+                    >
+                        <Hammer size={16} />
+                        <span>Chơi Đập Thú 🔨</span>
+                    </button>
+                </div>
+
             </div>
 
             {/* Mini Game Modals */}
@@ -292,6 +340,11 @@ export const EntertainmentPage: React.FC = () => {
             <GomokuCaroModal
                 isOpen={isCaroGameOpen}
                 onClose={() => setIsCaroGameOpen(false)}
+            />
+
+            <WhackAMoleModal
+                isOpen={isWhackAMoleGameOpen}
+                onClose={() => setIsWhackAMoleGameOpen(false)}
             />
         </div>
     );
