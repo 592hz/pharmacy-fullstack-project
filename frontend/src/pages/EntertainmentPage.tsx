@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Sparkles, FlaskConical, Swords, Zap, LayoutGrid, CircleDot, Hammer } from 'lucide-react';
+import { Sparkles, FlaskConical, Swords, Zap, LayoutGrid, CircleDot, Hammer, HeartHandshake, Brain } from 'lucide-react';
 import PillDropMergeModal from '@/components/PillDropMergeModal';
 import GomokuCaroModal from '@/components/GomokuCaroModal';
 import NumberFinderModal from '@/components/NumberFinderModal';
 import PillTangramModal from '@/components/PillTangramModal';
 import GoMasterModal from '@/components/GoMasterModal';
 import WhackAMoleModal from '@/components/WhackAMoleModal';
+import PiggybackMazeModal from '@/components/PiggybackMazeModal';
+import PillMemoryCardModal from '@/components/PillMemoryCardModal';
 
 export const EntertainmentPage: React.FC = () => {
     const [isDropMergeGameOpen, setIsDropMergeGameOpen] = useState<boolean>(false);
@@ -14,6 +16,8 @@ export const EntertainmentPage: React.FC = () => {
     const [isTangramGameOpen, setIsTangramGameOpen] = useState<boolean>(false);
     const [isGoGameOpen, setIsGoGameOpen] = useState<boolean>(false);
     const [isWhackAMoleGameOpen, setIsWhackAMoleGameOpen] = useState<boolean>(false);
+    const [isPiggybackGameOpen, setIsPiggybackGameOpen] = useState<boolean>(false);
+    const [isMemoryGameOpen, setIsMemoryGameOpen] = useState<boolean>(false);
 
     return (
         <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto animate-fadeIn">
@@ -33,6 +37,24 @@ export const EntertainmentPage: React.FC = () => {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
+                    <button
+                        type="button"
+                        onClick={() => setIsMemoryGameOpen(true)}
+                        className="px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 text-white font-black text-xs rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition flex items-center gap-1.5 border border-white/40 animate-bounce"
+                    >
+                        <Brain size={16} />
+                        <span>Lật Hình Tìm Cặp 🃏</span>
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => setIsPiggybackGameOpen(true)}
+                        className="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-black text-xs rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition flex items-center gap-1.5 border border-white/40"
+                    >
+                        <HeartHandshake size={16} />
+                        <span>Cõng Bạn Tìm Bi 🧑‍🤝‍🧑</span>
+                    </button>
+
                     <button
                         type="button"
                         onClick={() => setIsWhackAMoleGameOpen(true)}
@@ -92,7 +114,72 @@ export const EntertainmentPage: React.FC = () => {
             {/* Game Cards Showcase */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
 
-                {/* Card 0: Go Master (Cờ Vây) */}
+                {/* Card 00: Pill Memory Matching (Lật Hình Tìm Cặp Thuốc) */}
+                <div className="bg-white dark:bg-neutral-800 rounded-3xl p-5 border border-cyan-300 dark:border-cyan-700/60 shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col justify-between group">
+                    <div className="space-y-3">
+                        <div className="w-14 h-14 rounded-2xl bg-cyan-100 dark:bg-neutral-700 flex items-center justify-center text-3xl shadow-inner group-hover:scale-110 transition-transform">
+                            🃏
+                        </div>
+                        <div>
+                            <div className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black bg-cyan-500/20 text-cyan-700 dark:text-cyan-300 mb-1">
+                                Mới Ra Mắt • Rèn Trí Nhớ 🧠
+                            </div>
+                            <h3 className="text-lg font-black text-neutral-800 dark:text-neutral-100">
+                                Lật Hình Tìm Cặp Thuốc
+                            </h3>
+                            <p className="text-xs text-neutral-500 dark:text-neutral-400 mt-1 line-clamp-2">
+                                Thử thách siêu trí nhớ! Lật các lá bài 3D tìm cặp viên thuốc, serum & thảo dược đồng nhất trước khi hết giờ.
+                            </p>
+                        </div>
+                    </div>
+                    <div className="pt-4 mt-4 border-t border-neutral-100 dark:border-neutral-700/50 flex items-center justify-between">
+                        <span className="text-[11px] font-bold text-neutral-400">4 Màn Chơi • 3D Flip</span>
+                        <button
+                            type="button"
+                            onClick={() => setIsMemoryGameOpen(true)}
+                            className="px-4 py-2 bg-gradient-to-r from-cyan-600 to-indigo-600 hover:from-cyan-500 hover:to-indigo-500 text-white font-bold text-xs rounded-xl shadow-md transition"
+                        >
+                            Chơi Ngay 🃏
+                        </button>
+                    </div>
+                </div>
+
+                {/* Card 0: Piggyback Maze (Cõng Bạn Tìm Thuốc & Bi) */}
+                <div className="bg-white dark:bg-neutral-800 rounded-3xl p-5 border border-rose-300 dark:border-rose-700/60 shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col justify-between group">
+                    <div className="space-y-3">
+                        <div className="w-14 h-14 rounded-2xl bg-rose-100 dark:bg-neutral-700 flex items-center justify-center text-3xl shadow-inner group-hover:scale-110 transition-transform">
+                            🧑‍🤝‍🧑
+                        </div>
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <h3 className="font-extrabold text-base text-gray-900 dark:text-gray-100">
+                                    Cõng Bạn Tìm Thuốc & Bi
+                                </h3>
+                                <span className="bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-300 text-[10px] font-black px-2 py-0.5 rounded-full border border-rose-300">
+                                    SIÊU HOT 🔥
+                                </span>
+                            </div>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 line-clamp-2">
+                                Game cõng nhân vật ăn bi ngọt ngào! Di chuyển qua các mê cung, thu thập bi vàng & ngọc quý, né quái ma ranh mãnh để về đích.
+                            </p>
+                        </div>
+
+                        <div className="flex flex-wrap gap-1.5 pt-1 text-[11px] font-bold text-rose-800 dark:text-rose-300">
+                            <span className="bg-rose-50 dark:bg-neutral-700 px-2 py-0.5 rounded-md">🧑‍🤝‍🧑 Cõng bạn đời</span>
+                            <span className="bg-rose-50 dark:bg-neutral-700 px-2 py-0.5 rounded-md">🪙 Ăn bi & ngọc quý</span>
+                            <span className="bg-rose-50 dark:bg-neutral-700 px-2 py-0.5 rounded-md">⏱️ Vượt 5 màn chơi</span>
+                        </div>
+                    </div>
+
+                    <button
+                        type="button"
+                        onClick={() => setIsPiggybackGameOpen(true)}
+                        className="mt-5 w-full py-2.5 bg-gradient-to-r from-rose-500 via-purple-600 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white font-black text-xs rounded-xl shadow-md transition flex items-center justify-center gap-1.5"
+                    >
+                        <HeartHandshake size={16} />
+                        <span>Chơi Cõng Bạn Tìm Bi 🧑‍🤝‍🧑</span>
+                    </button>
+                </div>
                 <div className="bg-white dark:bg-neutral-800 rounded-3xl p-5 border border-amber-300 dark:border-amber-700/60 shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col justify-between group">
                     <div className="space-y-3">
                         <div className="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-neutral-700 flex items-center justify-center text-3xl shadow-inner group-hover:scale-110 transition-transform">
@@ -345,6 +432,16 @@ export const EntertainmentPage: React.FC = () => {
             <WhackAMoleModal
                 isOpen={isWhackAMoleGameOpen}
                 onClose={() => setIsWhackAMoleGameOpen(false)}
+            />
+
+            <PiggybackMazeModal
+                isOpen={isPiggybackGameOpen}
+                onClose={() => setIsPiggybackGameOpen(false)}
+            />
+
+            <PillMemoryCardModal
+                isOpen={isMemoryGameOpen}
+                onClose={() => setIsMemoryGameOpen(false)}
             />
         </div>
     );
