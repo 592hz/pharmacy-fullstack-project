@@ -165,8 +165,8 @@ const CuteDinoIcon: React.FC<{
     );
 
 export const FallingPetals: React.FC<{ defaultActive?: boolean; count?: number }> = ({
-    defaultActive = true,
-    count = 30
+    defaultActive = false,
+    count = 20
 }) => {
     const [isPetalsActive, setIsPetalsActive] = useState<boolean>(defaultActive);
     const [isMascotActive, setIsMascotActive] = useState<boolean>(defaultActive);
@@ -174,6 +174,7 @@ export const FallingPetals: React.FC<{ defaultActive?: boolean; count?: number }
     const [explosions, setExplosions] = useState<ExplosionEffect[]>([]);
 
     const mascotsRef = useRef<MascotItem[]>(INITIAL_MASCOTS);
+    const mascotNodesRef = useRef<{ [key: number]: HTMLDivElement | null }>({});
     mascotsRef.current = mascots;
 
     // Tự động xoay đổi câu thoại cho từng nhân vật
@@ -189,7 +190,7 @@ export const FallingPetals: React.FC<{ defaultActive?: boolean; count?: number }
         return () => clearInterval(interval);
     }, []);
 
-    // Vòng lặp vật lý di chuyển và xử lý va chạm thời gian thực (real-time physics tick)
+    // Vòng lặp vật lý di chuyển và xử lý va chạm thời gian thực (real-time physics tick via Direct DOM mutations)
     useEffect(() => {
         if (!isMascotActive) return;
 
@@ -200,7 +201,7 @@ export const FallingPetals: React.FC<{ defaultActive?: boolean; count?: number }
             const dt = Math.min((now - lastTime) / 1000, 0.05); // cap delta time
             lastTime = now;
 
-            const currentMascots = mascotsRef.current.map((m) => ({ ...m }));
+            const currentMascots = mascotsRef.current;
             const nowTime = Date.now();
             const newExplosions: ExplosionEffect[] = [];
 
@@ -216,6 +217,15 @@ export const FallingPetals: React.FC<{ defaultActive?: boolean; count?: number }
                 } else if (m.x >= 90) {
                     m.x = 90;
                     m.direction = -1;
+                }
+
+                const node = mascotNodesRef.current[m.id];
+                if (node) {
+                    node.style.left = `${m.x}%`;
+                    const charInner = node.querySelector('.mascot-char') as HTMLElement;
+                    if (charInner) {
+                        charInner.style.transform = m.direction === -1 ? 'scaleX(-1)' : 'scaleX(1)';
+                    }
                 }
             }
 
@@ -285,8 +295,6 @@ export const FallingPetals: React.FC<{ defaultActive?: boolean; count?: number }
                     currentMascots[i].isShaking = false;
                 }
             }
-
-            setMascots(currentMascots);
 
             if (newExplosions.length > 0) {
                 setExplosions((prev) => [...prev.slice(-6), ...newExplosions]);
@@ -401,6 +409,7 @@ export const FallingPetals: React.FC<{ defaultActive?: boolean; count?: number }
                     {mascots.map((m) => (
                         <div
                             key={m.id}
+                            ref={(el) => { mascotNodesRef.current[m.id] = el; }}
                             className="absolute bottom-0 flex flex-col items-center transition-transform duration-75"
                             style={{
                                 left: `${m.x}%`,
@@ -416,7 +425,7 @@ export const FallingPetals: React.FC<{ defaultActive?: boolean; count?: number }
 
                                 {/* Nhân vật quay hướng theo chiều di chuyển */}
                                 <div
-                                    className="transition-transform duration-200"
+                                    className="mascot-char transition-transform duration-200"
                                     style={{ transform: m.direction === -1 ? 'scaleX(-1)' : 'scaleX(1)' }}
                                 >
                                     <CuteDinoIcon

@@ -33,6 +33,7 @@ const getDefaultQtyForPrice = (price: number): number => {
 
 export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: AddDoseModalProps) {
     const [doseName, setDoseName] = useState("")
+    const [doseQuantity, setDoseQuantity] = useState<number>(1)
     const [selectedPrice, setSelectedPrice] = useState<number>(20000)
     const [customPrice, setCustomPrice] = useState<string>("")
     const [searchQuery, setSearchQuery] = useState("")
@@ -168,6 +169,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
         }
 
         const doseId = `DOSE-${Date.now()}`
+        const effectiveDoseQty = Math.max(1, doseQuantity)
 
         // 1. Create the main Dose item (the one that carries the retail price)
         const mainDoseItem: ExportOrderItem = {
@@ -177,13 +179,13 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
             unit: "Liều",
             batchNumber: "LÔ-LIÊU",
             expiryDate: "31/12/2099",
-            quantity: 1,
+            quantity: effectiveDoseQty,
             retailPrice: finalPrice,
             importPrice: 0, // We put the import price on the components for stock/profit calculation consistency
-            totalAmount: finalPrice,
+            totalAmount: finalPrice * effectiveDoseQty,
             discountPercent: 0,
             discountAmount: 0,
-            remainingAmount: finalPrice,
+            remainingAmount: finalPrice * effectiveDoseQty,
             parentDoseId: doseId
         }
 
@@ -192,7 +194,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
             .filter(comp => comp.product)
             .flatMap(comp => {
                 const product = comp.product
-                const totalQty = comp.quantity
+                const totalQty = comp.quantity * effectiveDoseQty
                 const sortedBatches = sortBatchesFEFO(product.batches?.filter(b => b.quantity > 0) || [])
 
                 const rows: ExportOrderItem[] = []
@@ -248,10 +250,11 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
 
         onAdd(mainDoseItem, componentItems)
         onClose()
-        toast.success(`Đã thêm liều: ${doseName}`)
+        toast.success(`Đã thêm ${effectiveDoseQty} liều: ${doseName}`)
 
         // Reset state
         setDoseName("")
+        setDoseQuantity(1)
         setSelectedComponents([])
         setSearchQuery("")
     }
@@ -315,8 +318,8 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                                         key={tpl._id}
                                         onClick={() => handleSelectTemplate(tpl)}
                                         className={`px-3 py-1.5 text-xs font-bold rounded-xl border transition-all ${doseName === tpl.name
-                                                ? "border-green-500 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400"
-                                                : "border-gray-200 dark:border-neutral-700 hover:border-green-400 hover:text-green-500 bg-white dark:bg-neutral-900 text-gray-600 dark:text-gray-300"
+                                            ? "border-green-500 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400"
+                                            : "border-gray-200 dark:border-neutral-700 hover:border-green-400 hover:text-green-500 bg-white dark:bg-neutral-900 text-gray-600 dark:text-gray-300"
                                             }`}
                                     >
                                         {tpl.name}
@@ -328,9 +331,51 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                             </div>
                         </div>
 
+                        {/* Dose Quantity Selection */}
+                        <div className="space-y-3">
+                            <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Số lượng liều thêm</label>
+                            <div className="flex items-center gap-3">
+                                <div className="flex items-center border border-gray-200 dark:border-neutral-700 rounded-2xl bg-gray-50 dark:bg-neutral-800 p-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => setDoseQuantity(prev => Math.max(1, prev - 1))}
+                                        className="w-10 h-10 flex items-center justify-center font-black text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-neutral-700 rounded-xl transition-all shadow-sm text-lg select-none"
+                                    >
+                                        -
+                                    </button>
+                                    <NumericInput
+                                        value={doseQuantity}
+                                        onChange={(v) => setDoseQuantity(Math.max(1, v))}
+                                        className="w-16 h-10 bg-transparent border-none text-center font-black text-lg text-gray-800 dark:text-gray-100 outline-none"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={() => setDoseQuantity(prev => prev + 1)}
+                                        className="w-10 h-10 flex items-center justify-center font-black text-gray-600 dark:text-gray-300 hover:bg-white dark:hover:bg-neutral-700 rounded-xl transition-all shadow-sm text-lg select-none"
+                                    >
+                                        +
+                                    </button>
+                                </div>
+                                <div className="flex flex-wrap gap-1.5 flex-1">
+                                    {[1, 2, 3, 5, 10].map(q => (
+                                        <button
+                                            key={q}
+                                            type="button"
+                                            onClick={() => setDoseQuantity(q)}
+                                            className={`px-3.5 py-2 text-xs font-bold rounded-xl border transition-all ${doseQuantity === q
+                                                ? "border-green-500 bg-green-50 dark:bg-green-900/20 text-green-600 dark:text-green-400 shadow-sm"
+                                                : "border-gray-200 dark:border-neutral-700 hover:border-green-400 text-gray-600 dark:text-gray-300 bg-white dark:bg-neutral-900"
+                                                }`}
+                                        >
+                                            {q} liều
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
                         {/* Price Selection */}
                         <div className="space-y-3">
-                            <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Chọn mức giá bán</label>
+                            <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Chọn mức giá bán (1 liều)</label>
                             <div className="grid grid-cols-2 gap-2">
                                 {PRESET_PRICES.map((p) => (
                                     <button
@@ -371,21 +416,32 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                             </div>
                         </div>
 
+
                         {/* Summary Stats */}
                         <div className="bg-gray-900 dark:bg-black rounded-3xl p-6 text-white space-y-4 shadow-xl">
                             <div className="flex justify-between items-center">
-                                <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">Tổng giá nhập</span>
-                                <span className="text-lg font-mono font-bold text-blue-400">{totalImportPrice.toLocaleString("vi-VN")} đ</span>
+                                <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">
+                                    Tổng giá nhập {doseQuantity > 1 ? `(${doseQuantity} liều)` : ""}
+                                </span>
+                                <span className="text-lg font-mono font-bold text-blue-400">
+                                    {(totalImportPrice * Math.max(1, doseQuantity)).toLocaleString("vi-VN")} đ
+                                </span>
                             </div>
                             <div className="h-px bg-white/10"></div>
                             <div className="flex justify-between items-center">
-                                <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">Giá bán liều</span>
-                                <span className="text-2xl font-black text-green-400">{finalPrice.toLocaleString("vi-VN")} đ</span>
+                                <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">
+                                    Tổng giá bán {doseQuantity > 1 ? `(${doseQuantity} liều)` : ""}
+                                </span>
+                                <span className="text-2xl font-black text-green-400">
+                                    {(finalPrice * Math.max(1, doseQuantity)).toLocaleString("vi-VN")} đ
+                                </span>
                             </div>
                             <div className="pt-2">
-                                <div className={`flex items-center gap-2 p-3 rounded-xl ${profit >= 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                                <div className={`flex items-center gap-2 p-3 rounded-xl ${(profit * Math.max(1, doseQuantity)) >= 0 ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
                                     {profit >= 0 ? <Check size={18} /> : <AlertCircle size={18} />}
-                                    <span className="text-sm font-bold">Lợi nhuận: {profit.toLocaleString("vi-VN")} đ ({((profit / finalPrice) * 100 || 0).toFixed(1)}%)</span>
+                                    <span className="text-sm font-bold">
+                                        Lợi nhuận: {(profit * Math.max(1, doseQuantity)).toLocaleString("vi-VN")} đ ({(((profit * Math.max(1, doseQuantity)) / (finalPrice * Math.max(1, doseQuantity))) * 100 || 0).toFixed(1)}%)
+                                    </span>
                                 </div>
                             </div>
                         </div>

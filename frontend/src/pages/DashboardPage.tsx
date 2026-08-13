@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link } from "react-router-dom"
 import { DollarSign, Calendar, TrendingUp, Activity, ShoppingCart, Flag, Loader2, StickyNote, Plus, Pin, Trash2, Edit3, X, Save, ArrowRight } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts"
 import { type DashboardSummary, type Note, noteSchema } from "@/lib/schemas"
@@ -30,7 +30,6 @@ const fmtDate = (iso: string) => {
 }
 
 export default function DashboardPage() {
-    const navigate = useNavigate()
     const [isLoading, setIsLoading] = useState(true)
     const [summary, setSummary] = useState<DashboardSummary | null>(null)
     const [chartMode, setChartMode] = useState<"week" | "month" | "custom" | "year">("month")
@@ -336,10 +335,10 @@ export default function DashboardPage() {
                     <div>
                         <h2 className="text-lg font-semibold tracking-tight text-foreground">Thống kê doanh thu & Lợi nhuận</h2>
                         <p className="text-sm text-muted-foreground">
-                            {chartMode === "week" && "Biểu đồ doanh thu và lợi nhuận 7 ngày qua"}
-                            {chartMode === "month" && `Biểu đồ doanh thu và lợi nhuận tháng ${currentMonthNum}/${currentYearNum}`}
-                            {chartMode === "custom" && `Biểu đồ doanh thu và lợi nhuận tháng ${customMonth}/${customYear}`}
-                            {chartMode === "year" && `Biểu đồ doanh thu và lợi nhuận 12 tháng năm ${currentYearNum}`}
+                            {chartMode === "week" && "Biểu đồ doanh thu, lợi nhuận và số lượng đơn hàng 7 ngày qua"}
+                            {chartMode === "month" && `Biểu đồ doanh thu, lợi nhuận và số lượng đơn hàng tháng ${currentMonthNum}/${currentYearNum}`}
+                            {chartMode === "custom" && `Biểu đồ doanh thu, lợi nhuận và số lượng đơn hàng tháng ${customMonth}/${customYear}`}
+                            {chartMode === "year" && `Biểu đồ doanh thu, lợi nhuận và số lượng đơn hàng 12 tháng năm ${currentYearNum}`}
                         </p>
                     </div>
 
@@ -445,16 +444,30 @@ export default function DashboardPage() {
                                     dy={10}
                                 />
                                 <YAxis
+                                    yAxisId="left"
                                     axisLine={false}
                                     tickLine={false}
                                     tick={{ fill: '#888', fontSize: 13 }}
                                     tickFormatter={(value) => `${value / 1000000}tr`}
                                     dx={-10}
                                 />
+                                <YAxis
+                                    yAxisId="right"
+                                    orientation="right"
+                                    axisLine={false}
+                                    tickLine={false}
+                                    tick={{ fill: '#888', fontSize: 12 }}
+                                    tickFormatter={(value) => `${value} đơn`}
+                                    dx={10}
+                                    allowDecimals={false}
+                                />
                                 <RechartsTooltip
                                     cursor={{ fill: 'transparent' }}
                                     contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                    formatter={(value: unknown, name: string | number | undefined) => [formatCurrency(Number(value) || 0), String(name || "")]}
+                                    formatter={(value: unknown, name: string | number | undefined) => [
+                                        name === "Số đơn hàng" ? `${Number(value) || 0} đơn hàng` : formatCurrency(Number(value) || 0),
+                                        String(name || "")
+                                    ]}
                                     labelStyle={{ fontWeight: 'bold', color: '#111827', marginBottom: '8px' }}
                                 />
                                 <Legend
@@ -464,15 +477,24 @@ export default function DashboardPage() {
                                     wrapperStyle={{ paddingBottom: '20px' }}
                                 />
                                 <Bar
+                                    yAxisId="left"
                                     dataKey="DoanhThu"
                                     name="Doanh thu"
                                     fill="#3b82f6"
                                     radius={[4, 4, 0, 0]}
                                 />
                                 <Bar
+                                    yAxisId="left"
                                     dataKey="LoiNhuan"
                                     name="Lợi nhuận"
                                     fill="#10b981"
+                                    radius={[4, 4, 0, 0]}
+                                />
+                                <Bar
+                                    yAxisId="right"
+                                    dataKey="SoDon"
+                                    name="Số đơn hàng"
+                                    fill="#f59e0b"
                                     radius={[4, 4, 0, 0]}
                                 />
                             </BarChart>

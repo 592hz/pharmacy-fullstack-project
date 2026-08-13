@@ -91,7 +91,7 @@ export const getSummary = async (req: Request, res: Response) => {
             const income = categories.filter(c => c.type === 'Thu').reduce((sum, c) => sum + (c.amount || 0), 0);
             const expense = categories.filter(c => c.type === 'Chi').reduce((sum, c) => sum + (c.amount || 0), 0);
 
-            return { revenue, profit, income, expense, netProfit: profit + income - expense };
+            return { revenue, profit, income, expense, netProfit: profit + income - expense, totalOrders: slips.length };
         };
 
         const todaySlips = exportSlips.filter(s => isSameDay(s.exportDate, now));
@@ -198,7 +198,8 @@ export const getSummary = async (req: Request, res: Response) => {
             chartDataWeek.push({
                 name: dayStr,
                 DoanhThu: dayStats.revenue,
-                LoiNhuan: dayStats.profit
+                LoiNhuan: dayStats.profit,
+                SoDon: daySlips.length
             });
         }
 
@@ -217,7 +218,8 @@ export const getSummary = async (req: Request, res: Response) => {
             chartDataMonth.push({
                 name: dayStr,
                 DoanhThu: dayStats.revenue,
-                LoiNhuan: dayStats.profit
+                LoiNhuan: dayStats.profit,
+                SoDon: daySlips.length
             });
         }
 
@@ -236,7 +238,8 @@ export const getSummary = async (req: Request, res: Response) => {
             chartDataYear.push({
                 name: `Tháng ${m + 1}`,
                 DoanhThu: mStats.revenue,
-                LoiNhuan: mStats.profit
+                LoiNhuan: mStats.profit,
+                SoDon: mSlips.length
             });
         }
 
@@ -253,7 +256,8 @@ export const getSummary = async (req: Request, res: Response) => {
             chartDataCustomMonth.push({
                 name: dayStr,
                 DoanhThu: dayStats.revenue,
-                LoiNhuan: dayStats.profit
+                LoiNhuan: dayStats.profit,
+                SoDon: daySlips.length
             });
         }
 

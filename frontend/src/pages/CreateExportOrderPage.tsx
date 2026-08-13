@@ -379,23 +379,52 @@ export default function CreateExportOrderPage() {
     }
 
     const updateItemField = useCallback((id: string, field: keyof ExportOrderItem, value: string | number | boolean) => {
-        setItems(prev => prev.map(item => {
-            if (item.id !== id) return item
+        setItems(prev => {
+            const targetItem = prev.find(i => i.id === id)
+            if (!targetItem) return prev
 
-            const updatedItem = { ...item, [field]: value }
+            // If updating quantity on a main dose item ("LIÊU"), scale its child components proportionally
+            if (field === 'quantity' && targetItem.code === 'LIÊU' && targetItem.parentDoseId) {
+                const oldDoseQty = parseFloatSafe(targetItem.quantity) || 1
+                const newDoseQty = parseFloatSafe(value) || 1
+                const ratio = newDoseQty / oldDoseQty
 
-            if (['quantity', 'retailPrice', 'discountPercent'].includes(field as string)) {
-                const qty = parseFloatSafe(updatedItem.quantity)
-                const price = parseFloatSafe(updatedItem.retailPrice)
-                const discPct = parseFloatSafe(updatedItem.discountPercent)
-
-                updatedItem.totalAmount = qty * price
-                updatedItem.discountAmount = Math.round(updatedItem.totalAmount * discPct / 100)
-                updatedItem.remainingAmount = updatedItem.totalAmount - updatedItem.discountAmount
+                return prev.map(item => {
+                    if (item.id === id) {
+                        const qty = newDoseQty
+                        const price = parseFloatSafe(item.retailPrice)
+                        const discPct = parseFloatSafe(item.discountPercent)
+                        const totalAmount = qty * price
+                        const discountAmount = Math.round(totalAmount * discPct / 100)
+                        const remainingAmount = totalAmount - discountAmount
+                        return { ...item, quantity: qty, totalAmount, discountAmount, remainingAmount }
+                    }
+                    if (item.parentDoseId === targetItem.parentDoseId && item.id !== id) {
+                        const newCompQty = Math.round((parseFloatSafe(item.quantity) * ratio) * 100) / 100
+                        return { ...item, quantity: newCompQty }
+                    }
+                    return item
+                })
             }
 
-            return updatedItem
-        }))
+            return prev.map(item => {
+                if (item.id !== id) return item
+
+                const updatedItem = { ...item, [field]: value }
+
+                if (['quantity', 'retailPrice', 'discountPercent'].includes(field as string)) {
+                    const qty = parseFloatSafe(updatedItem.quantity)
+                    const price = parseFloatSafe(updatedItem.retailPrice)
+                    const discPct = parseFloatSafe(updatedItem.discountPercent)
+
+                    updatedItem.totalAmount = qty * price
+                    updatedItem.discountAmount = Math.round(updatedItem.totalAmount * discPct / 100)
+                    updatedItem.remainingAmount = updatedItem.totalAmount - updatedItem.discountAmount
+                }
+
+                return updatedItem
+            })
+        })
     }, [])
 
     const handleQuantityBlur = useCallback((code: string) => {
