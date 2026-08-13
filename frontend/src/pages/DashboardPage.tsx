@@ -30,8 +30,15 @@ const fmtDate = (iso: string) => {
 }
 
 export default function DashboardPage() {
-    const [isLoading, setIsLoading] = useState(true)
-    const [summary, setSummary] = useState<DashboardSummary | null>(null)
+    const [summary, setSummary] = useState<DashboardSummary | null>(() => {
+        try {
+            const cached = localStorage.getItem("DASHBOARD_SUMMARY_CACHE")
+            return cached ? JSON.parse(cached) : null
+        } catch {
+            return null
+        }
+    })
+    const [isLoading, setIsLoading] = useState<boolean>(!summary)
     const [chartMode, setChartMode] = useState<"week" | "month" | "custom" | "year">("month")
 
     const currentMonthNum = useMemo(() => new Date().getMonth() + 1, [])
@@ -54,11 +61,16 @@ export default function DashboardPage() {
 
     useEffect(() => {
         const fetchData = async () => {
-            setIsLoading(true)
+            if (!summary) setIsLoading(true)
             try {
                 const params = chartMode === "custom" ? { month: customMonth, year: customYear } : undefined
                 const data = await dashboardService.getSummary(params)
                 setSummary(data)
+                try {
+                    localStorage.setItem("DASHBOARD_SUMMARY_CACHE", JSON.stringify(data))
+                } catch {
+                    // ignore
+                }
             } catch (error: unknown) {
                 console.error("Dashboard data fetch error:", getErrorMessage(error))
             } finally {

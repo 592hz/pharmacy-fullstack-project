@@ -28,4 +28,6 @@ const CategorySchema: Schema = new Schema({
     }
 });
 
+CategorySchema.index({ date: 1, type: 1 });
+
 export default mongoose.model<ICategory>('Category', CategorySchema);

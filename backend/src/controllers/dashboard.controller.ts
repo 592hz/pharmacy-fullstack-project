@@ -1,12 +1,7 @@
 import { Request, Response } from 'express';
 import ExportSlip from '../models/export-slip.model.js';
-import PurchaseOrder from '../models/purchase-order.model.js';
-import Product from '../models/product.model.js';
 import Category from '../models/category.model.js';
-import dayjs from 'dayjs';
-import customParseFormat from 'dayjs/plugin/customParseFormat.js';
-
-dayjs.extend(customParseFormat);
+import Product from '../models/product.model.js';
 
 // ── UTC+7 helpers (không cần plugin timezone) ─────────────────────────────────
 const VN_OFFSET_MS = 7 * 60 * 60 * 1000;
@@ -16,36 +11,65 @@ const toVN = (d: Date | string | number) => {
     if (isNaN(dateObj.getTime())) return new Date(0);
     return new Date(dateObj.getTime() + VN_OFFSET_MS);
 };
-const isSameDay = (a: Date | string | number, b: Date | string | number) => {
-    const av = toVN(a), bv = toVN(b);
-    return av.getUTCFullYear() === bv.getUTCFullYear() && av.getUTCMonth() === bv.getUTCMonth() && av.getUTCDate() === bv.getUTCDate();
+
+const getVNKeyDay = (d: Date | string | number) => {
+    const v = toVN(d);
+    return `${v.getUTCFullYear()}-${String(v.getUTCMonth() + 1).padStart(2, '0')}-${String(v.getUTCDate()).padStart(2, '0')}`;
 };
-const isSameMonth = (a: Date | string | number, b: Date | string | number) => {
-    const av = toVN(a), bv = toVN(b);
-    return av.getUTCFullYear() === bv.getUTCFullYear() && av.getUTCMonth() === bv.getUTCMonth();
+
+const getVNKeyMonth = (d: Date | string | number) => {
+    const v = toVN(d);
+    return `${v.getUTCFullYear()}-${String(v.getUTCMonth() + 1).padStart(2, '0')}`;
 };
-const startOfDayVN = (d: Date) => { const v = toVN(d); return new Date(Date.UTC(v.getUTCFullYear(), v.getUTCMonth(), v.getUTCDate()) - VN_OFFSET_MS); };
-const startOfMonthVN = (d: Date) => { const v = toVN(d); return new Date(Date.UTC(v.getUTCFullYear(), v.getUTCMonth(), 1) - VN_OFFSET_MS); };
+
 const startOfYearVN = (d: Date) => { const v = toVN(d); return new Date(Date.UTC(v.getUTCFullYear(), 0, 1) - VN_OFFSET_MS); };
 const getDayOfMonthVN = (d: Date) => toVN(d).getUTCDate();
 const formatDayMonthVN = (d: Date | string | number) => { const v = toVN(d); return `${String(v.getUTCDate()).padStart(2,'0')}/${String(v.getUTCMonth()+1).padStart(2,'0')}`; };
 
+// Ultra-fast native date parser replacement for dayjs multi-format loop
+const parseExpiryDateFast = (dateStr: string): Date | null => {
+    if (!dateStr || typeof dateStr !== 'string') return null;
+    const s = dateStr.trim();
+    if (!s) return null;
+
+    if (s.length >= 10 && (s[4] === '-' || s[4] === '/')) {
+        const parts = s.split(/[-/]/);
+        if (parts.length >= 3) {
+            const y = parseInt(parts[0], 10);
+            const m = parseInt(parts[1], 10) - 1;
+            const d = parseInt(parts[2], 10);
+            if (!isNaN(y) && !isNaN(m) && !isNaN(d)) return new Date(y, m, d);
+        }
+    }
+
+    const parts = s.split(/[-/]/);
+    if (parts.length >= 3) {
+        const d = parseInt(parts[0], 10);
+        const m = parseInt(parts[1], 10) - 1;
+        let y = parseInt(parts[2], 10);
+        if (y < 100) y += 2000;
+        if (!isNaN(d) && !isNaN(m) && !isNaN(y)) return new Date(y, m, d);
+    }
+
+    const native = new Date(s);
+    return isNaN(native.getTime()) ? null : native;
+};
+
 export const getSummary = async (req: Request, res: Response) => {
     try {
         const now = new Date();
-        const startOfDay = startOfDayVN(now);
-        const startOfMonth = startOfMonthVN(now);
         const startOfYear = startOfYearVN(now);
 
         const currentVN = toVN(now);
-        const reqMonth = req.query.month ? parseInt(req.query.month as string, 10) : (currentVN.getUTCMonth() + 1);
-        const reqYear = req.query.year ? parseInt(req.query.year as string, 10) : currentVN.getUTCFullYear();
+        const rawMonth = req.query.month;
+        const rawYear = req.query.year;
+        const reqMonth = typeof rawMonth === 'string' ? parseInt(rawMonth, 10) : (currentVN.getUTCMonth() + 1);
+        const reqYear = typeof rawYear === 'string' ? parseInt(rawYear, 10) : currentVN.getUTCFullYear();
 
         const reqMonthIdx = reqMonth - 1;
         const startOfReqMonth = new Date(Date.UTC(reqYear, reqMonthIdx, 1) - VN_OFFSET_MS);
         const endOfReqMonth = new Date(Date.UTC(reqYear, reqMonthIdx + 1, 0, 23, 59, 59, 999) - VN_OFFSET_MS);
 
-        // Fetch for past 7 days, start of year, or requested month, whichever is earliest
         const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         let earliestDate = sevenDaysAgo < startOfYear ? sevenDaysAgo : startOfYear;
         if (startOfReqMonth < earliestDate) {
@@ -57,7 +81,7 @@ export const getSummary = async (req: Request, res: Response) => {
             latestDate = endOfReqMonth;
         }
 
-        // Parallelized lean queries with explicit field selection for maximum performance
+        // 1. Parallelized lean queries with strict field selection and MongoDB indexes
         const [exportSlips, allCategories, allProducts] = await Promise.all([
             ExportSlip.find({
                 exportDate: { $gte: earliestDate, $lte: latestDate },
@@ -73,53 +97,123 @@ export const getSummary = async (req: Request, res: Response) => {
                 .lean(),
 
             Product.find({ isDeleted: { $ne: true } })
-                .select('_id id name unit baseUnitName conversionRate baseQuantity batches')
+                .select('_id id name unit baseUnitName conversionRate baseQuantity batches.batchNumber batches.expiryDate batches.quantity')
                 .lean()
         ]);
 
-        const calculateStats = (slips: any[], categories: any[]) => {
-            let revenue = 0;
-            let profit = 0;
-            slips.forEach(slip => {
-                revenue += slip.totalAmount || 0;
-                slip.items?.forEach((item: any) => {
-                    const itemProfit = ((item.retailPrice || 0) - (item.importPrice || 0)) * (item.quantity || 0);
-                    profit += itemProfit;
-                });
-            });
+        // 2. Pre-index slips & categories into O(1) Hash Maps by Day & Month
+        const todayKey = getVNKeyDay(now);
+        const reqMonthKey = `${reqYear}-${String(reqMonth).padStart(2, '0')}`;
+        const currentYearKey = `${reqYear}`;
 
-            const income = categories.filter(c => c.type === 'Thu').reduce((sum, c) => sum + (c.amount || 0), 0);
-            const expense = categories.filter(c => c.type === 'Chi').reduce((sum, c) => sum + (c.amount || 0), 0);
+        const daySlipsMap = new Map<string, { slips: any[]; revenue: number; profit: number }>();
+        const dayCatMap = new Map<string, { income: number; expense: number }>();
+        const monthSlipsMap = new Map<string, { slips: any[]; revenue: number; profit: number }>();
+        const monthCatMap = new Map<string, { income: number; expense: number }>();
 
-            return { revenue, profit, income, expense, netProfit: profit + income - expense, totalOrders: slips.length };
-        };
+        const statsToday = { revenue: 0, profit: 0, income: 0, expense: 0, netProfit: 0, totalOrders: 0 };
+        const statsMonth = { revenue: 0, profit: 0, income: 0, expense: 0, netProfit: 0, totalOrders: 0 };
+        const statsYear = { revenue: 0, profit: 0, income: 0, expense: 0, netProfit: 0, totalOrders: 0 };
 
-        const todaySlips = exportSlips.filter(s => isSameDay(s.exportDate, now));
-        const todayCategories = allCategories.filter(c => isSameDay(c.date, now));
+        // Process Export Slips in a single O(N) pass
+        exportSlips.forEach((slip: any) => {
+            const dayKey = getVNKeyDay(slip.exportDate);
+            const monthKey = getVNKeyMonth(slip.exportDate);
+            const yearStr = `${toVN(slip.exportDate).getUTCFullYear()}`;
 
-        const selectedMonthSlips = exportSlips.filter(s => {
-            const sv = toVN(s.exportDate);
-            return sv.getUTCFullYear() === reqYear && sv.getUTCMonth() === reqMonthIdx;
+            let slipProfit = 0;
+            const rev = slip.totalAmount || 0;
+            if (slip.items) {
+                for (let i = 0; i < slip.items.length; i++) {
+                    const item = slip.items[i];
+                    slipProfit += ((item.retailPrice || 0) - (item.importPrice || 0)) * (item.quantity || 0);
+                }
+            }
+
+            // Day map update
+            let dEntry = daySlipsMap.get(dayKey);
+            if (!dEntry) {
+                dEntry = { slips: [], revenue: 0, profit: 0 };
+                daySlipsMap.set(dayKey, dEntry);
+            }
+            dEntry.slips.push(slip);
+            dEntry.revenue += rev;
+            dEntry.profit += slipProfit;
+
+            // Month map update
+            let mEntry = monthSlipsMap.get(monthKey);
+            if (!mEntry) {
+                mEntry = { slips: [], revenue: 0, profit: 0 };
+                monthSlipsMap.set(monthKey, mEntry);
+            }
+            mEntry.slips.push(slip);
+            mEntry.revenue += rev;
+            mEntry.profit += slipProfit;
+
+            // Accumulate stats
+            if (dayKey === todayKey) {
+                statsToday.revenue += rev;
+                statsToday.profit += slipProfit;
+                statsToday.totalOrders += 1;
+            }
+            if (monthKey === reqMonthKey) {
+                statsMonth.revenue += rev;
+                statsMonth.profit += slipProfit;
+                statsMonth.totalOrders += 1;
+            }
+            if (yearStr === currentYearKey) {
+                statsYear.revenue += rev;
+                statsYear.profit += slipProfit;
+                statsYear.totalOrders += 1;
+            }
         });
-        const selectedMonthCategories = allCategories.filter(c => {
-            const cv = toVN(c.date);
-            return cv.getUTCFullYear() === reqYear && cv.getUTCMonth() === reqMonthIdx;
+
+        // Process Categories in a single O(N) pass
+        allCategories.forEach((c: any) => {
+            const dayKey = getVNKeyDay(c.date);
+            const monthKey = getVNKeyMonth(c.date);
+            const yearStr = `${toVN(c.date).getUTCFullYear()}`;
+            const amt = c.amount || 0;
+            const isThu = c.type === 'Thu';
+
+            // Day map
+            let dEntry = dayCatMap.get(dayKey);
+            if (!dEntry) {
+                dEntry = { income: 0, expense: 0 };
+                dayCatMap.set(dayKey, dEntry);
+            }
+            if (isThu) dEntry.income += amt;
+            else dEntry.expense += amt;
+
+            // Month map
+            let mEntry = monthCatMap.get(monthKey);
+            if (!mEntry) {
+                mEntry = { income: 0, expense: 0 };
+                monthCatMap.set(monthKey, mEntry);
+            }
+            if (isThu) mEntry.income += amt;
+            else mEntry.expense += amt;
+
+            // Accumulate stats
+            if (dayKey === todayKey) {
+                if (isThu) statsToday.income += amt;
+                else statsToday.expense += amt;
+            }
+            if (monthKey === reqMonthKey) {
+                if (isThu) statsMonth.income += amt;
+                else statsMonth.expense += amt;
+            }
+            if (yearStr === currentYearKey) {
+                if (isThu) statsYear.income += amt;
+                else statsYear.expense += amt;
+            }
         });
 
-        const yearSlips = exportSlips.filter(s => {
-            const sv = toVN(s.exportDate);
-            return sv.getUTCFullYear() === reqYear;
-        });
-        const yearCategories = allCategories.filter(c => {
-            const cv = toVN(c.date);
-            return cv.getUTCFullYear() === reqYear;
-        });
+        statsToday.netProfit = statsToday.profit + statsToday.income - statsToday.expense;
+        statsMonth.netProfit = statsMonth.profit + statsMonth.income - statsMonth.expense;
+        statsYear.netProfit = statsYear.profit + statsYear.income - statsYear.expense;
 
-        const statsToday = calculateStats(todaySlips, todayCategories);
-        const statsMonth = calculateStats(selectedMonthSlips, selectedMonthCategories);
-        const statsYear = calculateStats(yearSlips, yearCategories);
-
-        // 3. Hàng sắp hết & Cận date
+        // 3. Low Stock & Near Expiry check with optimized fast date parser
         let lowStockCount = 0;
         let nearExpiryCount = 0;
         const lowStockProducts: any[] = [];
@@ -128,30 +222,27 @@ export const getSummary = async (req: Request, res: Response) => {
         const sixMonthsFromNow = new Date(now.getTime());
         sixMonthsFromNow.setMonth(sixMonthsFromNow.getMonth() + 6);
 
-        allProducts.forEach((p: any) => {
+        for (let pIdx = 0; pIdx < allProducts.length; pIdx++) {
+            const p: any = allProducts[pIdx];
             const productId = p.id || p._id?.toString();
-            // 1. Tính tổng tồn kho (theo đơn vị cơ bản - viên/gói/...)
-            const totalBaseQty = p.batches?.reduce((sum: number, b: any) => sum + b.quantity, 0) || p.baseQuantity || 0;
+            const totalBaseQty = p.batches?.reduce((sum: number, b: any) => sum + (b.quantity || 0), 0) || p.baseQuantity || 0;
             const conversionRate = p.conversionRate || 1;
-
             const unitName = (p.unit || '').toLowerCase();
 
-            // 2. Xác định số lượng hiển thị và định mức (Threshold)
             let currentQty = 0;
-            let threshold = 2; // Mặc định là 2 (Hộp/Lọ/Chai)
+            let threshold = 2;
 
             if (unitName.includes('viên') || unitName === 'v') {
                 currentQty = totalBaseQty;
                 threshold = 100;
             } else if (unitName.includes('vỉ')) {
-                currentQty = Math.floor(totalBaseQty / (conversionRate || 1));
+                currentQty = Math.floor(totalBaseQty / conversionRate);
                 threshold = 5;
             } else {
-                currentQty = Math.floor(totalBaseQty / (conversionRate || 1));
+                currentQty = Math.floor(totalBaseQty / conversionRate);
                 threshold = 2;
             }
 
-            // 3. Kiểm tra định mức
             if (currentQty <= threshold) {
                 lowStockCount++;
                 lowStockProducts.push({
@@ -162,84 +253,76 @@ export const getSummary = async (req: Request, res: Response) => {
                 });
             }
 
-            // Near expiry check
-            p.batches?.forEach((b: any) => {
-                if (b.expiryDate) {
-                    const expiry = dayjs(b.expiryDate, ['DD-MM-YYYY', 'D-M-YYYY', 'DD/MM/YYYY', 'D/M/YYYY', 'YYYY-MM-DD']);
-                    if (expiry.isValid() && expiry.isBefore(sixMonthsFromNow) && b.quantity > 0) {
-                        nearExpiryCount++;
-                        nearExpiryProducts.push({
-                            id: productId,
-                            name: p.name,
-                            batchNumber: b.batchNumber,
-                            expiryDate: b.expiryDate,
-                            quantity: Math.floor(b.quantity / (p.conversionRate || 1)),
-                            unit: p.unit || p.baseUnitName
-                        });
+            if (p.batches) {
+                for (let bIdx = 0; bIdx < p.batches.length; bIdx++) {
+                    const b = p.batches[bIdx];
+                    if (b.expiryDate && (b.quantity || 0) > 0) {
+                        const expiry = parseExpiryDateFast(b.expiryDate);
+                        if (expiry && expiry < sixMonthsFromNow) {
+                            nearExpiryCount++;
+                            nearExpiryProducts.push({
+                                id: productId,
+                                name: p.name,
+                                batchNumber: b.batchNumber,
+                                expiryDate: b.expiryDate,
+                                quantity: Math.floor((b.quantity || 0) / conversionRate),
+                                unit: p.unit || p.baseUnitName
+                            });
+                        }
                     }
                 }
-            });
-        });
+            }
+        }
 
-        // Sort by priority
         lowStockProducts.sort((a, b) => a.quantity - b.quantity);
-        nearExpiryProducts.sort((a, b) => dayjs(a.expiryDate, 'DD-MM-YYYY').unix() - dayjs(b.expiryDate, 'DD-MM-YYYY').unix());
 
-        // 4. Dữ liệu biểu đồ
+        // 4. Build chart data instantly using O(1) hash maps
 
         // 4a. 7 ngày gần nhất (Week)
         const chartDataWeek: any[] = [];
         for (let i = 6; i >= 0; i--) {
             const dayDate = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+            const dayKey = getVNKeyDay(dayDate);
             const dayStr = formatDayMonthVN(dayDate);
-            const daySlips = exportSlips.filter(s => isSameDay(s.exportDate, dayDate));
-            const dayCategories = allCategories.filter(c => isSameDay(c.date, dayDate));
-            const dayStats = calculateStats(daySlips, dayCategories);
+            const slipEntry = daySlipsMap.get(dayKey);
+
             chartDataWeek.push({
                 name: dayStr,
-                DoanhThu: dayStats.revenue,
-                LoiNhuan: dayStats.profit,
-                SoDon: daySlips.length
+                DoanhThu: slipEntry ? slipEntry.revenue : 0,
+                LoiNhuan: slipEntry ? slipEntry.profit : 0,
+                SoDon: slipEntry ? slipEntry.slips.length : 0
             });
         }
 
-        // 4b. Tháng hiện tại theo ngày (Month)
-        const currentMonthSlipsForChart = exportSlips.filter(s => isSameMonth(s.exportDate, now));
-        const currentMonthCategoriesForChart = allCategories.filter(c => isSameMonth(c.date, now));
+        // 4b. Tháng hiện tại (Month)
         const chartDataMonth: any[] = [];
         const todayDayVN = getDayOfMonthVN(now);
         for (let i = 0; i < todayDayVN; i++) {
             const vnNow = toVN(now);
             const dayDate = new Date(Date.UTC(vnNow.getUTCFullYear(), vnNow.getUTCMonth(), i + 1) - VN_OFFSET_MS);
+            const dayKey = getVNKeyDay(dayDate);
             const dayStr = formatDayMonthVN(dayDate);
-            const daySlips = currentMonthSlipsForChart.filter(s => isSameDay(s.exportDate, dayDate));
-            const dayCategories = currentMonthCategoriesForChart.filter(c => isSameDay(c.date, dayDate));
-            const dayStats = calculateStats(daySlips, dayCategories);
+            const slipEntry = daySlipsMap.get(dayKey);
+
             chartDataMonth.push({
                 name: dayStr,
-                DoanhThu: dayStats.revenue,
-                LoiNhuan: dayStats.profit,
-                SoDon: daySlips.length
+                DoanhThu: slipEntry ? slipEntry.revenue : 0,
+                LoiNhuan: slipEntry ? slipEntry.profit : 0,
+                SoDon: slipEntry ? slipEntry.slips.length : 0
             });
         }
 
-        // 4c. 12 Tháng trong năm được chọn (Year)
+        // 4c. 12 Tháng trong năm (Year)
         const chartDataYear: any[] = [];
         for (let m = 0; m < 12; m++) {
-            const mSlips = yearSlips.filter(s => {
-                const sv = toVN(s.exportDate);
-                return sv.getUTCMonth() === m;
-            });
-            const mCategories = yearCategories.filter(c => {
-                const cv = toVN(c.date);
-                return cv.getUTCMonth() === m;
-            });
-            const mStats = calculateStats(mSlips, mCategories);
+            const monthKey = `${reqYear}-${String(m + 1).padStart(2, '0')}`;
+            const slipEntry = monthSlipsMap.get(monthKey);
+
             chartDataYear.push({
                 name: `Tháng ${m + 1}`,
-                DoanhThu: mStats.revenue,
-                LoiNhuan: mStats.profit,
-                SoDon: mSlips.length
+                DoanhThu: slipEntry ? slipEntry.revenue : 0,
+                LoiNhuan: slipEntry ? slipEntry.profit : 0,
+                SoDon: slipEntry ? slipEntry.slips.length : 0
             });
         }
 
@@ -249,17 +332,20 @@ export const getSummary = async (req: Request, res: Response) => {
 
         for (let d = 1; d <= daysInReqMonth; d++) {
             const dayDate = new Date(Date.UTC(reqYear, reqMonthIdx, d) - VN_OFFSET_MS);
+            const dayKey = getVNKeyDay(dayDate);
             const dayStr = `${String(d).padStart(2, '0')}/${String(reqMonth).padStart(2, '0')}`;
-            const daySlips = selectedMonthSlips.filter(s => isSameDay(s.exportDate, dayDate));
-            const dayCategories = selectedMonthCategories.filter(c => isSameDay(c.date, dayDate));
-            const dayStats = calculateStats(daySlips, dayCategories);
+            const slipEntry = daySlipsMap.get(dayKey);
+
             chartDataCustomMonth.push({
                 name: dayStr,
-                DoanhThu: dayStats.revenue,
-                LoiNhuan: dayStats.profit,
-                SoDon: daySlips.length
+                DoanhThu: slipEntry ? slipEntry.revenue : 0,
+                LoiNhuan: slipEntry ? slipEntry.profit : 0,
+                SoDon: slipEntry ? slipEntry.slips.length : 0
             });
         }
+
+        // Add Cache-Control header to enable browser/client fast revalidations
+        res.setHeader('Cache-Control', 'private, max-age=10, stale-while-revalidate=30');
 
         res.json({
             stats: {
@@ -270,9 +356,9 @@ export const getSummary = async (req: Request, res: Response) => {
                 totalExpense: statsMonth.expense,
                 lowStockCount,
                 nearExpiryCount,
-                lowStockProducts: lowStockProducts,
-                nearExpiryProducts: nearExpiryProducts,
-                billCountToday: todaySlips.length
+                lowStockProducts,
+                nearExpiryProducts,
+                billCountToday: statsToday.totalOrders
             },
             chartData: {
                 week: chartDataWeek,
@@ -283,7 +369,6 @@ export const getSummary = async (req: Request, res: Response) => {
                 selectedYear: reqYear
             }
         });
-
 
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });

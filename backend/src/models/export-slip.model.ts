@@ -72,4 +72,6 @@ const ExportSlipSchema: Schema = new Schema({
     deletedAt: { type: Date }
 }, { timestamps: true });
 
+ExportSlipSchema.index({ exportDate: 1, isDeleted: 1 });
+
 export default mongoose.model<IExportSlip>('ExportSlip', ExportSlipSchema);

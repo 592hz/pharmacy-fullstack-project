@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, Play, Pause, RotateCcw, Volume2, VolumeX, Trophy, Sparkles, ChevronRight, Eye, RefreshCw, Zap } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { X, Play, Pause, RotateCcw, Volume2, VolumeX, Trophy, Sparkles, ChevronRight, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface PillMemoryCardModalProps {

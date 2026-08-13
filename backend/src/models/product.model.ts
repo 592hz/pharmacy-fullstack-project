@@ -52,4 +52,6 @@ const ProductSchema: Schema = new Schema({
     deletedAt: { type: Date }
 }, { timestamps: true });
 
+ProductSchema.index({ isDeleted: 1 });
+
 export default mongoose.model<IProduct>('Product', ProductSchema);
