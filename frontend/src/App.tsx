@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { lazy, Suspense } from "react"
-import { Toaster } from "sonner"
+import { Toaster } from "@/components/ui/sonner"
 
 import DashboardLayout from "@/layouts/DashboardLayout"
 import AuthLayout from "@/layouts/AuthLayout"
@@ -29,12 +29,13 @@ const NotesPage = lazy(() => import("@/pages/NotesPage"))
 const StockManagementPage = lazy(() => import("@/pages/StockManagementPage"))
 const TrashPage = lazy(() => import("@/pages/TrashPage"))
 const RevenueReportPage = lazy(() => import("@/pages/RevenueReportPage"))
+const EntertainmentPage = lazy(() => import("@/pages/EntertainmentPage"))
 
 
 export function App() {
   return (
     <AuthProvider>
-      <Toaster position="top-right" richColors />
+      <Toaster position="top-right" duration={1000} richColors />
       <BrowserRouter>
         <Suspense fallback={<LoadingScreen />}>
           <Routes>
@@ -67,6 +68,7 @@ export function App() {
               <Route path="notes" element={<NotesPage />} />
               <Route path="stock" element={<StockManagementPage />} />
               <Route path="reports/revenue" element={<RevenueReportPage />} />
+              <Route path="entertainment" element={<EntertainmentPage />} />
               <Route path="trash" element={<TrashPage />} />
             </Route>
 

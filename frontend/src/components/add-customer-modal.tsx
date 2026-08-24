@@ -2,6 +2,7 @@ import { useState } from "react"
 import { X, Plus } from "lucide-react"
 import { toast } from "sonner"
 import { type Customer, customerSchema } from "@/lib/schemas"
+import { formatDateInput } from "@/lib/utils"
 
 interface AddCustomerModalProps {
     isOpen: boolean
@@ -13,6 +14,7 @@ interface AddCustomerModalProps {
 
 export default function AddCustomerModal({ isOpen, onClose, onAdd, onEdit, initialData }: AddCustomerModalProps) {
     const [errors, setErrors] = useState<Record<string, string>>({})
+    const [dob, setDob] = useState(initialData?.dob || "")
 
     const handleClose = () => {
         setErrors({})
@@ -116,7 +118,14 @@ export default function AddCustomerModal({ isOpen, onClose, onAdd, onEdit, initi
                             {/* Ngày sinh */}
                             <div className="space-y-1.5 md:col-span-4">
                                 <label className="text-xs font-semibold text-gray-700 dark:text-gray-300">Ngày sinh</label>
-                                <input name="dob" defaultValue={initialData?.dob || ''} type="text" placeholder="DD/MM/YYYY" className="w-full rounded-md border border-gray-300 dark:border-neutral-700 px-3 py-2.5 text-sm bg-white dark:bg-neutral-800 dark:text-white focus:border-[#5c9a38] focus:outline-none focus:ring-2 focus:ring-[#5c9a38]/30 transition-all" />
+                                <input 
+                                    name="dob" 
+                                    value={dob}
+                                    onChange={(e) => setDob(formatDateInput(e.target.value))}
+                                    type="text" 
+                                    placeholder="DD/MM/YYYY" 
+                                    className="w-full rounded-md border border-gray-300 dark:border-neutral-700 px-3 py-2.5 text-sm bg-white dark:bg-neutral-800 dark:text-white focus:border-[#5c9a38] focus:outline-none focus:ring-2 focus:ring-[#5c9a38]/30 transition-all" 
+                                />
                             </div>
 
                              {/* Giới tính */}

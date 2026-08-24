@@ -10,18 +10,22 @@ export interface ICustomer extends Document {
     weight?: string;
     age?: string;
     notes?: string;
+    isDeleted?: boolean;
+    deletedAt?: Date;
 }
 
 const CustomerSchema: Schema = new Schema({
-    id: { type: String, required: true, unique: true },
-    name: { type: String, required: true },
+    id: { type: String, required: [true, 'Mã khách hàng không được để trống'], unique: true },
+    name: { type: String, required: [true, 'Tên khách hàng không được để trống'] },
     phone: { type: String },
     dob: { type: String },
     address: { type: String },
     gender: { type: String, enum: ['Nam', 'Nữ', 'Khác'], default: 'Nam' },
     weight: { type: String },
     age: { type: String },
-    notes: { type: String }
+    notes: { type: String },
+    isDeleted: { type: Boolean, default: false },
+    deletedAt: { type: Date }
 }, { timestamps: true });
 
 export default mongoose.model<ICustomer>('Customer', CustomerSchema);

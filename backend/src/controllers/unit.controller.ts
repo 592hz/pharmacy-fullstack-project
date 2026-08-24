@@ -24,7 +24,7 @@ export const createUnit = async (req: Request, res: Response) => {
 export const updateUnit = async (req: Request, res: Response) => {
     try {
         const updatedUnit = await Unit.findByIdAndUpdate(req.params.id, req.body, { new: true });
-        if (!updatedUnit) return res.status(404).json({ message: 'Unit not found' });
+        if (!updatedUnit) return res.status(404).json({ message: 'Không tìm thấy đơn vị tính' });
         res.status(200).json(updatedUnit);
     } catch (error) {
         res.status(400).json({ message: (error as Error).message });
@@ -37,7 +37,7 @@ export const deleteUnit = async (req: Request, res: Response) => {
         
         // Find the unit first to get its name
         const unit = await Unit.findById(unitId);
-        if (!unit) return res.status(404).json({ message: 'Unit not found' });
+        if (!unit) return res.status(404).json({ message: 'Không tìm thấy đơn vị tính' });
 
         // Check if there are products using this unit (either as main unit or base unit)
         const productCount = await Product.countDocuments({ 
@@ -54,7 +54,7 @@ export const deleteUnit = async (req: Request, res: Response) => {
         }
 
         await Unit.findByIdAndDelete(unitId);
-        res.status(200).json({ message: 'Unit deleted successfully' });
+        res.status(200).json({ message: 'Xóa đơn vị tính thành công' });
     } catch (error) {
         res.status(500).json({ message: (error as Error).message });
     }

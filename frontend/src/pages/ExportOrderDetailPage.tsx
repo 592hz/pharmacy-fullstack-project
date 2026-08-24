@@ -1,17 +1,41 @@
-import { useState, useMemo, useCallback, useEffect } from "react"
+import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { AlertCircle, Search, PlusCircle, Trash2, Save, Printer, Calendar, User, FileText, LayoutDashboard, CreditCard, ChevronLeft } from "lucide-react"
+import { AlertCircle, Search, PlusCircle, Trash2, Save, Printer, User, FileText, LayoutDashboard, CreditCard, ChevronLeft, Calendar as CalendarIcon } from "lucide-react"
 import { toast } from "sonner"
 import { type ExportOrder, type ExportOrderItem, exportOrderSchema } from "@/lib/schemas"
 import { exportSlipService } from "@/services/export-slip.service"
 import { productService } from "@/services/product.service"
 import { paymentMethodService } from "@/services/payment-method.service"
 import { AddProductModal, type ProductFormData } from "@/components/add-product-modal"
-import { parseFloatSafe, getErrorMessage } from "@/lib/utils"
+import { parseFloatSafe, getErrorMessage, formatDateTimeInput } from "@/lib/utils"
 import { NumericInput } from "@/components/ui/numeric-input"
 import { type IProduct } from "@/types/product"
 import { type PaymentMethod } from "@/lib/schemas"
 import { useDebounce } from "@/hooks/use-debounce"
+
+// Helper functions for date conversion
+const formatDateTimeToVN = (isoString: string) => {
+    if (!isoString) return ""
+    const date = new Date(isoString)
+    const day = String(date.getDate()).padStart(2, '0')
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const year = date.getFullYear()
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    return `${day}/${month}/${year} ${hours}:${minutes}`
+}
+
+const parseVNDateTimeToISO = (vnString: string) => {
+    if (!vnString) return new Date().toISOString()
+    const regex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s(\d{1,2}):(\d{1,2})$/
+    const match = vnString.match(regex)
+    if (match) {
+        const [, day, month, year, hours, minutes] = match
+        const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), parseInt(hours), parseInt(minutes))
+        return date.toISOString()
+    }
+    return new Date().toISOString()
+}
 
 export default function ExportOrderDetailPage() {
     const { id } = useParams<{ id: string }>()
@@ -29,6 +53,9 @@ export default function ExportOrderDetailPage() {
     const [paymentMethod, setPaymentMethod] = useState("")
     const [symptoms, setSymptoms] = useState("")
     const [allPaymentMethods, setAllPaymentMethods] = useState<PaymentMethod[]>([])
+    const [dateValue, setDateValue] = useState("")
+    const [dateError, setDateError] = useState("")
+    const dateInputRef = useRef<HTMLInputElement>(null)
 
     const fetchData = useCallback(async () => {
         if (!id) return
@@ -44,6 +71,7 @@ export default function ExportOrderDetailPage() {
             setNotes(slipData.notes || "")
             setPaymentMethod(slipData.paymentMethod || "")
             setSymptoms(slipData.symptoms || "")
+            setDateValue(formatDateTimeToVN(slipData.exportDate))
             setAllProducts(productsData)
             setAllPaymentMethods(paymentMethodsData)
         } catch (error: unknown) {
@@ -139,6 +167,8 @@ export default function ExportOrderDetailPage() {
             setItems(slip.items || [])
             setNotes(slip.notes || "")
             setPaymentMethod(slip.paymentMethod || "")
+            setDateValue(formatDateTimeToVN(slip.exportDate))
+            setDateError("")
         }
         setIsEditing(false)
         toast.info("Đã hủy thay đổi")
@@ -182,11 +212,20 @@ export default function ExportOrderDetailPage() {
     const handleSaveOrder = async () => {
         if (!slip || !id) return
 
+        // Validate date
+        const dateRegex = /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s(\d{1,2}):(\d{1,2})$/
+        if (!dateValue || !dateRegex.test(dateValue)) {
+            toast.error("Ngày xuất không hợp lệ (định dạng: dd/mm/yyyy HH:mm)")
+            setDateError("Định dạng dd/mm/yyyy HH:mm")
+            return
+        }
+
         const updatedSlip: ExportOrder = {
             ...slip,
             notes,
             symptoms,
             paymentMethod,
+            exportDate: parseVNDateTimeToISO(dateValue),
             items: items.map(item => ({
                 ...item,
                 id: item.id || `ITEM-${Date.now()}-${Math.random()}`,
@@ -305,27 +344,27 @@ export default function ExportOrderDetailPage() {
 
             {/* ── METADATA GRID ── */}
             <div className="px-4 sm:px-6 py-4 sm:py-5 bg-gray-50/50 dark:bg-neutral-900/50 border-b border-gray-100 dark:border-neutral-800">
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-3 sm:gap-4">
                     {/* Customer Info Card */}
-                    <div className="bg-white dark:bg-neutral-800 p-4 rounded-xl border border-gray-100 dark:border-neutral-700 shadow-sm relative overflow-hidden group">
-                        <div className="absolute top-0 right-0 p-3 text-gray-100 dark:text-neutral-700 group-hover:text-gray-200 transition-colors hidden sm:block">
-                            <User size={48} />
+                    <div className="lg:col-span-3 bg-white dark:bg-neutral-800 p-3 sm:p-4 rounded-xl border border-gray-100 dark:border-neutral-700 shadow-sm relative overflow-hidden group h-full">
+                        <div className="absolute top-0 right-0 p-3 text-gray-100 dark:text-neutral-700 group-hover:text-gray-200 transition-colors hidden xl:block">
+                            <User size={40} />
                         </div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 leading-none">Khách hàng</label>
-                        <div className="text-base sm:text-lg font-black text-gray-800 dark:text-white truncate pr-10">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-1 leading-none">Khách hàng</label>
+                        <div className="text-sm sm:text-base font-black text-gray-800 dark:text-white truncate">
                             {slip.customerName}
                         </div>
-                        <div className="mt-1 text-[10px] sm:text-xs text-gray-500 flex items-center gap-2">
+                        <div className="mt-1 text-[10px] text-gray-500 flex items-center gap-1.5">
                             <span className="w-1.5 h-1.5 bg-[#5c9a38] rounded-full"></span>
-                            {slip.isPrescription ? "Bán theo đơn thuốc" : "Bán lẻ thông thường"}
+                            {slip.isPrescription ? "Bán theo đơn" : "Bán lẻ"}
                         </div>
                     </div>
 
                     {/* Symptoms */}
-                    <div className="flex flex-col gap-2">
-                        <label className="text-[10px] font-black text-[#5c9a38] uppercase tracking-[0.2em] flex items-center gap-1.5">
-                            <div className="w-1.5 h-1.5 bg-[#5c9a38] rounded-full"></div>
-                            Triệu chứng bệnh
+                    <div className="lg:col-span-2 flex flex-col gap-1.5 justify-center">
+                        <label className="text-[10px] font-black text-[#5c9a38] uppercase tracking-wider flex items-center gap-1">
+                            <div className="w-1 h-3 bg-[#5c9a38] rounded-full"></div>
+                            Triệu chứng
                         </label>
                         <input
                             type="text"
@@ -333,18 +372,18 @@ export default function ExportOrderDetailPage() {
                             placeholder="..."
                             onChange={(e) => setSymptoms(e.target.value)}
                             disabled={!isEditing}
-                            className={`w-full px-3 py-2 rounded-xl text-xs sm:text-sm transition-all border-2 ${isEditing
-                                ? 'bg-white border-red-200 dark:bg-neutral-800 dark:border-red-900/30 text-red-600 font-bold'
+                            className={`w-full px-3 py-1.5 rounded-xl text-xs transition-all border-2 ${isEditing
+                                ? 'bg-white border-red-100 dark:bg-neutral-800 dark:border-red-900/30 text-red-600 font-bold'
                                 : 'bg-transparent border-transparent text-gray-700 dark:text-gray-300 font-bold italic'
                                 } outline-none focus:ring-4 focus:ring-red-500/5`}
                         />
                     </div>
 
                     {/* Notes */}
-                    <div className="flex flex-col gap-2">
-                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-[0.2em] flex items-center gap-1.5">
-                            <div className="w-1.5 h-1.5 bg-gray-300 rounded-full"></div>
-                            Ghi chú nhanh
+                    <div className="lg:col-span-3 flex flex-col gap-1.5 justify-center">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                            <div className="w-1 h-3 bg-gray-300 rounded-full"></div>
+                            Ghi chú
                         </label>
                         <input
                             type="text"
@@ -352,45 +391,78 @@ export default function ExportOrderDetailPage() {
                             placeholder="..."
                             onChange={(e) => setNotes(e.target.value)}
                             disabled={!isEditing}
-                            className={`w-full px-3 py-2 rounded-xl text-xs sm:text-sm transition-all border-2 ${isEditing
-                                ? 'bg-white border-blue-200 dark:bg-neutral-800 dark:border-blue-900/30 text-blue-600 font-bold'
+                            className={`w-full px-3 py-1.5 rounded-xl text-xs transition-all border-2 ${isEditing
+                                ? 'bg-white border-blue-100 dark:bg-neutral-800 dark:border-blue-900/30 text-blue-600 font-bold'
                                 : 'bg-transparent border-transparent text-gray-500 dark:text-gray-400 font-medium'
                                 } outline-none focus:ring-4 focus:ring-blue-500/5`}
                         />
                     </div>
-
-                    {/* Payment & Logistics info */}
-                    <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                                <CreditCard size={10} /> HTTT
-                            </label>
-                            {isEditing ? (
-                                <select
-                                    value={paymentMethod}
-                                    onChange={(e) => setPaymentMethod(e.target.value)}
-                                    className="bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 px-2 py-2 rounded-xl text-xs sm:text-sm outline-none"
+                    {/* Date Info */}
+                    <div className="lg:col-span-2 flex flex-col gap-1.5 justify-center">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                            <CalendarIcon size={10} /> Ngày xuất
+                        </label>
+                        {isEditing ? (
+                            <div className="relative group">
+                                <input
+                                    type="text"
+                                    value={dateValue}
+                                    onChange={(e) => {
+                                        setDateValue(formatDateTimeInput(e.target.value))
+                                        if (dateError) setDateError("")
+                                    }}
+                                    placeholder="dd/mm/yyyy HH:mm"
+                                    className={`w-full bg-white dark:bg-neutral-800 border ${dateError ? 'border-red-500' : 'border-gray-200 dark:border-neutral-700'} px-2 py-1.5 pr-8 rounded-xl text-[10px] sm:text-xs text-gray-800 dark:text-gray-200 font-mono focus:ring-2 focus:ring-[#5c9a38]/20 focus:border-[#5c9a38] outline-none transition-all shadow-sm`}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => dateInputRef.current?.showPicker()}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#5c9a38] transition-colors"
                                 >
-                                    <option value="">Chọn...</option>
-                                    {allPaymentMethods.map(m => (
-                                        <option key={m.id || m.name} value={m.name}>{m.name}</option>
-                                    ))}
-                                </select>
-                            ) : (
-                                <div className="text-xs sm:text-sm font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-neutral-800 px-3 py-2 rounded-xl border border-gray-100 dark:border-neutral-700 truncate">
-                                    {paymentMethod || "Tiền mặt"}
-                                </div>
-                            )}
-                        </div>
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1.5">
-                                <Calendar size={10} /> Ngày xuất
-                            </label>
-                            <div className="text-xs sm:text-sm font-mono font-bold text-gray-500 dark:text-gray-400 bg-white dark:bg-neutral-800 px-2 sm:px-3 py-2 rounded-xl border border-gray-100 dark:border-neutral-700 truncate">
-                                {slip.exportDate.split('T')[0]}
+                                    <CalendarIcon size={14} />
+                                </button>
+                                <input
+                                    type="datetime-local"
+                                    ref={dateInputRef}
+                                    className="absolute opacity-0 pointer-events-none"
+                                    onChange={(e) => {
+                                        if (e.target.value) {
+                                            setDateValue(formatDateTimeToVN(new Date(e.target.value).toISOString()))
+                                        }
+                                    }}
+                                />
+                                {dateError && <span className="absolute -bottom-4 left-0 text-[8px] text-red-500 font-bold whitespace-nowrap">{dateError}</span>}
                             </div>
-                        </div>
+                        ) : (
+                            <div className="text-xs font-mono font-bold text-gray-500 dark:text-gray-400 bg-white dark:bg-neutral-800 px-3 py-1.5 rounded-xl border border-gray-100 dark:border-neutral-700 truncate">
+                                {dateValue}
+                            </div>
+                        )}
                     </div>
+                    {/* Payment Info */}
+                    <div className="lg:col-span-2 flex flex-col gap-1.5 justify-center">
+                        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
+                            <CreditCard size={10} /> HTTT
+                        </label>
+                        {isEditing ? (
+                            <select
+                                value={paymentMethod}
+                                onChange={(e) => setPaymentMethod(e.target.value)}
+                                className="w-full bg-white dark:bg-neutral-800 border border-gray-200 dark:border-neutral-700 px-2 py-1.5 rounded-xl text-xs outline-none focus:border-[#5c9a38] transition-all"
+                            >
+                                <option value="">Chọn...</option>
+                                {allPaymentMethods.map(m => (
+                                    <option key={m.id || m.name} value={m.name}>{m.name}</option>
+                                ))}
+                            </select>
+                        ) : (
+                            <div className="text-xs font-bold text-gray-700 dark:text-gray-200 bg-white dark:bg-neutral-800 px-3 py-1.5 rounded-xl border border-gray-100 dark:border-neutral-700 truncate">
+                                {paymentMethod || "Tiền mặt"}
+                            </div>
+                        )}
+                    </div>
+
+
                 </div>
             </div>
 
@@ -529,17 +601,17 @@ export default function ExportOrderDetailPage() {
                     <div className="flex flex-col sm:flex-row lg:flex-col gap-3 w-full sm:w-auto mr-auto">
                         <div className="flex items-center gap-2">
                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Trạng thái</span>
-                            <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${slip.paymentStatus === 'Đã thanh toán'
+                            <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border ${slip?.paymentStatus === 'Đã thanh toán'
                                 ? 'bg-green-50 text-green-700 border-green-200'
                                 : 'bg-red-50 text-red-700 border-red-200'
                                 }`}>
-                                {slip.paymentStatus || "Hoàn tất"}
+                                {slip?.paymentStatus || "Hoàn tất"}
                             </span>
                         </div>
                         <div className="flex items-center gap-2">
                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Người thực hiện</span>
                             <div className="flex items-center gap-2 px-3 py-1 bg-gray-50 dark:bg-neutral-800 rounded-full border border-gray-100 dark:border-neutral-700">
-                                <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300">{slip.createdBy}</span>
+                                <span className="text-[10px] font-bold text-gray-600 dark:text-gray-300">{slip?.createdBy}</span>
                             </div>
                         </div>
                     </div>

@@ -8,6 +8,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import connectDB from './config/db.js';
+import { runAutoBackup } from './utils/auto-backup.js';
 import categoryRoutes from './routes/category.routes.js';
 import productRoutes from './routes/product.routes.js';
 import supplierRoutes from './routes/supplier.routes.js';
@@ -21,6 +22,7 @@ import productCategoryRoutes from './routes/product-category.routes.js';
 import dashboardRoutes from './routes/dashboard.routes.js';
 import authRoutes from './routes/auth.routes.js';
 import reportRoutes from './routes/report.routes.js';
+import doseTemplateRoutes from './routes/dose-template.routes.js';
 
 
 const app = express();
@@ -44,6 +46,7 @@ app.use('/api/product-categories', productCategoryRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/dose-templates', doseTemplateRoutes);
 
 app.get('/', (req, res) => {
     res.send('Pharmacy API is running...');
@@ -51,6 +54,8 @@ app.get('/', (req, res) => {
 
 // Connect to Database
 connectDB().then(() => {
+    runAutoBackup();
+    
     app.listen(Number(PORT), '0.0.0.0', () => {
         const networkInterfaces = os.networkInterfaces();
         const addresses: string[] = [];

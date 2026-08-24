@@ -18,9 +18,15 @@ export default defineConfig({
       }
     }
   },
+  preview: {
+    host: true,
+    port: 2222,
+    strictPort: true,
+  },
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
   },
 })
+

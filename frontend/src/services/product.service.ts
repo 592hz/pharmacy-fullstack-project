@@ -13,5 +13,8 @@ export const productService = {
     bulkRestore: (ids: string[]) => productsApi.bulkRestoreProducts(ids),
     bulkPermanentDelete: (ids: string[]) => productsApi.bulkPermanentDeleteProducts(ids),
     emptyTrash: () => productsApi.emptyProductTrash(),
-    bulkCreate: (products: Partial<IProduct>[]) => productsApi.bulkCreateProducts(products)
+    deleteAll: () => productsApi.deleteAllProducts(),
+    bulkCreate: (products: Partial<IProduct>[]) => productsApi.bulkCreateProducts(products),
+    reconstructFromHistory: () => productsApi.reconstructProductsFromHistory()
 }
+

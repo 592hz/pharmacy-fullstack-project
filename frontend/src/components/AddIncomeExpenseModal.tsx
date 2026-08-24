@@ -1,8 +1,8 @@
-import { useState } from "react"
-import { X } from "lucide-react"
+import { useState, useRef } from "react"
+import { X, Calendar as CalendarIcon } from "lucide-react"
 import { type Category } from "@/lib/schemas"
 import { NumericInput } from "@/components/ui/numeric-input"
-import { parseFloatSafe } from "@/lib/utils"
+import { parseFloatSafe, formatDateInput } from "@/lib/utils"
 
 interface AddIncomeExpenseModalProps {
     isOpen: boolean
@@ -20,6 +20,8 @@ export default function AddIncomeExpenseModal({
     initialData
 }: AddIncomeExpenseModalProps) {
     const [errors, setErrors] = useState<Record<string, string>>({})
+    const [dateValue, setDateValue] = useState(initialData?.date ? new Date(initialData.date).toLocaleDateString('vi-VN').split(' ')[0] : new Date().toLocaleDateString('vi-VN'))
+    const dateInputRef = useRef<HTMLInputElement>(null)
 
     const handleClose = () => {
         setErrors({})
@@ -37,7 +39,16 @@ export default function AddIncomeExpenseModal({
         const type = formData.get("type") as string
         const amountString = formData.get("amount") as string
         const amount = parseFloatSafe(amountString)
-        const date = formData.get("date") as string
+        
+        // Convert DD/MM/YYYY to ISO string
+        const parts = dateValue.split("/")
+        let isoDate = ""
+        if (parts.length === 3) {
+            isoDate = `${parts[2]}-${parts[1]}-${parts[0]}`
+        } else {
+            isoDate = new Date().toISOString().split('T')[0]
+        }
+        const date = isoDate
 
         if (!name) newErrors.name = "Vui lòng nhập diễn giải / tên khoản"
         if (!amount || amount <= 0) newErrors.amount = "Vui lòng nhập số tiền hợp lệ"
@@ -133,13 +144,35 @@ export default function AddIncomeExpenseModal({
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                                         Ngày thực hiện <span className="text-red-500">*</span>
                                     </label>
-                                    <input
-                                        type="date"
-                                        name="date"
-                                        defaultValue={initialData?.date || new Date().toISOString().split('T')[0]}
-                                        className={`w-full rounded-md border ${errors.date ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-neutral-700 focus:ring-[#65a34e]'} bg-white px-3 py-2 text-sm text-gray-900 focus:outline-none focus:ring-1 dark:bg-neutral-950 dark:text-white transition-shadow`}
-                                    />
-                                    {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
+                                    <div className="relative group">
+                                        <input
+                                            type="text"
+                                            name="date"
+                                            value={dateValue}
+                                            onChange={(e) => setDateValue(formatDateInput(e.target.value))}
+                                            placeholder="DD/MM/YYYY"
+                                            className={`w-full rounded-md border ${errors.date ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 dark:border-neutral-700 focus:ring-[#65a34e]'} bg-white px-3 py-2 pr-10 text-sm text-gray-900 focus:outline-none focus:ring-1 dark:bg-neutral-950 dark:text-white transition-shadow font-mono`}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => dateInputRef.current?.showPicker()}
+                                            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#65a34e] transition-colors"
+                                        >
+                                            <CalendarIcon size={16} />
+                                        </button>
+                                        <input
+                                            type="date"
+                                            ref={dateInputRef}
+                                            className="absolute opacity-0 pointer-events-none"
+                                            onChange={(e) => {
+                                                if (e.target.value) {
+                                                    const d = new Date(e.target.value)
+                                                    setDateValue(`${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`)
+                                                }
+                                            }}
+                                        />
+                                        {errors.date && <p className="text-xs text-red-500 mt-1">{errors.date}</p>}
+                                    </div>
                                 </div>
                             </div>
 

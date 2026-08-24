@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { Download, Upload, Plus, Bell, FileText, X } from "lucide-react"
+import { Download, Upload, Plus, Bell, FileText, X, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import AddCustomerModal from "@/components/add-customer-modal"
 import { type Customer } from "@/lib/schemas"
@@ -19,11 +19,12 @@ export default function CustomersPage() {
     const [customerToDelete, setCustomerToDelete] = useState<Customer | null>(null)
     const [deleteConfirmCount, setDeleteConfirmCount] = useState(0)
     const [isLoading, setIsLoading] = useState(true)
+    const [viewMode, setViewMode] = useState<'active' | 'trash'>('active')
 
     const fetchCustomers = async () => {
         setIsLoading(true)
         try {
-            const data = await customerService.getAll()
+            const data = await customerService.getAll(viewMode === 'trash')
             setCustomers(data)
         } catch (error: unknown) {
             toast.error("Không thể tải danh sách khách hàng: " + getErrorMessage(error))
@@ -34,7 +35,7 @@ export default function CustomersPage() {
 
     useEffect(() => {
         fetchCustomers()
-    }, [])
+    }, [viewMode])
 
     useEffect(() => {
         setCurrentPage(1)
@@ -56,13 +57,23 @@ export default function CustomersPage() {
             customerService.delete(customerToDelete.id!)
                 .then(() => {
                     setCustomers(customers.filter(c => c.id !== customerToDelete.id))
-                    toast.success("Đã xóa khách hàng thành công!")
+                    toast.success("Đã chuyển khách hàng vào thùng rác!")
                     setCustomerToDelete(null)
                     setDeleteConfirmCount(0)
                 })
                 .catch((error: unknown) => {
                     toast.error(`Lỗi khi xóa: ${getErrorMessage(error)}`)
                 })
+        }
+    }
+
+    const handleRestore = async (customer: Customer) => {
+        try {
+            await customerService.restore(customer.id!)
+            setCustomers(customers.filter(c => c.id !== customer.id))
+            toast.success("Đã khôi phục khách hàng thành công!")
+        } catch (error: unknown) {
+            toast.error(`Lỗi khi khôi phục: ${getErrorMessage(error)}`)
         }
     }
 
@@ -107,8 +118,23 @@ export default function CustomersPage() {
     return (
         <div className="flex flex-1 flex-col gap-4 p-4 md:p-6 bg-gray-50 dark:bg-neutral-950 min-h-screen font-sans">
             <div className="rounded-xl border bg-white dark:bg-neutral-900 shadow-sm overflow-hidden text-gray-800 dark:text-gray-100">
-                <div className="border-b px-6 py-4 bg-white dark:bg-neutral-900">
-                    <h1 className="text-xl font-bold">Danh sách khách hàng</h1>
+                <div className="border-b px-6 py-4 bg-white dark:bg-neutral-900 flex justify-between items-center">
+                    <h1 className="text-xl font-bold">
+                        {viewMode === 'active' ? 'Danh sách khách hàng' : 'Thùng rác khách hàng'}
+                    </h1>
+                    <button
+                        onClick={() => setViewMode(viewMode === 'active' ? 'trash' : 'active')}
+                        className={`text-xs font-bold px-3 py-1.5 rounded-full transition-colors flex items-center gap-1.5 ${viewMode === 'trash'
+                                ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                : "bg-red-50 text-red-600 dark:bg-red-900/10 dark:text-red-400 hover:bg-red-100"
+                            }`}
+                    >
+                        {viewMode === 'active' ? (
+                            <><Trash2 size={12} /> Thùng rác</>
+                        ) : (
+                            <><Bell size={12} /> Danh sách chính</>
+                        )}
+                    </button>
                 </div>
 
                 <div className="p-4 sm:p-6">
@@ -187,23 +213,34 @@ export default function CustomersPage() {
                                         <td className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 hidden sm:table-cell text-xs text-center">{customer.dob}</td>
                                         <td className="px-3 py-3 border-r border-gray-200 dark:border-neutral-800 text-[11px] hidden lg:table-cell leading-relaxed">{customer.address}</td>
                                         <td className="px-3 py-3 text-center space-x-2 whitespace-nowrap">
-                                            <button
-                                                onClick={() => {
-                                                    setEditingCustomer(customer)
-                                                    setIsAddModalOpen(true)
-                                                }}
-                                                className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white p-1.5 rounded transition-transform active:scale-95"
-                                                title="Sửa"
-                                            >
-                                                <FileText size={14} />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDeleteClick(customer)}
-                                                className="bg-red-500 hover:bg-red-600 text-white p-1.5 rounded transition-transform active:scale-95"
-                                                title="Xóa"
-                                            >
-                                                <X size={14} />
-                                            </button>
+                                            {viewMode === 'active' ? (
+                                                <>
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingCustomer(customer)
+                                                            setIsAddModalOpen(true)
+                                                        }}
+                                                        className="bg-[#5c9a38] hover:bg-[#5c9a38]/90 text-white p-1.5 rounded transition-transform active:scale-95"
+                                                        title="Sửa"
+                                                    >
+                                                        <FileText size={14} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDeleteClick(customer)}
+                                                        className="bg-red-500 hover:bg-red-600 text-white p-1.5 rounded transition-transform active:scale-95"
+                                                        title="Xóa"
+                                                    >
+                                                        <X size={14} />
+                                                    </button>
+                                                </>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleRestore(customer)}
+                                                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-xs font-bold transition-transform active:scale-95"
+                                                >
+                                                    Khôi phục
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}
@@ -325,8 +362,8 @@ export default function CustomersPage() {
                         </h3>
                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-6 leading-relaxed">
                             {deleteConfirmCount === 1
-                                ? `Hành động này sẽ xóa vĩnh viễn khách hàng "${customerToDelete?.name}". Bạn có chắc chắn?`
-                                : `Vui lòng xác nhận lại: Bạn thực sự muốn xóa khách hàng "${customerToDelete?.name}"?`
+                                ? `Hành động này sẽ chuyển khách hàng "${customerToDelete?.name}" vào thùng rác. Bạn có chắc chắn?`
+                                : `Vui lòng xác nhận lại: Bạn thực sự muốn chuyển khách hàng "${customerToDelete?.name}" vào thùng rác?`
                             }
                         </p>
 

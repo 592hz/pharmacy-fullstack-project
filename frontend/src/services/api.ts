@@ -32,9 +32,24 @@ const getHeaders = () => {
 };
 
 export const api = {
-    get: <T>(url: string) => fetch(`${API_BASE_URL}${url}`, {
-        headers: getHeaders()
-    }).then((res) => handleResponse<T>(res)),
+    get: <T>(url: string, options?: { params?: Record<string, any> }) => {
+        let fullUrl = `${API_BASE_URL}${url}`;
+        if (options?.params) {
+            const query = new URLSearchParams();
+            Object.entries(options.params).forEach(([key, val]) => {
+                if (val !== undefined && val !== null) {
+                    query.append(key, String(val));
+                }
+            });
+            const queryString = query.toString();
+            if (queryString) {
+                fullUrl += (fullUrl.includes('?') ? '&' : '?') + queryString;
+            }
+        }
+        return fetch(fullUrl, {
+            headers: getHeaders()
+        }).then((res) => handleResponse<T>(res));
+    },
     post: <T>(url: string, data: unknown) => fetch(`${API_BASE_URL}${url}`, {
         method: 'POST',
         headers: getHeaders(),
@@ -69,8 +84,11 @@ export const productsApi = {
     bulkRestoreProducts: (ids: string[]) => api.put<{ message: string }>('/products/trash/restore-bulk', { ids }),
     bulkPermanentDeleteProducts: (ids: string[]) => api.delete<{ message: string }>('/products/trash/permanent-bulk', { ids }, true),
     emptyProductTrash: () => api.delete<{ message: string }>('/products/trash/empty'),
+    deleteAllProducts: () => api.delete<{ message: string }>('/products/all'),
     bulkCreateProducts: (products: Partial<IProduct>[]) => api.post<IBulkCreateResponse>('/products/bulk', { products }),
+    reconstructProductsFromHistory: () => api.post<{ message: string; count: number }>('/products/reconstruct-from-history', {}),
 };
+
 
 export const categoriesApi = {
     getCategories: () => api.get<IProductCategory[]>('/product-categories'),
@@ -107,6 +125,7 @@ export const purchaseOrdersApi = {
     deleteOrder: (id: string) => api.delete<{ message: string }>(`/purchase-orders/${id}`),
     restoreOrder: (id: string) => api.put<IPurchaseOrder>(`/purchase-orders/${id}/restore`, {}),
     permanentDeleteOrder: (id: string) => api.delete<{ message: string }>(`/purchase-orders/${id}/permanent`),
+    bulkDeleteOrders: (ids: string[]) => api.put<{ message: string }>('/purchase-orders/trash/delete-bulk', { ids }),
     bulkRestoreOrders: (ids: string[]) => api.put<{ message: string }>('/purchase-orders/trash/restore-bulk', { ids }),
     bulkPermanentDeleteOrders: (ids: string[]) => api.delete<{ message: string }>('/purchase-orders/trash/permanent-bulk', { ids }, true),
     emptyOrderTrash: () => api.delete<{ message: string }>('/purchase-orders/trash/empty'),

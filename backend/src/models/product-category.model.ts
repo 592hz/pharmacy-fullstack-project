@@ -9,8 +9,8 @@ export interface IProductCategory extends Document {
 }
 
 const ProductCategorySchema: Schema = new Schema({
-    code: { type: String, required: true, unique: true },
-    name: { type: String, required: true },
+    code: { type: String, required: [true, 'Mã nhóm hàng hóa không được để trống'], unique: true },
+    name: { type: String, required: [true, 'Tên nhóm hàng hóa không được để trống'] },
     notes: { type: String },
     isDeleted: { type: Boolean, default: false },
     deletedAt: { type: Date }

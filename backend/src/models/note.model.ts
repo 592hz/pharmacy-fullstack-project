@@ -9,8 +9,8 @@ export interface INote extends Document {
 }
 
 const NoteSchema: Schema = new Schema({
-    title: { type: String, required: true },
-    content: { type: String, required: true },
+    title: { type: String, required: [true, 'Tiêu đề ghi chú không được để trống'] },
+    content: { type: String, required: [true, 'Nội dung ghi chú không được để trống'] },
     date: { type: Date, default: Date.now },
     color: { type: String },
     isPinned: { type: Boolean, default: false }
