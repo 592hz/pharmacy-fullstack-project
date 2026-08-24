@@ -35,18 +35,18 @@ const parseExpiryDateFast = (dateStr: string): Date | null => {
     if (s.length >= 10 && (s[4] === '-' || s[4] === '/')) {
         const parts = s.split(/[-/]/);
         if (parts.length >= 3) {
-            const y = parseInt(parts[0], 10);
-            const m = parseInt(parts[1], 10) - 1;
-            const d = parseInt(parts[2], 10);
+            const y = parseInt(parts[0]!, 10);
+            const m = parseInt(parts[1]!, 10) - 1;
+            const d = parseInt(parts[2]!, 10);
             if (!isNaN(y) && !isNaN(m) && !isNaN(d)) return new Date(y, m, d);
         }
     }
 
     const parts = s.split(/[-/]/);
     if (parts.length >= 3) {
-        const d = parseInt(parts[0], 10);
-        const m = parseInt(parts[1], 10) - 1;
-        let y = parseInt(parts[2], 10);
+        const d = parseInt(parts[0]!, 10);
+        const m = parseInt(parts[1]!, 10) - 1;
+        let y = parseInt(parts[2]!, 10);
         if (y < 100) y += 2000;
         if (!isNaN(d) && !isNaN(m) && !isNaN(y)) return new Date(y, m, d);
     }

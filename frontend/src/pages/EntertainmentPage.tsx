@@ -8,6 +8,7 @@ import GoMasterModal from '@/components/GoMasterModal';
 import WhackAMoleModal from '@/components/WhackAMoleModal';
 import PiggybackMazeModal from '@/components/PiggybackMazeModal';
 import PillMemoryCardModal from '@/components/PillMemoryCardModal';
+import MedRushModal from '@/components/MedRushModal';
 
 export const EntertainmentPage: React.FC = () => {
     const [isDropMergeGameOpen, setIsDropMergeGameOpen] = useState<boolean>(false);
@@ -18,6 +19,7 @@ export const EntertainmentPage: React.FC = () => {
     const [isWhackAMoleGameOpen, setIsWhackAMoleGameOpen] = useState<boolean>(false);
     const [isPiggybackGameOpen, setIsPiggybackGameOpen] = useState<boolean>(false);
     const [isMemoryGameOpen, setIsMemoryGameOpen] = useState<boolean>(false);
+    const [isMedRushGameOpen, setIsMedRushGameOpen] = useState<boolean>(false);
 
     return (
         <div className="p-4 sm:p-6 space-y-6 max-w-6xl mx-auto animate-fadeIn">
@@ -37,6 +39,15 @@ export const EntertainmentPage: React.FC = () => {
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2.5">
+                    <button
+                        type="button"
+                        onClick={() => setIsMedRushGameOpen(true)}
+                        className="px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-black text-xs rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition flex items-center gap-1.5 border border-white/40 animate-pulse"
+                    >
+                        <Zap size={16} />
+                        <span>MED RUSH 💊</span>
+                    </button>
+
                     <button
                         type="button"
                         onClick={() => setIsMemoryGameOpen(true)}
@@ -113,6 +124,37 @@ export const EntertainmentPage: React.FC = () => {
 
             {/* Game Cards Showcase */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                {/* Card Special: MED RUSH (Eggy Party Runner) */}
+                <div className="bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-5 border-2 border-cyan-400/60 shadow-xl hover:shadow-cyan-500/20 transition-all duration-300 flex flex-col justify-between group relative overflow-hidden text-white">
+                    <div className="absolute -top-12 -right-12 w-32 h-32 bg-cyan-500/20 rounded-full blur-2xl group-hover:scale-150 transition-transform"></div>
+                    <div className="space-y-3 relative z-10">
+                        <div className="w-14 h-14 rounded-2xl bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center text-3xl shadow-inner group-hover:scale-110 transition-transform">
+                            💊
+                        </div>
+                        <div>
+                            <div className="inline-block px-2.5 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-cyan-500 to-indigo-500 text-white mb-1 shadow">
+                                EGGY STYLE • PHẢN XẠ 🚀
+                            </div>
+                            <h3 className="text-xl font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-indigo-200">
+                                MED RUSH 💊🏃‍♂️
+                            </h3>
+                            <p className="text-xs text-slate-300 mt-1 line-clamp-2 leading-relaxed">
+                                Game runner phong cách Eggy Party! Nhanh tay điều khiển viên thuốc bật nhảy cực đỉnh qua chướng ngại vật & virus!
+                            </p>
+                        </div>
+                    </div>
+                    <div className="pt-4 mt-4 border-t border-slate-800 flex items-center justify-between relative z-10">
+                        <span className="text-[11px] font-bold text-slate-400">Double Jump • Nhạc Siêu Phê</span>
+                        <button
+                            type="button"
+                            onClick={() => setIsMedRushGameOpen(true)}
+                            className="px-4 py-2 bg-gradient-to-r from-cyan-400 via-indigo-500 to-rose-500 hover:from-cyan-300 hover:to-rose-400 text-white font-black text-xs rounded-xl shadow-lg transition hover:scale-105 active:scale-95"
+                        >
+                            CHƠI MED RUSH 💊
+                        </button>
+                    </div>
+                </div>
 
                 {/* Card 00: Pill Memory Matching (Lật Hình Tìm Cặp Thuốc) */}
                 <div className="bg-white dark:bg-neutral-800 rounded-3xl p-5 border border-cyan-300 dark:border-cyan-700/60 shadow-lg hover:shadow-xl transition-all duration-300 flex flex-col justify-between group">
@@ -442,6 +484,11 @@ export const EntertainmentPage: React.FC = () => {
             <PillMemoryCardModal
                 isOpen={isMemoryGameOpen}
                 onClose={() => setIsMemoryGameOpen(false)}
+            />
+
+            <MedRushModal
+                isOpen={isMedRushGameOpen}
+                onClose={() => setIsMedRushGameOpen(false)}
             />
         </div>
     );

@@ -250,7 +250,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
 
         onAdd(mainDoseItem, componentItems)
         onClose()
-        toast.success(`Đã thêm ${effectiveDoseQty} liều: ${doseName}`)
+        toast.success(`Đã thêm ${effectiveDoseQty} ngày: ${doseName}`)
 
         // Reset state
         setDoseName("")
@@ -333,7 +333,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
 
                         {/* Dose Quantity Selection */}
                         <div className="space-y-3">
-                            <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Số lượng liều thêm</label>
+                            <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Số ngày thêm</label>
                             <div className="flex items-center gap-3">
                                 <div className="flex items-center border border-gray-200 dark:border-neutral-700 rounded-2xl bg-gray-50 dark:bg-neutral-800 p-1">
                                     <button
@@ -367,7 +367,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                                                 : "border-gray-200 dark:border-neutral-700 hover:border-green-400 text-gray-600 dark:text-gray-300 bg-white dark:bg-neutral-900"
                                                 }`}
                                         >
-                                            {q} liều
+                                            {q} ngày
                                         </button>
                                     ))}
                                 </div>
@@ -375,7 +375,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                         </div>
                         {/* Price Selection */}
                         <div className="space-y-3">
-                            <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Chọn mức giá bán (1 liều)</label>
+                            <label className="text-[11px] font-black text-gray-400 uppercase tracking-widest">Chọn mức giá bán (1 ngày)</label>
                             <div className="grid grid-cols-2 gap-2">
                                 {PRESET_PRICES.map((p) => (
                                     <button
@@ -421,7 +421,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                         <div className="bg-gray-900 dark:bg-black rounded-3xl p-6 text-white space-y-4 shadow-xl">
                             <div className="flex justify-between items-center">
                                 <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">
-                                    Tổng giá nhập {doseQuantity > 1 ? `(${doseQuantity} liều)` : ""}
+                                    Tổng giá nhập {doseQuantity > 1 ? `(${doseQuantity} ngày)` : ""}
                                 </span>
                                 <span className="text-lg font-mono font-bold text-blue-400">
                                     {(totalImportPrice * Math.max(1, doseQuantity)).toLocaleString("vi-VN")} đ
@@ -430,7 +430,7 @@ export default function AddDoseModal({ isOpen, onClose, allProducts, onAdd }: Ad
                             <div className="h-px bg-white/10"></div>
                             <div className="flex justify-between items-center">
                                 <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">
-                                    Tổng giá bán {doseQuantity > 1 ? `(${doseQuantity} liều)` : ""}
+                                    Tổng giá bán {doseQuantity > 1 ? `(${doseQuantity} ngày)` : ""}
                                 </span>
                                 <span className="text-2xl font-black text-green-400">
                                     {(finalPrice * Math.max(1, doseQuantity)).toLocaleString("vi-VN")} đ
