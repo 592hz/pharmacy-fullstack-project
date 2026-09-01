@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
-import { Search, PlusCircle, Trash2, Save, X, User, CreditCard, TrendingUp, Plus, Activity, Pill, Calendar as CalendarIcon } from "lucide-react"
+import { Search, PlusCircle, Trash2, Save, X, User, CreditCard, TrendingUp, Plus, Activity, Pill, Calendar as CalendarIcon, Lock, Unlock } from "lucide-react"
 import { toast } from "sonner"
 import { type ExportOrder, type ExportOrderItem, type Customer, exportOrderSchema } from "@/lib/schemas"
 import { exportSlipService } from "@/services/export-slip.service"
@@ -72,8 +72,25 @@ export default function CreateExportOrderPage() {
 
     // Metadata
     const [orderId, setOrderId] = useState(generateExportOrderId)
-    const [dateValue, setDateValue] = useState(() => formatDateTimeToVN(new Date().toISOString()))
+    const [isDateLocked, setIsDateLocked] = useState(() => {
+        return localStorage.getItem("export_order_date_locked") === "true"
+    })
+    const [dateValue, setDateValue] = useState(() => {
+        const isLocked = localStorage.getItem("export_order_date_locked") === "true"
+        const savedLockedDate = localStorage.getItem("export_order_locked_date_value")
+        if (isLocked && savedLockedDate) {
+            return savedLockedDate
+        }
+        return formatDateTimeToVN(new Date().toISOString())
+    })
     const [dateError, setDateError] = useState("")
+
+    useEffect(() => {
+        localStorage.setItem("export_order_date_locked", String(isDateLocked))
+        if (isDateLocked) {
+            localStorage.setItem("export_order_locked_date_value", dateValue)
+        }
+    }, [isDateLocked, dateValue])
 
     const [showAddModal, setShowAddModal] = useState(false)
     const [showAddDoseModal, setShowAddDoseModal] = useState(false)
@@ -98,10 +115,11 @@ export default function CreateExportOrderPage() {
             customerName,
             symptoms,
             dateValue,
+            isDateLocked,
             timestamp: new Date().getTime()
         }
         localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(draftData))
-    }, [notes, items, paymentMethod, isPrescription, doctorName, customerId, customerName, symptoms, dateValue])
+    }, [notes, items, paymentMethod, isPrescription, doctorName, customerId, customerName, symptoms, dateValue, isDateLocked])
 
     // Auto-save useEffect
     useEffect(() => {
@@ -141,6 +159,9 @@ export default function CreateExportOrderPage() {
                         setCustomerId(parsed.customerId || "")
                         setCustomerName(parsed.customerName || "Khách lẻ")
                         setSymptoms(parsed.symptoms || "")
+                        if (parsed.isDateLocked !== undefined) {
+                            setIsDateLocked(parsed.isDateLocked)
+                        }
                         if (parsed.dateValue) setDateValue(parsed.dateValue)
                         setHasRestoredDraft(true)
                         toast.info("Đã khôi phục bản nháp phiếu bán hàng trước đó", {
@@ -585,7 +606,7 @@ export default function CreateExportOrderPage() {
             await exportSlipService.create(newSlip)
             clearDraft()
             toast.success("Tạo phiếu bán hàng thành công!")
-            
+
             // Reset form for the next order
             setItems([])
             setCustomerId("")
@@ -595,7 +616,11 @@ export default function CreateExportOrderPage() {
             setDoctorName("")
             setIsPrescription(false)
             setOrderId(generateExportOrderId())
-            setDateValue(formatDateTimeToVN(new Date().toISOString()))
+            if (!isDateLocked) {
+                setDateValue(formatDateTimeToVN(new Date().toISOString()))
+            } else {
+                toast.info(`Giữ nguyên ngày bán đã khóa: ${dateValue}`, { duration: 3000 })
+            }
         } catch (error: unknown) {
             const errorMsg = getErrorMessage(error)
             if (errorMsg.includes("E11000") || errorMsg.includes("duplicate") || errorMsg.includes("Mã hóa đơn")) {
@@ -614,7 +639,11 @@ export default function CreateExportOrderPage() {
                     setDoctorName("")
                     setIsPrescription(false)
                     setOrderId(generateExportOrderId())
-                    setDateValue(formatDateTimeToVN(new Date().toISOString()))
+                    if (!isDateLocked) {
+                        setDateValue(formatDateTimeToVN(new Date().toISOString()))
+                    } else {
+                        toast.info(`Giữ nguyên ngày bán đã khóa: ${dateValue}`, { duration: 3000 })
+                    }
                 } catch (retryError) {
                     toast.error("Lỗi khi tạo phiếu bán hàng: " + getErrorMessage(retryError))
                 }
@@ -763,21 +792,33 @@ export default function CreateExportOrderPage() {
                         />
                     </div>
 
-                    <div className="lg:col-span-2 flex flex-col gap-1.5">
+                    <div className="lg:col-span-3 flex flex-col gap-1.5">
                         <div className="flex justify-between items-center px-1">
                             <label className="text-[10px] sm:text-[11px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1"><CalendarIcon size={10} /> Ngày bán</label>
                             <div className="flex gap-1.5">
                                 <button
-                                    onClick={() => setDateValue(formatDateTimeToVN(new Date().toISOString()))}
+                                    type="button"
+                                    onClick={() => {
+                                        const nowFormatted = formatDateTimeToVN(new Date().toISOString())
+                                        setDateValue(nowFormatted)
+                                        if (isDateLocked) {
+                                            localStorage.setItem("export_order_locked_date_value", nowFormatted)
+                                        }
+                                    }}
                                     className="text-[9px] font-black text-[#5c9a38] hover:underline uppercase"
                                 >
                                     Bây giờ
                                 </button>
                                 <button
+                                    type="button"
                                     onClick={() => {
                                         const morning = new Date()
                                         morning.setHours(8, 0, 0, 0)
-                                        setDateValue(formatDateTimeToVN(morning.toISOString()))
+                                        const morningFormatted = formatDateTimeToVN(morning.toISOString())
+                                        setDateValue(morningFormatted)
+                                        if (isDateLocked) {
+                                            localStorage.setItem("export_order_locked_date_value", morningFormatted)
+                                        }
                                     }}
                                     className="text-[9px] font-black text-blue-500 hover:underline uppercase"
                                 >
@@ -785,34 +826,84 @@ export default function CreateExportOrderPage() {
                                 </button>
                             </div>
                         </div>
-                        <div className="relative group">
-                            <input
-                                type="text"
-                                value={dateValue}
-                                onChange={(e) => {
-                                    setDateValue(formatDateTimeInput(e.target.value))
-                                    if (dateError) setDateError("")
-                                }}
-                                placeholder="dd/mm/yyyy HH:mm"
-                                className={`w-full bg-white dark:bg-neutral-900 border ${dateError ? 'border-red-500' : 'border-gray-300 dark:border-neutral-700'} px-2 py-1.5 sm:py-2 pr-8 rounded text-[10px] sm:text-[11px] text-gray-800 dark:text-gray-200 font-mono focus:ring-2 focus:ring-[#5c9a38]/20 focus:border-[#5c9a38] outline-none transition-all shadow-sm`}
-                            />
+                        <div className="flex items-center gap-1.5">
+                            <div className="relative flex-1 group">
+                                <input
+                                    type="text"
+                                    value={dateValue}
+                                    onChange={(e) => {
+                                        const val = formatDateTimeInput(e.target.value)
+                                        setDateValue(val)
+                                        if (isDateLocked) {
+                                            localStorage.setItem("export_order_locked_date_value", val)
+                                        }
+                                        if (dateError) setDateError("")
+                                    }}
+                                    placeholder="dd/mm/yyyy HH:mm"
+                                    className={`w-full bg-white dark:bg-neutral-900 border ${dateError
+                                            ? 'border-red-500'
+                                            : isDateLocked
+                                                ? 'border-amber-500 ring-2 ring-amber-500/20 bg-amber-50/40 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 font-bold'
+                                                : 'border-gray-300 dark:border-neutral-700'
+                                        } px-2 py-1.5 sm:py-2 pr-8 rounded text-[10px] sm:text-[11px] text-gray-800 dark:text-gray-200 font-mono focus:ring-2 focus:ring-[#5c9a38]/20 focus:border-[#5c9a38] outline-none transition-all shadow-sm`}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => dateInputRef.current?.showPicker()}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#5c9a38] transition-colors"
+                                >
+                                    <CalendarIcon size={14} />
+                                </button>
+                                <input
+                                    type="datetime-local"
+                                    ref={dateInputRef}
+                                    className="absolute opacity-0 pointer-events-none"
+                                    onChange={(e) => {
+                                        if (e.target.value) {
+                                            const formatted = formatDateTimeToVN(new Date(e.target.value).toISOString())
+                                            setDateValue(formatted)
+                                            if (isDateLocked) {
+                                                localStorage.setItem("export_order_locked_date_value", formatted)
+                                            }
+                                        }
+                                    }}
+                                />
+                                {dateError && <span className="absolute -bottom-4 left-0 text-[9px] text-red-500 font-bold">{dateError}</span>}
+                            </div>
                             <button
-                                onClick={() => dateInputRef.current?.showPicker()}
-                                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#5c9a38] transition-colors"
-                            >
-                                <CalendarIcon size={14} />
-                            </button>
-                            <input
-                                type="datetime-local"
-                                ref={dateInputRef}
-                                className="absolute opacity-0 pointer-events-none"
-                                onChange={(e) => {
-                                    if (e.target.value) {
-                                        setDateValue(formatDateTimeToVN(new Date(e.target.value).toISOString()))
+                                type="button"
+                                onClick={() => {
+                                    const nextState = !isDateLocked
+                                    setIsDateLocked(nextState)
+                                    localStorage.setItem("export_order_date_locked", String(nextState))
+                                    if (nextState) {
+                                        localStorage.setItem("export_order_locked_date_value", dateValue)
+                                        toast.success(`Đã KHÓA ngày bán (${dateValue})!`, {
+                                            description: "Các hóa đơn tiếp theo sẽ giữ nguyên ngày này.",
+                                            icon: "🔒",
+                                        })
+                                    } else {
+                                        toast.info("Đã MỞ KHÓA ngày bán. Hóa đơn tiếp theo sẽ tự lấy giờ hiện tại.")
                                     }
                                 }}
-                            />
-                            {dateError && <span className="absolute -bottom-4 left-0 text-[9px] text-red-500 font-bold">{dateError}</span>}
+                                className={`px-2.5 py-1.5 sm:py-2 rounded-lg flex items-center justify-center gap-1 text-[10px] sm:text-[11px] font-bold transition-all border whitespace-nowrap shadow-sm ${isDateLocked
+                                        ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-600 ring-2 ring-amber-500/30"
+                                        : "bg-gray-100 hover:bg-gray-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-neutral-700"
+                                    }`}
+                                title={isDateLocked ? "Ngày bán đang KHÓA. Nhấn để MỞ KHÓA." : "Nhấn để KHÓA cố định ngày bán cho các hóa đơn tiếp theo."}
+                            >
+                                {isDateLocked ? (
+                                    <>
+                                        <Lock size={12} className="text-white" />
+                                        <span>Đã khóa</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <Unlock size={12} />
+                                        <span>Khóa ngày</span>
+                                    </>
+                                )}
+                            </button>
                         </div>
                     </div>
 
