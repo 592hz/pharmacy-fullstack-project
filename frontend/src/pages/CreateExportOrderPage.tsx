@@ -841,10 +841,10 @@ export default function CreateExportOrderPage() {
                                     }}
                                     placeholder="dd/mm/yyyy HH:mm"
                                     className={`w-full bg-white dark:bg-neutral-900 border ${dateError
-                                            ? 'border-red-500'
-                                            : isDateLocked
-                                                ? 'border-amber-500 ring-2 ring-amber-500/20 bg-amber-50/40 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 font-bold'
-                                                : 'border-gray-300 dark:border-neutral-700'
+                                        ? 'border-red-500'
+                                        : isDateLocked
+                                            ? 'border-amber-500 ring-2 ring-amber-500/20 bg-amber-50/40 dark:bg-amber-950/20 text-amber-900 dark:text-amber-100 font-bold'
+                                            : 'border-gray-300 dark:border-neutral-700'
                                         } px-2 py-1.5 sm:py-2 pr-8 rounded text-[10px] sm:text-[11px] text-gray-800 dark:text-gray-200 font-mono focus:ring-2 focus:ring-[#5c9a38]/20 focus:border-[#5c9a38] outline-none transition-all shadow-sm`}
                                 />
                                 <button
@@ -887,8 +887,8 @@ export default function CreateExportOrderPage() {
                                     }
                                 }}
                                 className={`px-2.5 py-1.5 sm:py-2 rounded-lg flex items-center justify-center gap-1 text-[10px] sm:text-[11px] font-bold transition-all border whitespace-nowrap shadow-sm ${isDateLocked
-                                        ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-600 ring-2 ring-amber-500/30"
-                                        : "bg-gray-100 hover:bg-gray-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-neutral-700"
+                                    ? "bg-amber-500 hover:bg-amber-600 text-white border-amber-600 ring-2 ring-amber-500/30"
+                                    : "bg-gray-100 hover:bg-gray-200 dark:bg-neutral-800 dark:hover:bg-neutral-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-neutral-700"
                                     }`}
                                 title={isDateLocked ? "Ngày bán đang KHÓA. Nhấn để MỞ KHÓA." : "Nhấn để KHÓA cố định ngày bán cho các hóa đơn tiếp theo."}
                             >
@@ -930,7 +930,7 @@ export default function CreateExportOrderPage() {
                             className="bg-white dark:bg-neutral-900 border border-gray-300 dark:border-neutral-700 px-3 py-1.5 sm:py-2 rounded text-xs sm:text-sm outline-none font-bold text-red-600 dark:text-red-400"
                         />
                     </div>
-
+                    {/* 
                     <div className="lg:col-span-1 flex items-center h-[38px] sm:h-auto mb-[2px]">
                         <label className="flex items-center gap-2 cursor-pointer select-none">
                             <input
@@ -952,7 +952,7 @@ export default function CreateExportOrderPage() {
                                 )}
                             </div>
                         </label>
-                    </div>
+                    </div> */}
 
                     {/* Total Amount Display - Prominent Box */}
                     <div className="sm:col-span-2 lg:col-span-2 flex justify-start sm:justify-end">
